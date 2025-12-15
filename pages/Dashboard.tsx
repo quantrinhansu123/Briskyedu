@@ -1,6 +1,7 @@
 /**
  * Dashboard Page
- * Modern Glass Morphism Design
+ * Warm Education Design - Teal & Coral Theme
+ * Aesthetic: Professional, Warm, Memorable
  */
 
 import React, { useState, useEffect } from 'react';
@@ -49,24 +50,25 @@ import { seedAllData, clearAllData } from '../scripts/seedAllData';
 import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { useProducts } from '../src/hooks/useProducts';
 
-// Modern color palette
+// Warm Education Color Palette - Teal & Coral Theme
 const COLORS = {
-  noPhi: '#6366f1',      // Indigo - Nợ phí
-  hocThu: '#f59e0b',     // Amber - Học thử
-  baoLuu: '#8b5cf6',     // Violet - Bảo lưu
-  nghiHoc: '#ef4444',    // Red - Nghỉ học
-  hvMoi: '#10b981',      // Emerald - HV mới
-  hocPhi: '#ec4899',     // Pink
+  noPhi: '#0D9488',      // Teal - Nợ phí (primary)
+  hocThu: '#F59E0B',     // Amber - Học thử
+  baoLuu: '#6366F1',     // Indigo - Bảo lưu
+  nghiHoc: '#EF4444',    // Red - Nghỉ học
+  hvMoi: '#10B981',      // Emerald - HV mới
+  hocPhi: '#FF6B5A',     // Coral - Học phí (accent)
 };
 
-const PIE_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+const PIE_COLORS = ['#0D9488', '#FF6B5A', '#F59E0B', '#10B981', '#6366F1'];
 
-// Gradient definitions for cards
+// Gradient definitions for cards - Warm Education Theme
 const GRADIENTS = {
-  primary: 'from-indigo-500 via-purple-500 to-pink-500',
-  secondary: 'from-emerald-400 to-cyan-500',
-  warm: 'from-orange-400 to-rose-500',
-  cool: 'from-blue-500 to-indigo-600',
+  primary: 'from-teal-500 via-teal-600 to-emerald-600',
+  secondary: 'from-emerald-400 to-teal-500',
+  warm: 'from-[#FF6B5A] to-[#FF8F7A]',
+  cool: 'from-slate-600 to-slate-800',
+  accent: 'from-amber-400 to-orange-500',
 };
 
 interface StudentData {
@@ -639,32 +641,53 @@ export const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center -m-6">
+      <div className="min-h-screen bg-gradient-to-br from-[#FFFBF5] via-white to-teal-50/30 flex items-center justify-center -m-6">
         <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-purple-500/30 rounded-full"></div>
-            <div className="w-16 h-16 border-4 border-transparent border-t-purple-500 rounded-full animate-spin absolute top-0 left-0"></div>
+          <div className="relative w-20 h-20 mx-auto">
+            {/* Outer ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-teal-100"></div>
+            {/* Spinning teal ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-teal-500 border-r-teal-300 animate-spin"></div>
+            {/* Inner spinning coral ring */}
+            <div className="absolute inset-3 rounded-full border-4 border-transparent border-t-[#FF6B5A] animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.7s' }}></div>
+            {/* Center dot */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-3 h-3 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-full animate-pulse"></div>
+            </div>
           </div>
-          <p className="text-purple-200 mt-4 font-medium">Đang tải dữ liệu...</p>
+          <p className="text-slate-700 mt-5 font-semibold text-lg">Đang tải dữ liệu...</p>
+          <p className="text-slate-400 text-sm mt-1">Vui lòng đợi trong giây lát</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 -m-6 p-6">
-      {/* Decorative background elements */}
+    <div className="min-h-screen bg-gradient-to-br from-[#FFFBF5] via-white to-teal-50/20 -m-6 p-6">
+      {/* Decorative background elements - Warm Education Theme */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute top-1/2 -left-40 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-teal-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse"></div>
+        <div className="absolute top-1/3 -left-40 w-80 h-80 bg-[#FF6B5A] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute -bottom-40 right-1/4 w-72 h-72 bg-amber-300 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-2/3 left-1/3 w-64 h-64 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '6s' }}></div>
       </div>
 
       <div className="relative z-10 space-y-6">
-        {/* Hero Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-6 shadow-2xl">
-          {/* Animated gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 animate-shimmer"></div>
+        {/* Hero Header - Teal Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500 p-6 shadow-2xl shadow-teal-500/20">
+          {/* Decorative pattern overlay */}
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)"/>
+            </svg>
+          </div>
+          {/* Animated shimmer */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 animate-shimmer"></div>
           
           {/* Content */}
           <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -740,10 +763,10 @@ export const Dashboard: React.FC = () => {
           {/* Left Column */}
           <div className="col-span-12 lg:col-span-7 space-y-6">
             {/* Student Stats Bar Chart */}
-            <div className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300">
+            <div className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-teal-100/30 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
+                  <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-lg shadow-teal-500/30">
                     <BarChart3 className="text-white" size={20} />
                   </div>
                   <div>
@@ -795,7 +818,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Revenue Comparison */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
@@ -828,7 +851,7 @@ export const Dashboard: React.FC = () => {
                           contentStyle={{ background: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}
                         />
                         <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                          <Cell fill="#6366f1" />
+                          <Cell fill="#0D9488" />
                           <Cell fill="#10b981" />
                           <Cell fill="#f43f5e" />
                         </Bar>
@@ -836,8 +859,8 @@ export const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex gap-4 mt-4 text-xs justify-center">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full">
-                      <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full"></div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 rounded-full">
+                      <div className="w-2.5 h-2.5 bg-teal-500 rounded-full"></div>
                       <span className="text-gray-700">Kỳ vọng</span>
                     </div>
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full">
@@ -862,16 +885,16 @@ export const Dashboard: React.FC = () => {
           {/* Right Column - Pie Charts */}
           <div className="col-span-12 lg:col-span-5 space-y-6">
             {/* Revenue Pie Chart */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-[#FF6B5A]/10 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl shadow-lg">
+                  <div className="p-2 bg-gradient-to-br from-[#FF6B5A] to-[#FF8F7A] rounded-xl shadow-lg shadow-[#FF6B5A]/30">
                     <PieChartIcon className="text-white" size={20} />
                   </div>
                   <h3 className="font-bold text-gray-800">Doanh số bán hàng</h3>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                  <div className="text-xl font-bold bg-gradient-to-r from-[#FF6B5A] to-[#FF8F7A] bg-clip-text text-transparent">
                     {formatCurrency(revenuePieData.reduce((sum, item) => sum + item.value, 0) || stats.totalRevenue)}
                   </div>
                   <span className="text-xs text-gray-500">{currentMonth}</span>
@@ -909,7 +932,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Revenue vs Debt Pie Chart */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/50 hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg">
@@ -951,9 +974,9 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="flex flex-wrap justify-between items-center mt-4 pt-4 border-t border-gray-100 gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-teal-500"></div>
                   <span className="text-sm text-gray-600">Đã thu:</span>
-                  <span className="font-semibold text-indigo-600">{formatCurrency(stats.totalRevenue)}</span>
+                  <span className="font-semibold text-teal-600">{formatCurrency(stats.totalRevenue)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-amber-500"></div>
@@ -975,7 +998,7 @@ export const Dashboard: React.FC = () => {
           {/* Left Column */}
           <div className="space-y-6">
             {/* Dự báo lương */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
               <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -1006,8 +1029,8 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Chỉ số sức khỏe doanh nghiệp */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
-              <div className="bg-gradient-to-r from-violet-500 to-purple-600 p-4 text-center">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
+              <div className="bg-gradient-to-r from-slate-600 to-slate-800 p-4 text-center">
                 <div className="flex items-center justify-center gap-3 mb-1">
                   <div className="p-2 bg-white/20 rounded-xl">
                     <Activity className="text-white" size={20} />
@@ -1018,7 +1041,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="p-4">
                 <table className="w-full text-sm">
-                  <thead className="text-gray-500 border-b-2 border-violet-100">
+                  <thead className="text-gray-500 border-b-2 border-slate-200">
                     <tr>
                       <th className="text-left py-2 font-medium">Hạng mục</th>
                       <th className="text-center py-2 font-medium">Số liệu</th>
@@ -1027,7 +1050,7 @@ export const Dashboard: React.FC = () => {
                   </thead>
                   <tbody>
                     {stats.businessHealth.map((item, idx) => (
-                      <tr key={idx} className="border-b border-gray-100 hover:bg-violet-50/30 transition-colors">
+                      <tr key={idx} className="border-b border-gray-100 hover:bg-slate-50/50 transition-colors">
                         <td className="py-2.5 text-gray-700">{item.metric}</td>
                         <td className="py-2.5 text-center font-medium">{item.value}%</td>
                         <td className={`py-2.5 text-right font-semibold ${
@@ -1053,7 +1076,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Vật phẩm còn lại trong kho */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
               <div className="bg-gradient-to-r from-orange-500 to-amber-600 p-4 text-center">
                 <div className="flex items-center justify-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
@@ -1116,8 +1139,8 @@ export const Dashboard: React.FC = () => {
           {/* Right Column */}
           <div className="space-y-6">
             {/* THỐNG KÊ */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-4 text-center">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-teal-100/30 transition-all duration-300">
+              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-4 text-center">
                 <div className="flex items-center justify-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
                     <BarChart3 className="text-white" size={20} />
@@ -1127,7 +1150,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="p-4">
                 {/* Filter row - interactive */}
-                <div className="grid grid-cols-2 gap-3 text-sm mb-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                <div className="grid grid-cols-2 gap-3 text-sm mb-4 p-4 bg-teal-50/50 rounded-xl border border-teal-100">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Xem theo tháng</span>
                     <select 
@@ -1137,7 +1160,7 @@ export const Dashboard: React.FC = () => {
                         setStatsMonth(m);
                         setStatsYear(y);
                       }}
-                      className="text-blue-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
+                      className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
                       {Array.from({ length: 12 }, (_, i) => {
                         const d = new Date();
@@ -1154,7 +1177,7 @@ export const Dashboard: React.FC = () => {
                     <select 
                       value={statsCategory}
                       onChange={(e) => setStatsCategory(e.target.value)}
-                      className="text-blue-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
+                      className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
                       <option value="Lương nhân viên">Lương nhân viên</option>
                       <option value="Số lượng học sinh">Số lượng học sinh</option>
@@ -1167,7 +1190,7 @@ export const Dashboard: React.FC = () => {
                     <select 
                       value={statsSortOrder}
                       onChange={(e) => setStatsSortOrder(e.target.value)}
-                      className="text-blue-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
+                      className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
                       <option value="asc">Từ thấp tới cao</option>
                       <option value="desc">Từ cao tới thấp</option>
@@ -1179,7 +1202,7 @@ export const Dashboard: React.FC = () => {
                     <select 
                       value={statsLimit}
                       onChange={(e) => setStatsLimit(Number(e.target.value))}
-                      className="text-blue-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
+                      className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
                       <option value={5}>TOP 5</option>
                       <option value={10}>TOP 10</option>
@@ -1190,7 +1213,7 @@ export const Dashboard: React.FC = () => {
 
                 {/* Stats table */}
                 <table className="w-full text-sm">
-                  <thead className="bg-blue-50/50 border-b-2 border-blue-100">
+                  <thead className="bg-teal-50/50 border-b-2 border-teal-100">
                     <tr>
                       <th className="text-left py-2.5 px-3 font-medium text-gray-600">Tên nhân viên</th>
                       <th className="text-right py-2.5 px-3 font-medium text-gray-600">Lương tạm tính</th>
@@ -1206,9 +1229,9 @@ export const Dashboard: React.FC = () => {
                       
                       return sortedData.length > 0 ? (
                         sortedData.map((item, idx) => (
-                          <tr key={idx} className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-teal-50/30 transition-colors">
                             <td className="py-2.5 px-3 text-gray-700">{item.staffName}</td>
-                            <td className="py-2.5 px-3 text-right font-semibold text-blue-600">{formatCurrency(item.estimatedSalary)}</td>
+                            <td className="py-2.5 px-3 text-right font-semibold text-teal-600">{formatCurrency(item.estimatedSalary)}</td>
                           </tr>
                         ))
                       ) : (
@@ -1226,7 +1249,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* DIỄN GIẢI HẠNG MỤC */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl transition-all duration-300">
               <div className="bg-gradient-to-r from-slate-500 to-gray-600 p-4 text-center">
                 <div className="flex items-center justify-center gap-3">
                   <div className="p-2 bg-white/20 rounded-xl">
@@ -1274,8 +1297,8 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* SINH NHẬT */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden hover:shadow-xl transition-all duration-300">
-              <div className="bg-gradient-to-r from-pink-500 to-rose-600 p-4 text-center">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-[#FF6B5A]/10 transition-all duration-300">
+              <div className="bg-gradient-to-r from-[#FF6B5A] to-[#FF8F7A] p-4 text-center">
                 <div className="flex items-center justify-center gap-3 mb-3">
                   <div className="p-2 bg-white/20 rounded-xl">
                     <Cake className="text-white" size={20} />
@@ -1287,7 +1310,7 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setBirthdayType('staff')}
                     className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-all ${
                       birthdayType === 'staff' 
-                        ? 'bg-white text-pink-600 shadow-md' 
+                        ? 'bg-white text-[#FF6B5A] shadow-md' 
                         : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
                   >
@@ -1297,7 +1320,7 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setBirthdayType('student')}
                     className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-all ${
                       birthdayType === 'student' 
-                        ? 'bg-white text-pink-600 shadow-md' 
+                        ? 'bg-white text-[#FF6B5A] shadow-md' 
                         : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
                   >
@@ -1306,12 +1329,12 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="p-4">
-                <div className="flex items-center gap-2 text-sm mb-4 p-3 bg-pink-50 rounded-xl border border-pink-100">
+                <div className="flex items-center gap-2 text-sm mb-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
                   <span className="text-gray-600">Hiển thị theo</span>
                   <select
                     value={birthdayFilter}
                     onChange={(e) => setBirthdayFilter(e.target.value as any)}
-                    className="text-pink-600 font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
+                    className="text-[#FF6B5A] font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
                   >
                     <option value="today">Hôm nay</option>
                     <option value="week">Tuần này</option>
@@ -1319,7 +1342,7 @@ export const Dashboard: React.FC = () => {
                   </select>
                 </div>
                 <table className="w-full text-sm">
-                  <thead className="bg-pink-50/50 border-b-2 border-pink-100">
+                  <thead className="bg-orange-50/50 border-b-2 border-orange-100">
                     <tr>
                       <th className="text-left py-2.5 px-3 font-medium text-gray-600">{birthdayType === 'staff' ? 'Tên nhân sự' : 'Tên học viên'}</th>
                       <th className="text-center py-2.5 px-3 font-medium text-gray-600">Ngày SN</th>
@@ -1356,9 +1379,9 @@ export const Dashboard: React.FC = () => {
                       
                       return filteredBirthdays.length > 0 ? (
                         filteredBirthdays.map((item: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-100 hover:bg-pink-50/30 transition-colors">
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-orange-50/30 transition-colors">
                             <td className="py-2.5 px-3 text-gray-700">{item.name}</td>
-                            <td className="py-2.5 px-3 text-center font-medium text-pink-600">{item.date}</td>
+                            <td className="py-2.5 px-3 text-center font-medium text-[#FF6B5A]">{item.date}</td>
                             {birthdayType === 'student' && (
                               <>
                                 <td className="py-2.5 px-2 text-center">
@@ -1379,8 +1402,8 @@ export const Dashboard: React.FC = () => {
                                     onClick={() => toggleGiftStatus(item.id, item.name, 'giftGiven')}
                                     className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
                                       birthdayGifts[item.id]?.giftGiven
-                                        ? 'bg-pink-500 border-pink-500 text-white'
-                                        : 'border-gray-300 hover:border-pink-400'
+                                        ? 'bg-[#FF6B5A] border-[#FF6B5A] text-white'
+                                        : 'border-gray-300 hover:border-[#FF6B5A]'
                                     }`}
                                     title="Đã tặng quà"
                                   >
@@ -1413,14 +1436,14 @@ export const Dashboard: React.FC = () => {
         <button
           onClick={handleSeedData}
           disabled={seeding}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+          className="bg-teal-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-teal-700 disabled:opacity-50 text-sm font-medium"
         >
           {seeding ? '⏳ Đang xử lý...' : '🌱 Seed Data'}
         </button>
         <button
           onClick={handleClearData}
           disabled={seeding}
-          className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          className="bg-rose-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-rose-700 disabled:opacity-50 text-sm font-medium"
         >
           {seeding ? '⏳ Đang xử lý...' : '🗑️ Xóa Data'}
         </button>

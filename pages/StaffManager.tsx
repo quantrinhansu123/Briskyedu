@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2, User, Eye, EyeOff, AlertTriangle, X, Phone } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Edit, Trash2, User, Eye, EyeOff, AlertTriangle, X, Phone, Building2 } from 'lucide-react';
 import { Staff, StaffRole } from '../types';
 import { useStaff } from '../src/hooks/useStaff';
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { STAFF_FIELDS, STAFF_MAPPING, prepareStaffExport } from '../src/utils/excelUtils';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
 
 // Departments and positions based on Excel
 const DEPARTMENTS = ['Điều hành', 'Đào Tạo', 'Văn phòng'];
@@ -19,11 +21,32 @@ const AVAILABLE_ROLES: StaffRole[] = ['Giáo viên', 'Trợ giảng', 'Nhân vi�
 export const StaffManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('ALL');
+  const [filterBranch, setFilterBranch] = useState('ALL');
   const [showModal, setShowModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
 
   const { staff, loading, createStaff, updateStaff, deleteStaff } = useStaff();
+
+  // Fetch centers from Firestore
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        const centersSnap = await getDocs(collection(db, 'centers'));
+        const centers = centersSnap.docs
+          .filter(d => d.data().status === 'Active')
+          .map(d => ({
+            id: d.id,
+            name: d.data().name || '',
+          }));
+        setCenterList(centers);
+      } catch (err) {
+        console.error('Error fetching centers:', err);
+      }
+    };
+    fetchCenters();
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -38,6 +61,7 @@ export const StaffManager: React.FC = () => {
     username: '',
     password: '',
     status: 'Active' as 'Active' | 'Inactive',
+    branch: '',
   });
 
   // Normalize position name (handle variations in database)
@@ -73,7 +97,8 @@ export const StaffManager: React.FC = () => {
                              s.phone?.includes(searchTerm) ||
                              s.code?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDept = filterDepartment === 'ALL' || s.department === filterDepartment;
-        return matchesSearch && matchesDept;
+        const matchesBranch = filterBranch === 'ALL' || s.branch === filterBranch;
+        return matchesSearch && matchesDept && matchesBranch;
       })
       .sort((a, b) => {
         // Sort by position (normalized)
@@ -84,7 +109,7 @@ export const StaffManager: React.FC = () => {
         // Then sort by name
         return (a.name || '').localeCompare(b.name || '');
       });
-  }, [staff, searchTerm, filterDepartment]);
+  }, [staff, searchTerm, filterDepartment, filterBranch]);
 
   // Open create modal
   const handleCreate = () => {
@@ -101,6 +126,7 @@ export const StaffManager: React.FC = () => {
       username: '',
       password: '',
       status: 'Active',
+      branch: centerList.length > 0 ? centerList[0].name : '',
     });
     setShowModal(true);
   };
@@ -120,6 +146,7 @@ export const StaffManager: React.FC = () => {
       username: '',
       password: '',
       status: staffMember.status || 'Active',
+      branch: staffMember.branch || '',
     });
     setShowModal(true);
   };
@@ -149,6 +176,7 @@ export const StaffManager: React.FC = () => {
         roles: formData.roles.length > 0 ? formData.roles : [primaryRole],
         startDate: formData.startDate,
         status: formData.status,
+        branch: formData.branch,
       };
 
       if (editingStaff) {
@@ -288,6 +316,16 @@ export const StaffManager: React.FC = () => {
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
+        <select
+          value={filterBranch}
+          onChange={(e) => setFilterBranch(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+        >
+          <option value="ALL">Tất cả cơ sở</option>
+          {centerList.map(c => (
+            <option key={c.id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Table */}
@@ -300,6 +338,7 @@ export const StaffManager: React.FC = () => {
               <th className="px-6 py-4">SĐT</th>
               <th className="px-6 py-4 text-center">Phòng ban</th>
               <th className="px-6 py-4">Vị trí</th>
+              <th className="px-6 py-4">Cơ sở</th>
               <th className="px-6 py-4">Vai trò</th>
               <th className="px-6 py-4 text-right">Hành động</th>
             </tr>
@@ -319,12 +358,22 @@ export const StaffManager: React.FC = () => {
                     <Phone size={14} /> {s.phone}
                   </a>
                 </td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${getDeptBadge(s.department)}`}>
+                <td className="px-6 py-4 text-center whitespace-nowrap">
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold text-white whitespace-nowrap ${getDeptBadge(s.department)}`}>
                     {s.department}
                   </span>
                 </td>
                 <td className="px-6 py-4">{normalizePosition(s.position || '')}</td>
+                <td className="px-6 py-4">
+                  {s.branch ? (
+                    <span className="inline-flex items-center gap-1 text-sm text-gray-700">
+                      <Building2 size={14} className="text-gray-400" />
+                      {s.branch}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">
                     {(s.roles?.length ? s.roles : [s.role]).map((role, i) => (
@@ -355,7 +404,7 @@ export const StaffManager: React.FC = () => {
               </tr>
             )) : (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
                   Không có nhân viên nào
                 </td>
               </tr>
@@ -446,18 +495,33 @@ export const StaffManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Position */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>
-                <select
-                  value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                >
-                  {(POSITIONS[formData.department as keyof typeof POSITIONS] || []).map(pos => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-                </select>
+              {/* Position & Branch */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>
+                  <select
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {(POSITIONS[formData.department as keyof typeof POSITIONS] || []).map(pos => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cơ sở làm việc</label>
+                  <select
+                    value={formData.branch}
+                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">-- Chọn cơ sở --</option>
+                    {centerList.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Multiple Roles */}

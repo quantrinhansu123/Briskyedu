@@ -11,6 +11,8 @@ import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } 
 import { db } from '../config/firebase';
 import { ClassModel } from '../../types';
 
+export type SubstituteReason = 'Nghỉ phép' | 'Nghỉ ốm' | 'Bận việc đột xuất' | 'Nghỉ không lương' | 'Khác';
+
 export interface WorkSession {
   id?: string;
   staffName: string;
@@ -26,6 +28,9 @@ export interface WorkSession {
   isFromTKB?: boolean; // true = auto from schedule, false = manual
   confirmedAt?: string;
   confirmedBy?: string;
+  // Thông tin dạy thay
+  substituteForStaffName?: string;
+  substituteReason?: SubstituteReason;
 }
 
 // Parse schedule string to get days and time

@@ -50,6 +50,7 @@ export interface Student {
   classIds?: string[]; // All enrolled class IDs (for multi-class support)
   registeredSessions?: number; // Số buổi đã đăng ký/đóng tiền
   attendedSessions?: number; // Số buổi đã học (tự động tính từ điểm danh)
+  remainingSessions?: number; // Số buổi còn lại (âm = nợ phí, auto set status)
   startSessionNumber?: number; // Buổi học bắt đầu (khi đăng ký giữa khoá)
   enrollmentDate?: string; // Ngày đăng ký
   startDate?: string; // Ngày bắt đầu học
@@ -76,6 +77,27 @@ export interface CareLog {
   type: 'Bồi bài' | 'Phản hồi' | 'Tư vấn';
   content: string;
   staff: string;
+}
+
+// Cấu hình lịch học chi tiết cho từng ngày trong tuần
+export interface DayScheduleConfig {
+  dayOfWeek: string; // '2', '3', '4', '5', '6', '7', 'CN'
+  dayLabel: string; // 'Thứ 2', 'Thứ 3'...
+  startTime: string; // '18:00'
+  endTime: string; // '19:30'
+  room?: string; // Phòng học (có thể khác mỗi ngày)
+  // Giáo viên Việt Nam
+  teacherId?: string;
+  teacher?: string;
+  teacherDuration?: number; // phút
+  // Trợ giảng
+  assistantId?: string;
+  assistant?: string;
+  assistantDuration?: number; // phút
+  // Giáo viên nước ngoài
+  foreignTeacherId?: string;
+  foreignTeacher?: string;
+  foreignTeacherDuration?: number; // phút
 }
 
 // Lịch sử thay đổi lớp học (giáo viên, lịch học, phòng học...)
@@ -110,8 +132,9 @@ export interface ClassModel {
   activeStudents?: number;
   debtStudents?: number;
   reservedStudents?: number;
-  schedule?: string; // Lịch học, e.g., "Thứ 2, 4 (18h-19h30)"
-  room?: string;
+  schedule?: string; // Lịch học tổng quát, e.g., "Thứ 2, 4 (18h-19h30)"
+  scheduleDetails?: DayScheduleConfig[]; // Chi tiết lịch học theo từng ngày (NEW)
+  room?: string; // Phòng mặc định (legacy)
   branch?: string; // Cơ sở
   startDate: string;
   endDate: string;
@@ -137,6 +160,7 @@ export interface Staff {
   status: 'Active' | 'Inactive';
   dob?: string;
   startDate?: string;
+  branch?: string; // Cơ sở làm việc
 }
 
 export type HolidayApplyType = 'all_classes' | 'specific_classes' | 'specific_branch' | 'all_branches';

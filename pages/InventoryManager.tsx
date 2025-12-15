@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Plus, ArrowLeftRight, X, AlertTriangle, Building2, Minus, History } from 'lucide-react';
 import { useProducts } from '../src/hooks/useProducts';
 import { useAuth } from '../src/hooks/useAuth';
@@ -6,17 +6,12 @@ import { Product, InventoryTransfer } from '../types';
 import { collection, addDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 
-// Branches configuration - could be moved to a settings collection
-const BRANCHES = [
-  { id: 'all', name: 'Tất cả cơ sở' },
-  { id: 'cs1', name: 'Cơ sở 1 - Trung tâm' },
-  { id: 'cs2', name: 'Cơ sở 2 - Quận 7' },
-  { id: 'cs3', name: 'Cơ sở 3 - Thủ Đức' },
-];
-
 export const InventoryManager: React.FC = () => {
   const { products, loading, updateStock, updateProduct } = useProducts();
   const { staffData } = useAuth();
+  
+  // Centers state
+  const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
   
   // State
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -25,14 +20,49 @@ export const InventoryManager: React.FC = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [addQuantity, setAddQuantity] = useState(1);
-  const [addBranch, setAddBranch] = useState('cs1');
+  const [addBranch, setAddBranch] = useState('');
   const [stockMode, setStockMode] = useState<'add' | 'subtract'>('add');
   
   // Transfer state
-  const [transferFromBranch, setTransferFromBranch] = useState('cs1');
-  const [transferToBranch, setTransferToBranch] = useState('cs2');
+  const [transferFromBranch, setTransferFromBranch] = useState('');
+  const [transferToBranch, setTransferToBranch] = useState('');
   const [transferQuantity, setTransferQuantity] = useState(1);
   const [transferNote, setTransferNote] = useState('');
+  
+  // Fetch centers from Firestore
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        const centersSnap = await getDocs(collection(db, 'centers'));
+        const centers = centersSnap.docs
+          .filter(d => d.data().status === 'Active')
+          .map(d => ({
+            id: d.data().name || d.id,
+            name: d.data().name || '',
+          }));
+        setCenterList(centers);
+        // Set default branches
+        if (centers.length > 0) {
+          setAddBranch(centers[0].id);
+          setTransferFromBranch(centers[0].id);
+          if (centers.length > 1) {
+            setTransferToBranch(centers[1].id);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching centers:', err);
+      }
+    };
+    fetchCenters();
+  }, []);
+  
+  // Build BRANCHES array dynamically
+  const BRANCHES = useMemo(() => {
+    return [
+      { id: 'all', name: 'Tất cả cơ sở' },
+      ...centerList
+    ];
+  }, [centerList]);
   
   // Transfer history
   const [transferHistory, setTransferHistory] = useState<InventoryTransfer[]>([]);

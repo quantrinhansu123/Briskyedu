@@ -114,6 +114,8 @@ export const STUDENT_FIELDS = [
   { key: 'parentPhone2', label: 'SĐT PH 2', example: '0901234568' },
   { key: 'address', label: 'Địa chỉ', example: '123 Đường ABC, Quận 1' },
   { key: 'class', label: 'Lớp học', example: 'Beginner A' },
+  { key: 'registeredSessions', label: 'Số buổi đăng ký', example: '24' },
+  { key: 'remainingSessions', label: 'Số buổi còn lại', example: '10 (âm nếu nợ: -2)' },
   { key: 'status', label: 'Trạng thái', example: 'Đang học' },
   { key: 'note', label: 'Ghi chú', example: '' },
 ];
@@ -129,6 +131,8 @@ export const STUDENT_MAPPING = [
   { excelColumn: 'SĐT PH 2', dbField: 'parentPhone2', transform: String },
   { excelColumn: 'Địa chỉ', dbField: 'address' },
   { excelColumn: 'Lớp học', dbField: 'class' },
+  { excelColumn: 'Số buổi đăng ký', dbField: 'registeredSessions', transform: Number },
+  { excelColumn: 'Số buổi còn lại', dbField: 'remainingSessions', transform: Number },
   { excelColumn: 'Trạng thái', dbField: 'status' },
   { excelColumn: 'Ghi chú', dbField: 'note' },
 ];
@@ -270,6 +274,8 @@ export const prepareStudentExport = (students: any[]): Record<string, any>[] => 
     'SĐT PH 2': s.parentPhone2 || '',
     'Địa chỉ': s.address || '',
     'Lớp học': s.class || '',
+    'Số buổi đăng ký': s.registeredSessions || 0,
+    'Số buổi còn lại': s.remainingSessions ?? ((s.registeredSessions || 0) - (s.attendedSessions || 0)),
     'Trạng thái': s.status || '',
     'Ghi chú': s.note || '',
   }));

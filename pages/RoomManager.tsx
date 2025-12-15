@@ -1,20 +1,46 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Home, Plus, Edit, Trash2, X } from 'lucide-react';
 import { useRooms } from '../src/hooks/useRooms';
 import { Room } from '../types';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
 
 export const RoomManager: React.FC = () => {
   const { rooms: rawRooms, loading, createRoom, updateRoom, deleteRoom } = useRooms();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     type: 'Đào tạo',
-    branch: 'Brisky Tây Mỗ',
+    branch: '',
     status: 'Hoạt động',
     notes: '',
   });
+
+  // Fetch centers from Firestore
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        const centersSnap = await getDocs(collection(db, 'centers'));
+        const centers = centersSnap.docs
+          .filter(d => d.data().status === 'Active')
+          .map(d => ({
+            id: d.id,
+            name: d.data().name || '',
+          }));
+        setCenterList(centers);
+        // Set default branch to first center if exists
+        if (centers.length > 0 && !formData.branch) {
+          setFormData(prev => ({ ...prev, branch: centers[0].name }));
+        }
+      } catch (err) {
+        console.error('Error fetching centers:', err);
+      }
+    };
+    fetchCenters();
+  }, []);
 
   // Sort rooms by name
   const rooms = useMemo(() => {
@@ -27,7 +53,7 @@ export const RoomManager: React.FC = () => {
     setFormData({
       name: '',
       type: 'Đào tạo',
-      branch: 'Brisky Tây Mỗ',
+      branch: centerList.length > 0 ? centerList[0].name : '',
       status: 'Hoạt động',
       notes: '',
     });
@@ -40,7 +66,7 @@ export const RoomManager: React.FC = () => {
     setFormData({
       name: room.name || '',
       type: room.type || 'Đào tạo',
-      branch: room.branch || 'Brisky Tây Mỗ',
+      branch: room.branch || (centerList.length > 0 ? centerList[0].name : ''),
       status: room.status || 'Hoạt động',
       notes: room.notes || '',
     });
@@ -200,10 +226,10 @@ export const RoomManager: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   >
-                    <option value="Brisky Tây Mỗ">Brisky Tây Mỗ</option>
-                    <option value="Cơ sở 1">Cơ sở 1</option>
-                    <option value="Cơ sở 2">Cơ sở 2</option>
-                    <option value="Cơ sở 3">Cơ sở 3</option>
+                    {centerList.length === 0 && <option value="">-- Chưa có cơ sở --</option>}
+                    {centerList.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

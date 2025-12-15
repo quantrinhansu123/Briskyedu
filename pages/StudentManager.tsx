@@ -296,8 +296,16 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           continue;
         }
 
-        // Normalize status
-        const status = row.status ? normalizeStatus(row.status) : StudentStatus.ACTIVE;
+        // Parse remainingSessions (có thể âm = nợ phí)
+        const remainingSessions = typeof row.remainingSessions === 'number' 
+          ? row.remainingSessions 
+          : parseInt(row.remainingSessions) || 0;
+
+        // Auto-set status = 'Nợ phí' nếu số buổi còn lại < 0
+        let status = row.status ? normalizeStatus(row.status) : StudentStatus.ACTIVE;
+        if (remainingSessions < 0) {
+          status = StudentStatus.DEBT;
+        }
 
         await createStudent({
           fullName: row.fullName,
@@ -310,9 +318,10 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           parentPhone2: row.parentPhone2 || '',
           address: row.address || '',
           class: row.class || '',
+          registeredSessions: typeof row.registeredSessions === 'number' ? row.registeredSessions : parseInt(row.registeredSessions) || 0,
+          remainingSessions: remainingSessions,
           status: status as StudentStatus,
           note: row.note || '',
-          remainingSessions: 0,
         } as any);
         success++;
       } catch (err: any) {
@@ -490,9 +499,15 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                        <span className="font-semibold text-green-600">{student.attendedSessions || 0}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                       <span className={`font-bold ${((student.registeredSessions || 0) - (student.attendedSessions || 0)) <= 5 ? 'text-red-600' : 'text-gray-700'}`}>
-                         {(student.registeredSessions || 0) - (student.attendedSessions || 0)}
-                       </span>
+                       {(() => {
+                         const remaining = student.remainingSessions ?? ((student.registeredSessions || 0) - (student.attendedSessions || 0));
+                         return (
+                           <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
+                             {remaining}
+                             {remaining < 0 && <span className="text-xs ml-1">(nợ)</span>}
+                           </span>
+                         );
+                       })()}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600">
                        {student.startDate ? new Date(student.startDate).toLocaleDateString('vi-VN') : '---'}
@@ -1046,7 +1061,8 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
     newParentPhone: '',
     status: StudentStatus.ACTIVE,
     class: '',
-    registeredSessions: 0
+    registeredSessions: 0,
+    remainingSessions: 0
   });
 
   const selectedParent = parents.find(p => p.id === formData.parentId);
@@ -1054,14 +1070,18 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Auto-set status = 'Nợ phí' nếu số buổi còn lại < 0
+    const finalStatus = formData.remainingSessions < 0 ? StudentStatus.DEBT : formData.status;
+    
     const submitData: any = {
       fullName: formData.fullName,
       dob: formData.dob,
       gender: formData.gender,
       phone: formData.phone,
-      status: formData.status,
+      status: finalStatus,
       class: formData.class,
       registeredSessions: formData.registeredSessions || 0,
+      remainingSessions: formData.remainingSessions || 0,
       attendedSessions: 0,
     };
 
@@ -1293,9 +1313,26 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="VD: 24"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Khi học vượt quá số buổi này, trạng thái sẽ tự động chuyển sang "Nợ phí"
-              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Số buổi còn lại <span className="text-gray-400 font-normal">(âm = nợ phí)</span>
+              </label>
+              <input
+                type="number"
+                value={formData.remainingSessions}
+                onChange={(e) => setFormData({ ...formData, remainingSessions: parseInt(e.target.value) || 0 })}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                  formData.remainingSessions < 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+                placeholder="VD: 10 hoặc -2"
+              />
+              {formData.remainingSessions < 0 && (
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  ⚠️ Nợ {Math.abs(formData.remainingSessions)} buổi → Tự động chuyển sang "Nợ phí"
+                </p>
+              )}
             </div>
           </div>
 
@@ -1340,13 +1377,16 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onClose, o
     status: student.status || StudentStatus.ACTIVE,
     class: student.class || '',
     registeredSessions: student.registeredSessions || 0,
+    remainingSessions: student.remainingSessions ?? ((student.registeredSessions || 0) - (student.attendedSessions || 0)),
     attendedSessions: student.attendedSessions || 0,
     startDate: student.startDate ? new Date(student.startDate).toISOString().split('T')[0] : '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Auto-set status = 'Nợ phí' nếu số buổi còn lại < 0
+    const finalStatus = formData.remainingSessions < 0 ? StudentStatus.DEBT : formData.status;
+    onSubmit({ ...formData, status: finalStatus });
   };
 
   return (
@@ -1497,9 +1537,26 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onClose, o
               {formData.attendedSessions > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
                   Đã học: {formData.attendedSessions} buổi
-                  {formData.registeredSessions > 0 && formData.attendedSessions > formData.registeredSessions && (
-                    <span className="text-red-600 font-medium"> (Nợ {formData.attendedSessions - formData.registeredSessions} buổi)</span>
-                  )}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Số buổi còn lại <span className="text-gray-400 font-normal">(âm = nợ phí)</span>
+              </label>
+              <input
+                type="number"
+                value={formData.remainingSessions}
+                onChange={(e) => setFormData({ ...formData, remainingSessions: parseInt(e.target.value) || 0 })}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                  formData.remainingSessions < 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+                placeholder="VD: 10 hoặc -2"
+              />
+              {formData.remainingSessions < 0 && (
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  ⚠️ Nợ {Math.abs(formData.remainingSessions)} buổi → Tự động chuyển sang "Nợ phí"
                 </p>
               )}
             </div>

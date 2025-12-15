@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Edit, Trash, ChevronDown, RotateCcw, X, BookOpen, Users, Clock, Calendar, UserPlus, UserMinus, Eye, MapPin, User, GraduationCap, CheckCircle } from 'lucide-react';
-import { ClassStatus, ClassModel, Student, StudentStatus, TrainingHistoryEntry } from '../types';
+import { ClassStatus, ClassModel, Student, StudentStatus, TrainingHistoryEntry, DayScheduleConfig } from '../types';
 import { useClasses } from '../src/hooks/useClasses';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
@@ -506,7 +506,7 @@ export const ClassManager: React.FC = () => {
   };
 
   const statsColumns = ['STT', 'Lớp học', 'Tổng', 'Học thử', 'Đang học', 'Nợ phí', 'Bảo lưu', 'Tên giáo viên / Lịch học', 'Trạng thái'];
-  const curriculumColumns = ['STT', 'Lớp học', 'Độ tuổi', 'Tên giáo viên / Lịch học', 'Giáo trình đang học', 'Lịch test', 'Trạng thái'];
+  const curriculumColumns = ['STT', 'Lớp học', 'Độ tuổi', 'Tên giáo viên / Lịch học', 'Chương trình đang học', 'Lịch test', 'Trạng thái'];
   const columns = viewMode === 'stats' ? statsColumns : curriculumColumns;
 
   if (loading) {
@@ -685,7 +685,7 @@ export const ClassManager: React.FC = () => {
                 <th className="px-4 py-4 min-w-[200px]">Tên giáo viên / Lịch học</th>
                 {viewMode === 'curriculum' && (
                   <>
-                    <th className="px-4 py-4 min-w-[180px]">Giáo trình đang học</th>
+                    <th className="px-4 py-4 min-w-[180px]">Chương trình đang học</th>
                     <th className="px-4 py-4 w-24 text-center">Lịch test</th>
                   </>
                 )}
@@ -783,7 +783,7 @@ export const ClassManager: React.FC = () => {
 
                     {viewMode === 'curriculum' && (
                       <>
-                        {/* Giáo trình đang học */}
+                        {/* Chương trình đang học */}
                         <td className="px-4 py-4">
                           <div className="flex items-start gap-2">
                             <div className="flex-1">
@@ -978,6 +978,18 @@ interface ClassFormModalProps {
 }
 
 const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onSubmit }) => {
+  // Helper to parse existing scheduleDetails or create from legacy data
+  const initScheduleDetails = (): Record<string, DayScheduleConfig> => {
+    if (classData?.scheduleDetails && classData.scheduleDetails.length > 0) {
+      const details: Record<string, DayScheduleConfig> = {};
+      classData.scheduleDetails.forEach(d => {
+        details[d.dayOfWeek] = d;
+      });
+      return details;
+    }
+    return {};
+  };
+
   const [formData, setFormData] = useState({
     name: classData?.name || '',
     branch: classData?.branch || '',
@@ -1001,7 +1013,7 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
     activeStudents: classData?.activeStudents || 0,
     debtStudents: classData?.debtStudents || 0,
     reservedStudents: classData?.reservedStudents || 0,
-    // Teacher duration allocation
+    // Teacher duration allocation (legacy - giữ cho backward compatible)
     teacherEnabled: classData?.teacherDuration ? true : !!classData?.teacher,
     teacherDuration: classData?.teacherDuration || 90,
     foreignTeacherEnabled: classData?.foreignTeacherDuration ? true : !!classData?.foreignTeacher,
@@ -1009,6 +1021,10 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
     assistantEnabled: classData?.assistantDuration ? true : !!classData?.assistant,
     assistantDuration: classData?.assistantDuration || 90,
   });
+
+  // State cho cấu hình chi tiết từng ngày
+  const [scheduleDetailsByDay, setScheduleDetailsByDay] = useState<Record<string, DayScheduleConfig>>(initScheduleDetails);
+  const [useDetailedSchedule, setUseDetailedSchedule] = useState(!!classData?.scheduleDetails?.length);
 
   // Fetch actual session count for existing classes without totalSessions
   useEffect(() => {
@@ -1078,6 +1094,7 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
 
   // Predefined options
   const ageGroupOptions = [
+    '2009-2010', '2010-2011', '2011-2012', '2012-2013', '2013-2014', '2014-2015',
     '2015-2016', '2016-2017', '2017-2018', '2018-2019', '2019-2020', 
     '2020-2021', '2021-2022', '2022-2023', '2023-2024', '2024-2025'
   ];
@@ -1255,11 +1272,16 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
     }
   }, [classData]);
 
+  // Day label helper
+  const getDayLabel = (day: string) => day === 'CN' ? 'Chủ nhật' : `Thứ ${day}`;
+
   // Toggle day selection
   const toggleDay = (day: string) => {
+    const isRemoving = formData.scheduleDays.includes(day);
+    
     setFormData(prev => ({
       ...prev,
-      scheduleDays: prev.scheduleDays.includes(day)
+      scheduleDays: isRemoving
         ? prev.scheduleDays.filter(d => d !== day)
         : [...prev.scheduleDays, day].sort((a, b) => {
             if (a === 'CN') return 1;
@@ -1267,6 +1289,67 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
             return parseInt(a) - parseInt(b);
           }),
     }));
+
+    // Khi sử dụng detailed schedule, tự động tạo/xóa entry
+    if (useDetailedSchedule) {
+      if (isRemoving) {
+        // Xóa entry khi bỏ chọn ngày
+        setScheduleDetailsByDay(prev => {
+          const newDetails = { ...prev };
+          delete newDetails[day];
+          return newDetails;
+        });
+      } else {
+        // Tạo entry mới với giá trị mặc định khi chọn ngày
+        setScheduleDetailsByDay(prev => ({
+          ...prev,
+          [day]: {
+            dayOfWeek: day,
+            dayLabel: getDayLabel(day),
+            startTime: formData.scheduleStartTime || '18:00',
+            endTime: formData.scheduleEndTime || '19:30',
+            room: formData.room || '',
+            teacher: formData.teacher || '',
+            teacherDuration: 90,
+            assistant: '',
+            assistantDuration: 0,
+            foreignTeacher: '',
+            foreignTeacherDuration: 0,
+          }
+        }));
+      }
+    }
+  };
+
+  // Update a specific day's schedule config
+  const updateDaySchedule = (day: string, field: keyof DayScheduleConfig, value: any) => {
+    setScheduleDetailsByDay(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value,
+      }
+    }));
+  };
+
+  // Copy settings from one day to all other days
+  const copyToAllDays = (sourceDay: string) => {
+    const source = scheduleDetailsByDay[sourceDay];
+    if (!source) return;
+    
+    setScheduleDetailsByDay(prev => {
+      const newDetails = { ...prev };
+      formData.scheduleDays.forEach(day => {
+        if (day !== sourceDay) {
+          newDetails[day] = {
+            ...source,
+            dayOfWeek: day,
+            dayLabel: getDayLabel(day),
+          };
+        }
+      });
+      return newDetails;
+    });
   };
 
   // Calculate end date based on startDate, totalSessions, and scheduleDays
@@ -1318,12 +1401,17 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Combine schedule parts into single string
+    // Combine schedule parts into single string (for display/legacy)
     let schedule = formData.schedule;
     if (formData.scheduleStartTime && formData.scheduleEndTime && formData.scheduleDays.length > 0) {
       const daysStr = formData.scheduleDays.map(d => d === 'CN' ? 'Chủ nhật' : `Thứ ${d}`).join(', ');
       schedule = `${formData.scheduleStartTime}-${formData.scheduleEndTime} ${daysStr}`;
     }
+    
+    // Build scheduleDetails array from state (if using detailed mode)
+    const scheduleDetailsArray: DayScheduleConfig[] = useDetailedSchedule 
+      ? formData.scheduleDays.map(day => scheduleDetailsByDay[day]).filter(Boolean)
+      : [];
     
     // Build submit data - exclude UI-only fields
     const submitData: any = {
@@ -1334,6 +1422,7 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
       progress: formData.progress,
       totalSessions: formData.totalSessions,
       schedule,
+      scheduleDetails: scheduleDetailsArray.length > 0 ? scheduleDetailsArray : null,
       room: formData.room,
       startDate: formData.startDate,
       endDate: formData.endDate,
@@ -1343,13 +1432,13 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
       activeStudents: formData.activeStudents,
       debtStudents: formData.debtStudents,
       reservedStudents: formData.reservedStudents,
-      // Teacher fields - only include if enabled
-      teacher: formData.teacherEnabled ? formData.teacher : '',
-      teacherDuration: formData.teacherEnabled ? formData.teacherDuration : null,
-      foreignTeacher: formData.foreignTeacherEnabled ? formData.foreignTeacher : '',
-      foreignTeacherDuration: formData.foreignTeacherEnabled ? formData.foreignTeacherDuration : null,
-      assistant: formData.assistantEnabled ? formData.assistant : '',
-      assistantDuration: formData.assistantEnabled ? formData.assistantDuration : null,
+      // Teacher fields - only include if NOT using detailed schedule (legacy mode)
+      teacher: !useDetailedSchedule && formData.teacherEnabled ? formData.teacher : '',
+      teacherDuration: !useDetailedSchedule && formData.teacherEnabled ? formData.teacherDuration : null,
+      foreignTeacher: !useDetailedSchedule && formData.foreignTeacherEnabled ? formData.foreignTeacher : '',
+      foreignTeacherDuration: !useDetailedSchedule && formData.foreignTeacherEnabled ? formData.foreignTeacherDuration : null,
+      assistant: !useDetailedSchedule && formData.assistantEnabled ? formData.assistant : '',
+      assistantDuration: !useDetailedSchedule && formData.assistantEnabled ? formData.assistantDuration : null,
     };
     
     console.log('[ClassFormModal] Submitting:', submitData);
@@ -1515,109 +1604,286 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
               )}
             </div>
 
-            {/* Phân bổ thời lượng giảng dạy */}
+            {/* Phân bổ giáo viên */}
             <div className="col-span-2 border-t pt-4 mt-2">
-              <label className="block text-sm font-medium text-gray-700 mb-3">Phân bổ thời lượng (phút/buổi)</label>
-              <div className="space-y-3">
-                {/* Giáo viên VN */}
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">Phân bổ giáo viên</label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={formData.teacherEnabled}
-                    onChange={(e) => setFormData({ ...formData, teacherEnabled: e.target.checked })}
-                    className="w-4 h-4 text-green-600 rounded"
+                    checked={useDetailedSchedule}
+                    onChange={(e) => {
+                      setUseDetailedSchedule(e.target.checked);
+                      // Khi bật detailed mode, tạo entry cho các ngày đã chọn
+                      if (e.target.checked && formData.scheduleDays.length > 0) {
+                        const newDetails: Record<string, DayScheduleConfig> = {};
+                        formData.scheduleDays.forEach(day => {
+                          newDetails[day] = {
+                            dayOfWeek: day,
+                            dayLabel: getDayLabel(day),
+                            startTime: formData.scheduleStartTime || '18:00',
+                            endTime: formData.scheduleEndTime || '19:30',
+                            room: formData.room || '',
+                            teacher: formData.teacher || '',
+                            teacherDuration: formData.teacherDuration || 90,
+                            assistant: formData.assistant || '',
+                            assistantDuration: formData.assistantDuration || 0,
+                            foreignTeacher: formData.foreignTeacher || '',
+                            foreignTeacherDuration: formData.foreignTeacherDuration || 0,
+                          };
+                        });
+                        setScheduleDetailsByDay(newDetails);
+                      }
+                    }}
+                    className="w-4 h-4 text-orange-600 rounded"
                   />
-                  <span className="text-sm text-gray-600 w-32">Giáo viên VN</span>
-                  <select
-                    value={formData.teacher}
-                    onChange={(e) => setFormData({ ...formData, teacher: e.target.value, teacherEnabled: !!e.target.value })}
-                    disabled={!formData.teacherEnabled}
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
-                  >
-                    <option value="">-- Chọn --</option>
-                    {vietnameseTeachers.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    value={formData.teacherDuration}
-                    onChange={(e) => setFormData({ ...formData, teacherDuration: parseInt(e.target.value) || 0 })}
-                    disabled={!formData.teacherEnabled}
-                    min={0}
-                    max={180}
-                    className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
-                    placeholder="Phút"
-                  />
-                  <span className="text-xs text-gray-500">phút</span>
-                </div>
-
-                {/* Giáo viên nước ngoài */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.foreignTeacherEnabled}
-                    onChange={(e) => setFormData({ ...formData, foreignTeacherEnabled: e.target.checked })}
-                    className="w-4 h-4 text-purple-600 rounded"
-                  />
-                  <span className="text-sm text-gray-600 w-32">GV Nước ngoài</span>
-                  <select
-                    value={formData.foreignTeacher}
-                    onChange={(e) => setFormData({ ...formData, foreignTeacher: e.target.value, foreignTeacherEnabled: !!e.target.value })}
-                    disabled={!formData.foreignTeacherEnabled}
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
-                  >
-                    <option value="">-- Chọn --</option>
-                    {foreignTeachers.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    value={formData.foreignTeacherDuration}
-                    onChange={(e) => setFormData({ ...formData, foreignTeacherDuration: parseInt(e.target.value) || 0 })}
-                    disabled={!formData.foreignTeacherEnabled}
-                    min={0}
-                    max={180}
-                    className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
-                    placeholder="Phút"
-                  />
-                  <span className="text-xs text-gray-500">phút</span>
-                </div>
-
-                {/* Trợ giảng */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.assistantEnabled}
-                    onChange={(e) => setFormData({ ...formData, assistantEnabled: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                  <span className="text-sm text-gray-600 w-32">Trợ giảng</span>
-                  <select
-                    value={formData.assistant}
-                    onChange={(e) => setFormData({ ...formData, assistant: e.target.value, assistantEnabled: !!e.target.value })}
-                    disabled={!formData.assistantEnabled}
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
-                  >
-                    <option value="">-- Chọn --</option>
-                    {assistants.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    value={formData.assistantDuration}
-                    onChange={(e) => setFormData({ ...formData, assistantDuration: parseInt(e.target.value) || 0 })}
-                    disabled={!formData.assistantEnabled}
-                    min={0}
-                    max={180}
-                    className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
-                    placeholder="Phút"
-                  />
-                  <span className="text-xs text-gray-500">phút</span>
-                </div>
+                  <span className="text-xs text-orange-600 font-medium">Cấu hình riêng từng ngày</span>
+                </label>
               </div>
+
+              {!useDetailedSchedule ? (
+                /* Legacy mode: Cùng giáo viên cho tất cả các buổi */
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500 mb-2">Áp dụng cho tất cả các buổi học</p>
+                  {/* Giáo viên VN */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.teacherEnabled}
+                      onChange={(e) => setFormData({ ...formData, teacherEnabled: e.target.checked })}
+                      className="w-4 h-4 text-green-600 rounded"
+                    />
+                    <span className="text-sm text-gray-600 w-32">Giáo viên VN</span>
+                    <select
+                      value={formData.teacher}
+                      onChange={(e) => setFormData({ ...formData, teacher: e.target.value, teacherEnabled: !!e.target.value })}
+                      disabled={!formData.teacherEnabled}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {vietnameseTeachers.map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={formData.teacherDuration}
+                      onChange={(e) => setFormData({ ...formData, teacherDuration: parseInt(e.target.value) || 0 })}
+                      disabled={!formData.teacherEnabled}
+                      min={0}
+                      max={180}
+                      className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500">phút</span>
+                  </div>
+
+                  {/* Giáo viên nước ngoài */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.foreignTeacherEnabled}
+                      onChange={(e) => setFormData({ ...formData, foreignTeacherEnabled: e.target.checked })}
+                      className="w-4 h-4 text-purple-600 rounded"
+                    />
+                    <span className="text-sm text-gray-600 w-32">GV Nước ngoài</span>
+                    <select
+                      value={formData.foreignTeacher}
+                      onChange={(e) => setFormData({ ...formData, foreignTeacher: e.target.value, foreignTeacherEnabled: !!e.target.value })}
+                      disabled={!formData.foreignTeacherEnabled}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {foreignTeachers.map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={formData.foreignTeacherDuration}
+                      onChange={(e) => setFormData({ ...formData, foreignTeacherDuration: parseInt(e.target.value) || 0 })}
+                      disabled={!formData.foreignTeacherEnabled}
+                      min={0}
+                      max={180}
+                      className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500">phút</span>
+                  </div>
+
+                  {/* Trợ giảng */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={formData.assistantEnabled}
+                      onChange={(e) => setFormData({ ...formData, assistantEnabled: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span className="text-sm text-gray-600 w-32">Trợ giảng</span>
+                    <select
+                      value={formData.assistant}
+                      onChange={(e) => setFormData({ ...formData, assistant: e.target.value, assistantEnabled: !!e.target.value })}
+                      disabled={!formData.assistantEnabled}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {assistants.map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={formData.assistantDuration}
+                      onChange={(e) => setFormData({ ...formData, assistantDuration: parseInt(e.target.value) || 0 })}
+                      disabled={!formData.assistantEnabled}
+                      min={0}
+                      max={180}
+                      className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500">phút</span>
+                  </div>
+                </div>
+              ) : (
+                /* Detailed mode: Cấu hình riêng từng ngày */
+                <div className="space-y-4">
+                  {formData.scheduleDays.length === 0 ? (
+                    <p className="text-xs text-orange-500 italic">Vui lòng chọn ngày học ở trên trước</p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-500">Cấu hình giáo viên cho từng ngày học</p>
+                      {formData.scheduleDays.map((day, idx) => {
+                        const dayConfig = scheduleDetailsByDay[day] || {
+                          dayOfWeek: day,
+                          dayLabel: getDayLabel(day),
+                          startTime: formData.scheduleStartTime,
+                          endTime: formData.scheduleEndTime,
+                          room: '',
+                          teacher: '',
+                          teacherDuration: 0,
+                          assistant: '',
+                          assistantDuration: 0,
+                          foreignTeacher: '',
+                          foreignTeacherDuration: 0,
+                        };
+                        return (
+                          <div key={day} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-semibold text-gray-800">
+                                {getDayLabel(day)}
+                                <span className="ml-2 text-xs font-normal text-gray-500">
+                                  ({dayConfig.startTime || formData.scheduleStartTime}-{dayConfig.endTime || formData.scheduleEndTime})
+                                </span>
+                              </span>
+                              {idx === 0 && formData.scheduleDays.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyToAllDays(day)}
+                                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                  Áp dụng cho tất cả
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-2">
+                              {/* GV Việt Nam */}
+                              <div>
+                                <label className="block text-xs text-green-600 mb-1">GV Việt Nam</label>
+                                <select
+                                  value={dayConfig.teacher || ''}
+                                  onChange={(e) => updateDaySchedule(day, 'teacher', e.target.value)}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                >
+                                  <option value="">-- Không --</option>
+                                  {vietnameseTeachers.map(t => (
+                                    <option key={t.id} value={t.name}>{t.name}</option>
+                                  ))}
+                                </select>
+                                {dayConfig.teacher && (
+                                  <input
+                                    type="number"
+                                    value={dayConfig.teacherDuration || 0}
+                                    onChange={(e) => updateDaySchedule(day, 'teacherDuration', parseInt(e.target.value) || 0)}
+                                    placeholder="Phút"
+                                    min={0}
+                                    max={180}
+                                    className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                                  />
+                                )}
+                              </div>
+
+                              {/* GV Nước ngoài */}
+                              <div>
+                                <label className="block text-xs text-purple-600 mb-1">GV Nước ngoài</label>
+                                <select
+                                  value={dayConfig.foreignTeacher || ''}
+                                  onChange={(e) => updateDaySchedule(day, 'foreignTeacher', e.target.value)}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                >
+                                  <option value="">-- Không --</option>
+                                  {foreignTeachers.map(t => (
+                                    <option key={t.id} value={t.name}>{t.name}</option>
+                                  ))}
+                                </select>
+                                {dayConfig.foreignTeacher && (
+                                  <input
+                                    type="number"
+                                    value={dayConfig.foreignTeacherDuration || 0}
+                                    onChange={(e) => updateDaySchedule(day, 'foreignTeacherDuration', parseInt(e.target.value) || 0)}
+                                    placeholder="Phút"
+                                    min={0}
+                                    max={180}
+                                    className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Trợ giảng */}
+                              <div>
+                                <label className="block text-xs text-blue-600 mb-1">Trợ giảng</label>
+                                <select
+                                  value={dayConfig.assistant || ''}
+                                  onChange={(e) => updateDaySchedule(day, 'assistant', e.target.value)}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                >
+                                  <option value="">-- Không --</option>
+                                  {assistants.map(t => (
+                                    <option key={t.id} value={t.name}>{t.name}</option>
+                                  ))}
+                                </select>
+                                {dayConfig.assistant && (
+                                  <input
+                                    type="number"
+                                    value={dayConfig.assistantDuration || 0}
+                                    onChange={(e) => updateDaySchedule(day, 'assistantDuration', parseInt(e.target.value) || 0)}
+                                    placeholder="Phút"
+                                    min={0}
+                                    max={180}
+                                    className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Phòng học riêng cho ngày này (optional) */}
+                            <div className="mt-2">
+                              <label className="block text-xs text-gray-500 mb-1">Phòng học (để trống = dùng phòng mặc định)</label>
+                              <select
+                                value={dayConfig.room || ''}
+                                onChange={(e) => updateDaySchedule(day, 'room', e.target.value)}
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                              >
+                                <option value="">-- Mặc định --</option>
+                                {roomList.map(r => (
+                                  <option key={r.id} value={r.name}>{r.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -1637,14 +1903,14 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Giáo trình</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chương trình</label>
               <div className="flex gap-2">
                 <select
                   value={formData.curriculum}
                   onChange={(e) => setFormData({ ...formData, curriculum: e.target.value })}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">-- Chọn giáo trình --</option>
+                  <option value="">-- Chọn chương trình --</option>
                   {curriculumList.map(curriculum => (
                     <option key={curriculum} value={curriculum}>{curriculum}</option>
                   ))}
@@ -1711,23 +1977,45 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
 
             {/* Tổng số buổi học */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tổng số buổi học *</label>
-              <input
-                type="number"
-                value={formData.totalSessions}
-                onChange={(e) => {
-                  const total = parseInt(e.target.value) || 48;
-                  setFormData({ 
-                    ...formData, 
-                    totalSessions: total,
-                    progress: `0/${total}`
-                  });
-                }}
-                min={1}
-                max={200}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="VD: 48"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Tổng số buổi học</label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.totalSessions === 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({ ...formData, totalSessions: 0, progress: 'Không giới hạn' });
+                      } else {
+                        setFormData({ ...formData, totalSessions: 48, progress: '0/48' });
+                      }
+                    }}
+                    className="w-4 h-4 text-green-600 rounded"
+                  />
+                  <span className="text-xs text-green-600 font-medium">Không giới hạn</span>
+                </label>
+              </div>
+              {formData.totalSessions === 0 ? (
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">
+                  Không giới hạn số buổi
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  value={formData.totalSessions}
+                  onChange={(e) => {
+                    const total = parseInt(e.target.value) || 48;
+                    setFormData({ 
+                      ...formData, 
+                      totalSessions: total,
+                      progress: `0/${total}`
+                    });
+                  }}
+                  min={1}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="VD: 48"
+                />
+              )}
             </div>
 
             <div>
@@ -2641,7 +2929,7 @@ const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
               <BookOpen className="text-indigo-600 mt-0.5" size={20} />
               <div>
-                <p className="text-xs text-gray-500">Giáo trình</p>
+                <p className="text-xs text-gray-500">Chương trình</p>
                 <p className="font-medium text-gray-800">{classData.curriculum || 'Chưa có'}</p>
               </div>
             </div>

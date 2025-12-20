@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, Search, ChevronDown } from 'lucide-react';
-import { AttendanceStatus, AttendanceRecord } from '../types';
+import { AttendanceStatus, AttendanceRecord, StudentStatus } from '../types';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
 import { useAttendance } from '../src/hooks/useAttendance';
@@ -178,13 +178,16 @@ export const Attendance: React.FC = () => {
     setSessionDropdownOpen(false);
   }, [selectedClassId]);
 
-  // Get students for selected class
+  // Get students for selected class - only show students eligible for attendance
+  // Eligible statuses: Đang học, Đã học hết phí, Nợ phí (exclude: Nghỉ học, Bảo lưu, Học thử, Nợ hợp đồng)
+  const ATTENDANCE_ELIGIBLE_STATUSES = [StudentStatus.ACTIVE, StudentStatus.EXPIRED_FEE, StudentStatus.DEBT];
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const classStudents = allStudents.filter(s => 
-    s.classId === selectedClassId || 
+    (s.classId === selectedClassId || 
     s.class === selectedClass?.name ||
     s.className === selectedClass?.name ||
-    (s.classIds && s.classIds.includes(selectedClassId))
+    (s.classIds && s.classIds.includes(selectedClassId))) &&
+    ATTENDANCE_ELIGIBLE_STATUSES.includes(s.status as StudentStatus)
   );
 
   // Check if selected date is valid for class schedule
@@ -512,13 +515,13 @@ export const Attendance: React.FC = () => {
         const sessionId = existingSession?.id || `temp_${classInfo.id}_${reviewDate}`;
         const sessionNumber = existingSession?.sessionNumber || 0;
         
-        // Get students in this class - include more status variations
-        const excludeStudentStatuses = ['Nghỉ học', 'Đã nghỉ', 'Bảo lưu', 'Dropped', 'Reserved'];
+        // Get students in this class - only include students eligible for attendance
+        // Eligible statuses: Đang học, Đã học hết phí, Nợ phí (same as main attendance tab)
         const allClassStudents = allStudents.filter(s => 
           s.classId === classInfo.id || s.class === classInfo.name || s.className === classInfo.name
         );
         const studentsInClass = allClassStudents.filter(s => 
-          !excludeStudentStatuses.includes(s.status)
+          ATTENDANCE_ELIGIBLE_STATUSES.includes(s.status as StudentStatus)
         );
         
         console.log('[Review] Class:', classInfo.name, '| All students:', allClassStudents.length, '| Active:', studentsInClass.length);

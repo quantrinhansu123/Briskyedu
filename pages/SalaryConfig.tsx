@@ -129,6 +129,28 @@ export const SalaryConfig: React.FC = () => {
     fetchStaff();
   }, []);
 
+  // Normalize string for comparison (remove diacritics, lowercase, trim)
+  const normalizeString = (s: string): string => {
+    if (!s) return '';
+    return s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Check if two names match (exact or partial)
+  const namesMatch = (name1: string, name2: string): boolean => {
+    if (!name1 || !name2) return false;
+    const n1 = normalizeString(name1);
+    const n2 = normalizeString(name2);
+    // Exact match or one contains the other
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  };
+
   // Fetch classes for selected staff
   useEffect(() => {
     const fetchStaffClasses = async () => {
@@ -141,16 +163,34 @@ export const SalaryConfig: React.FC = () => {
       try {
         const snapshot = await getDocs(collection(db, 'classes'));
         const classData: ClassOption[] = [];
-        const staffName = selectedStaff.name.toLowerCase().trim();
+        const staffName = selectedStaff.name;
+        const staffId = selectedStaff.id;
         
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const isTeacher = data.teacherId === selectedStaff.id || 
-                           (data.teacher && data.teacher.toLowerCase().includes(staffName));
-          const isAssistant = data.assistant && data.assistant.toLowerCase().includes(staffName);
-          const isForeignTeacher = data.foreignTeacher && data.foreignTeacher.toLowerCase().includes(staffName);
           
-          if (isTeacher || isAssistant || isForeignTeacher) {
+          // Check multiple ways: ID match OR name match
+          const isTeacher = data.teacherId === staffId || 
+                           namesMatch(data.teacher, staffName);
+          const isAssistant = data.assistantId === staffId || 
+                             namesMatch(data.assistant, staffName);
+          const isForeignTeacher = data.foreignTeacherId === staffId || 
+                                   namesMatch(data.foreignTeacher, staffName);
+          
+          // Also check scheduleDetails for detailed assignment
+          let isInScheduleDetails = false;
+          if (data.scheduleDetails && Array.isArray(data.scheduleDetails)) {
+            for (const detail of data.scheduleDetails) {
+              if (namesMatch(detail.teacher, staffName) ||
+                  namesMatch(detail.assistant, staffName) ||
+                  namesMatch(detail.foreignTeacher, staffName)) {
+                isInScheduleDetails = true;
+                break;
+              }
+            }
+          }
+          
+          if (isTeacher || isAssistant || isForeignTeacher || isInScheduleDetails) {
             classData.push({
               id: docSnap.id,
               name: data.name || '',
@@ -167,16 +207,18 @@ export const SalaryConfig: React.FC = () => {
         classData.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
         setStaffClasses(classData);
         
-        // Auto-add classes to config
-        const newConfigs: TeacherClassConfig[] = classData.map(cls => ({
-          classId: cls.id,
-          className: cls.name,
-          classCode: cls.code,
-          staffId: selectedStaff.id,
-          ratePerUnit: 200000,
-          unit: cls.sessionDuration === 60 ? 'Giờ' : 'Ca',
-        }));
-        setClassConfigs(newConfigs);
+        // Auto-add classes to config if no existing config
+        if (classConfigs.length === 0) {
+          const newConfigs: TeacherClassConfig[] = classData.map(cls => ({
+            classId: cls.id,
+            className: cls.name,
+            classCode: cls.code,
+            staffId: selectedStaff.id,
+            ratePerUnit: 200000,
+            unit: cls.sessionDuration === 60 ? 'Giờ' : 'Ca',
+          }));
+          setClassConfigs(newConfigs);
+        }
       } catch (err) {
         console.error('Error fetching classes:', err);
       } finally {

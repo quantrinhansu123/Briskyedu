@@ -12,7 +12,8 @@ export enum StudentStatus {
   CONTRACT_DEBT = 'Nợ hợp đồng',
   RESERVED = 'Bảo lưu',
   DROPPED = 'Nghỉ học',
-  TRIAL = 'Học thử'
+  TRIAL = 'Học thử',
+  EXPIRED_FEE = 'Đã học hết phí'
 }
 
 export enum AttendanceStatus {
@@ -45,6 +46,7 @@ export interface Student {
   parentPhone?: string; // Denormalized for display (auto-synced)
   status: StudentStatus;
   careHistory: CareLog[];
+  branch?: string; // Cơ sở học
   class?: string; // Current class name (legacy)
   classId?: string; // Primary class ID
   classIds?: string[]; // All enrolled class IDs (for multi-class support)
@@ -136,6 +138,7 @@ export interface ClassModel {
   scheduleDetails?: DayScheduleConfig[]; // Chi tiết lịch học theo từng ngày (NEW)
   room?: string; // Phòng mặc định (legacy)
   branch?: string; // Cơ sở
+  color?: number; // Index màu trong palette (0-15), undefined = auto từ tên lớp
   startDate: string;
   endDate: string;
   createdAt?: string;
@@ -196,14 +199,15 @@ export interface AttendanceRecord {
   classId: string;
   className: string;
   date: string;
-  sessionNumber?: number;
+  sessionNumber?: number | null;
+  sessionId?: string | null;
   totalStudents: number;
   present: number;
   absent: number;
   reserved: number;
   tutored: number;
   status: 'Đã điểm danh' | 'Chưa điểm danh';
-  createdBy?: string;
+  createdBy?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

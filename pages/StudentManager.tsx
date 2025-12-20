@@ -15,6 +15,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { STUDENT_FIELDS, STUDENT_MAPPING, prepareStudentExport } from '../src/utils/excelUtils';
+import { getCenters, Center } from '../src/services/centerService';
 
 // Normalize English status to Vietnamese - defined outside component to avoid hoisting issues
 const normalizeStatus = (status: string): StudentStatus | string => {
@@ -27,6 +28,7 @@ const normalizeStatus = (status: string): StudentStatus | string => {
   if (lower === 'inactive' || lower === 'dropped' || lower === 'nghỉ học' || lower === 'đã nghỉ' || lower.includes('nghỉ')) return StudentStatus.DROPPED;
   if (lower === 'reserved' || lower === 'bảo lưu' || lower.includes('bảo lưu')) return StudentStatus.RESERVED;
   if (lower === 'trial' || lower === 'học thử' || lower.includes('học thử')) return StudentStatus.TRIAL;
+  if (lower.includes('hết phí') || lower.includes('học hết')) return StudentStatus.EXPIRED_FEE;
   if (lower === 'debt' || lower === 'nợ phí' || (lower.includes('nợ') && !lower.includes('hợp đồng'))) return StudentStatus.DEBT;
   if (lower === 'contract_debt' || lower === 'nợ hợp đồng' || lower.includes('nợ hợp đồng')) return StudentStatus.CONTRACT_DEBT;
   
@@ -48,6 +50,8 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const [feedbacksLoading, setFeedbacksLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<StudentStatus | 'ALL'>(initialStatusFilter || 'ALL');
   const [filterClass, setFilterClass] = useState<string>('ALL');
+  const [filterBranch, setFilterBranch] = useState<string>('ALL');
+  const [centers, setCenters] = useState<Center[]>([]);
   const [birthdayMonth, setBirthdayMonth] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -92,6 +96,19 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   
   // Fetch classes for dropdown
   const { classes } = useClasses({});
+
+  // Fetch centers for branch filter
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        const data = await getCenters();
+        setCenters(data);
+      } catch (err) {
+        console.error('Error fetching centers:', err);
+      }
+    };
+    fetchCenters();
+  }, []);
 
   // Fetch feedbacks when selectedStudent changes
   useEffect(() => {
@@ -151,17 +168,36 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
         matchesBirthday = studentMonth === parseInt(birthdayMonth);
       }
 
-      // Filter by class
+      // Filter by class - check cả classId và class name
       let matchesClass = true;
       if (filterClass === 'NO_CLASS') {
         matchesClass = !student.classId && !student.class;
       } else if (filterClass !== 'ALL') {
-        matchesClass = student.classId === filterClass || student.class === filterClass;
+        // Tìm class được chọn để lấy tên
+        const selectedClass = classes.find(c => c.id === filterClass);
+        const selectedClassName = selectedClass?.name || '';
+        
+        // Normalize để so sánh linh hoạt (bỏ HẾT khoảng trắng, lowercase)
+        // VD: "Pre Starters 26" → "prestarters26" = "Prestarters 26" → "prestarters26"
+        const normalize = (s: string) => s?.toLowerCase().replace(/\s+/g, '').trim() || '';
+        const studentClassName = normalize(student.class || '');
+        const targetClassName = normalize(selectedClassName);
+        
+        // So sánh theo classId HOẶC class name (cho data import từ Excel)
+        matchesClass = student.classId === filterClass || 
+                       studentClassName === targetClassName ||
+                       (student.classIds && student.classIds.includes(filterClass));
+      }
+
+      // Filter by branch
+      let matchesBranch = true;
+      if (filterBranch !== 'ALL') {
+        matchesBranch = student.branch === filterBranch;
       }
       
-      return matchesStatus && matchesSearch && matchesBirthday && matchesClass;
+      return matchesStatus && matchesSearch && matchesBirthday && matchesClass && matchesBranch;
     });
-  }, [students, filterStatus, searchTerm, birthdayMonth, filterClass]);
+  }, [students, filterStatus, searchTerm, birthdayMonth, filterClass, filterBranch, classes]);
 
   // Find students without class assigned
   const studentsWithoutClass = useMemo(() => {
@@ -217,6 +253,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       case StudentStatus.RESERVED: return 'text-yellow-600 bg-yellow-50 ring-yellow-500/10';
       case StudentStatus.DROPPED: return 'text-gray-600 bg-gray-50 ring-gray-500/10';
       case StudentStatus.TRIAL: return 'text-purple-600 bg-purple-50 ring-purple-500/10';
+      case StudentStatus.EXPIRED_FEE: return 'text-orange-600 bg-orange-50 ring-orange-500/10';
       default: return 'text-gray-600 bg-gray-50 ring-gray-500/10';
     }
   };
@@ -283,6 +320,36 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     }
   };
 
+  // Xóa hàng loạt học viên đang hiển thị (sau khi lọc)
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const handleBulkDelete = async () => {
+    if (filteredStudents.length === 0) {
+      alert('Không có học viên nào để xóa.');
+      return;
+    }
+    
+    const confirmMsg = `Bạn có chắc chắn muốn xóa ${filteredStudents.length} học viên đang hiển thị?\n\nThao tác này KHÔNG THỂ hoàn tác!`;
+    if (!confirm(confirmMsg)) return;
+    
+    setBulkDeleting(true);
+    let deleted = 0;
+    let failed = 0;
+    
+    for (const student of filteredStudents) {
+      try {
+        await deleteStudent(student.id);
+        deleted++;
+      } catch (err) {
+        console.error('Error deleting:', student.fullName, err);
+        failed++;
+      }
+    }
+    
+    setBulkDeleting(false);
+    setSelectedStudent(null);
+    alert(`Đã xóa ${deleted} học viên.${failed > 0 ? ` Lỗi: ${failed}` : ''}`);
+  };
+
   // Import students from Excel
   const handleImportStudents = async (data: Record<string, any>[]): Promise<{ success: number; errors: string[] }> => {
     const errors: string[] = [];
@@ -307,6 +374,20 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           status = StudentStatus.DEBT;
         }
 
+        // Auto-match tên lớp từ Excel với lớp trong database
+        // VD: "Prestarters 26" → match với "Pre Starters 26"
+        const normalizeClassName = (s: string) => s?.toLowerCase().replace(/\s+/g, '').trim() || '';
+        const inputClassName = normalizeClassName(row.class || '');
+        let matchedClass = classes.find(c => normalizeClassName(c.name) === inputClassName);
+        
+        // Nếu không exact match, thử partial match
+        if (!matchedClass && inputClassName) {
+          matchedClass = classes.find(c => 
+            normalizeClassName(c.name).includes(inputClassName) ||
+            inputClassName.includes(normalizeClassName(c.name))
+          );
+        }
+
         await createStudent({
           fullName: row.fullName,
           code: row.code || `HV${Date.now()}${i}`,
@@ -317,8 +398,11 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           parentName: row.parentName || '',
           parentPhone2: row.parentPhone2 || '',
           address: row.address || '',
-          class: row.class || '',
+          branch: row.branch || '', // Cơ sở từ Excel
+          class: matchedClass?.name || row.class || '', // Dùng tên chuẩn từ DB nếu match được
+          classId: matchedClass?.id || '', // Lưu classId để link chính xác
           registeredSessions: typeof row.registeredSessions === 'number' ? row.registeredSessions : parseInt(row.registeredSessions) || 0,
+          attendedSessions: typeof row.attendedSessions === 'number' ? row.attendedSessions : parseInt(row.attendedSessions) || 0,
           remainingSessions: remainingSessions,
           status: status as StudentStatus,
           note: row.note || '',
@@ -383,6 +467,17 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             ))}
           </select>
 
+          <select
+            className="pl-2 pr-8 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm min-w-[120px]"
+            value={filterBranch}
+            onChange={(e) => setFilterBranch(e.target.value)}
+          >
+            <option value="ALL">Tất cả cơ sở</option>
+            {centers.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+
           <ImportExportButtons
             data={students}
             prepareExport={prepareStudentExport}
@@ -393,6 +488,18 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             templateFileName="MauNhapHocVien"
             entityName="học viên"
           />
+
+          {/* Nút xóa hàng loạt - chỉ hiện khi có filter và có quyền */}
+          {canCreateStudent && filterClass !== 'ALL' && filteredStudents.length > 0 && (
+            <button 
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              <Trash2 size={16} /> 
+              {bulkDeleting ? 'Đang xóa...' : `Xóa ${filteredStudents.length} HV`}
+            </button>
+          )}
 
           {canCreateStudent && (
             <button 
@@ -519,9 +626,10 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white ${
                             normalizeStatus(student.status) === StudentStatus.ACTIVE ? 'bg-green-500' : 
                             normalizeStatus(student.status) === StudentStatus.DEBT ? 'bg-red-500' :
-                            normalizeStatus(student.status) === StudentStatus.RESERVED ? 'bg-orange-500' :
+                            normalizeStatus(student.status) === StudentStatus.RESERVED ? 'bg-yellow-500' :
                             normalizeStatus(student.status) === StudentStatus.DROPPED ? 'bg-gray-500' :
-                            normalizeStatus(student.status) === StudentStatus.TRIAL ? 'bg-purple-500' : 'bg-gray-400'
+                            normalizeStatus(student.status) === StudentStatus.TRIAL ? 'bg-purple-500' :
+                            normalizeStatus(student.status) === StudentStatus.EXPIRED_FEE ? 'bg-orange-500' : 'bg-gray-400'
                         }`}>
                             {normalizeStatus(student.status)}
                         </span>
@@ -760,6 +868,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
         <CreateStudentModal
           parents={parents}
           classes={classes}
+          centers={centers}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateStudent}
         />
@@ -1045,11 +1154,12 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 interface CreateStudentModalProps {
   parents: Array<Parent & { children: Student[] }>;
   classes: ClassModel[];
+  centers: Center[];
   onClose: () => void;
   onSubmit: (data: Partial<Student> & { newParentName?: string; newParentPhone?: string }) => void;
 }
 
-const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classes, onClose, onSubmit }) => {
+const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classes, centers, onClose, onSubmit }) => {
   const [parentMode, setParentMode] = useState<'select' | 'new'>('select');
   const [formData, setFormData] = useState({
     fullName: '',
@@ -1060,6 +1170,7 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
     newParentName: '',
     newParentPhone: '',
     status: StudentStatus.ACTIVE,
+    branch: '',
     class: '',
     registeredSessions: 0,
     remainingSessions: 0
@@ -1079,6 +1190,7 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
       gender: formData.gender,
       phone: formData.phone,
       status: finalStatus,
+      branch: formData.branch,
       class: formData.class,
       registeredSessions: formData.registeredSessions || 0,
       remainingSessions: formData.remainingSessions || 0,
@@ -1275,6 +1387,22 @@ const CreateStudentModal: React.FC<CreateStudentModalProps> = ({ parents, classe
                   </div>
                 </div>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cơ sở
+              </label>
+              <select
+                value={formData.branch}
+                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">-- Chọn cơ sở --</option>
+                {centers.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>

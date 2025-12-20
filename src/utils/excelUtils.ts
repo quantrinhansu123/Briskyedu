@@ -80,15 +80,55 @@ export const readExcelFile = (file: File): Promise<Record<string, any>[]> => {
 
 /**
  * Map Excel columns to database fields
+ * Hỗ trợ aliases - tự động tìm cột phù hợp nếu tên cột khác nhau
  */
 export const mapExcelToFields = (
   excelData: Record<string, any>[],
-  mapping: { excelColumn: string; dbField: string; transform?: (val: any) => any }[]
+  mapping: { excelColumn: string; dbField: string; transform?: (val: any) => any; aliases?: string[] }[]
 ): Record<string, any>[] => {
+  // Lấy danh sách tên cột từ dữ liệu Excel
+  const excelColumns = excelData.length > 0 ? Object.keys(excelData[0]) : [];
+  
+  // Normalize string để so sánh: lowercase, bỏ dấu, bỏ khoảng trắng thừa
+  const normalize = (s: string) => s
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // bỏ dấu tiếng Việt
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
   return excelData.map(row => {
     const mapped: Record<string, any> = {};
-    mapping.forEach(({ excelColumn, dbField, transform }) => {
-      let value = row[excelColumn];
+    mapping.forEach(({ excelColumn, dbField, transform, aliases }) => {
+      // Tìm cột phù hợp: thử tên chính trước, sau đó thử aliases
+      let actualColumn = excelColumn;
+      if (row[excelColumn] === undefined && aliases) {
+        // Tìm trong aliases - exact match trước
+        for (const alias of aliases) {
+          if (row[alias] !== undefined) {
+            actualColumn = alias;
+            break;
+          }
+        }
+        
+        // Nếu chưa tìm được, thử partial match với normalize
+        if (row[actualColumn] === undefined) {
+          for (const alias of aliases) {
+            const normalizedAlias = normalize(alias);
+            const matchedCol = excelColumns.find(col => {
+              const normalizedCol = normalize(col);
+              return normalizedCol.includes(normalizedAlias) || 
+                     normalizedAlias.includes(normalizedCol);
+            });
+            if (matchedCol && row[matchedCol] !== undefined) {
+              actualColumn = matchedCol;
+              break;
+            }
+          }
+        }
+      }
+      
+      let value = row[actualColumn];
       if (transform && value !== undefined) {
         value = transform(value);
       }
@@ -102,40 +142,62 @@ export const mapExcelToFields = (
 
 // ============ FIELD MAPPINGS FOR EACH MODULE ============
 
-// Student fields
+// Student fields - Template mới phù hợp với file Excel thực tế
 export const STUDENT_FIELDS = [
-  { key: 'fullName', label: 'Họ và tên', example: 'Nguyễn Văn A', required: true },
+  { key: 'fullName', label: 'Họ Và Tên', example: 'Nguyễn Văn A', required: true },
   { key: 'code', label: 'Mã học viên', example: 'HV001' },
-  { key: 'dob', label: 'Ngày sinh (dd/mm/yyyy)', example: '15/06/2015' },
+  { key: 'dob', label: 'Ngày sinh', example: '10/11/2018' },
   { key: 'gender', label: 'Giới tính', example: 'Nam' },
   { key: 'phone', label: 'SĐT Phụ huynh', example: '0901234567' },
   { key: 'email', label: 'Email', example: 'email@example.com' },
-  { key: 'parentName', label: 'Tên phụ huynh', example: 'Nguyễn Văn B' },
-  { key: 'parentPhone2', label: 'SĐT PH 2', example: '0901234568' },
-  { key: 'address', label: 'Địa chỉ', example: '123 Đường ABC, Quận 1' },
-  { key: 'class', label: 'Lớp học', example: 'Beginner A' },
-  { key: 'registeredSessions', label: 'Số buổi đăng ký', example: '24' },
-  { key: 'remainingSessions', label: 'Số buổi còn lại', example: '10 (âm nếu nợ: -2)' },
-  { key: 'status', label: 'Trạng thái', example: 'Đang học' },
+  { key: 'parentName', label: 'Phụ huynh', example: 'Nguyễn Văn B' },
+  { key: 'branch', label: 'Cơ sở', example: 'Bình Minh' },
+  { key: 'class', label: 'Lớp đang theo học', example: 'Starters 22' },
+  { key: 'registeredSessions', label: 'Số buổi đăng ký (Gói học)', example: '48' },
+  { key: 'attendedSessions', label: 'Số buổi đã học', example: '14' },
+  { key: 'remainingSessions', label: 'Số buổi còn lại', example: '34 (âm nếu nợ: -2)' },
+  { key: 'status', label: 'Tình trạng', example: 'Đang học' },
   { key: 'note', label: 'Ghi chú', example: '' },
 ];
 
+// Mapping linh hoạt - hỗ trợ nhiều tên cột khác nhau
 export const STUDENT_MAPPING = [
-  { excelColumn: 'Họ và tên', dbField: 'fullName' },
-  { excelColumn: 'Mã học viên', dbField: 'code' },
-  { excelColumn: 'Ngày sinh (dd/mm/yyyy)', dbField: 'dob', transform: parseVNDate },
-  { excelColumn: 'Giới tính', dbField: 'gender' },
-  { excelColumn: 'SĐT Phụ huynh', dbField: 'phone', transform: String },
-  { excelColumn: 'Email', dbField: 'email' },
-  { excelColumn: 'Tên phụ huynh', dbField: 'parentName' },
-  { excelColumn: 'SĐT PH 2', dbField: 'parentPhone2', transform: String },
-  { excelColumn: 'Địa chỉ', dbField: 'address' },
-  { excelColumn: 'Lớp học', dbField: 'class' },
-  { excelColumn: 'Số buổi đăng ký', dbField: 'registeredSessions', transform: Number },
-  { excelColumn: 'Số buổi còn lại', dbField: 'remainingSessions', transform: Number },
-  { excelColumn: 'Trạng thái', dbField: 'status' },
-  { excelColumn: 'Ghi chú', dbField: 'note' },
+  { excelColumn: 'Họ Và Tên', dbField: 'fullName', aliases: ['Họ và tên', 'Họ tên', 'Tên học viên', 'HỌ VÀ TÊN'] },
+  { excelColumn: 'Mã học viên', dbField: 'code', aliases: ['Mã HV', 'MÃ HỌC VIÊN'] },
+  { excelColumn: 'Ngày sinh', dbField: 'dob', transform: parseVNDate, aliases: ['Ngày sinh (dd/mm/yyyy)', 'NGÀY SINH'] },
+  { excelColumn: 'Giới tính', dbField: 'gender', aliases: ['GIỚI TÍNH', 'GT'] },
+  { excelColumn: 'SĐT Phụ huynh', dbField: 'phone', transform: String, aliases: ['SĐT PH', 'Điện thoại', 'SĐT'] },
+  { excelColumn: 'Email', dbField: 'email', aliases: ['EMAIL', 'email'] },
+  { excelColumn: 'Phụ huynh', dbField: 'parentName', aliases: ['Tên phụ huynh', 'PHỤ HUYNH', 'Tên PH'] },
+  { excelColumn: 'Cơ sở', dbField: 'branch', aliases: ['CƠ SỞ', 'Chi nhánh', 'CHI NHÁNH', 'Branch', 'Center'] },
+  { excelColumn: 'Lớp đang theo học', dbField: 'class', aliases: ['Lớp học', 'Lớp', 'LỚP ĐANG THEO HỌC'] },
+  // 3 cột số buổi - map từ Excel thực tế
+  { excelColumn: 'Số buổi đăng ký', dbField: 'registeredSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI ĐĂNG KÍ KHOÁ GẦN NHẤT', 'SỐ BUỔI ĐĂNG KÍ KHOÁ', 'ĐĂNG KÍ KHOÁ', 'SỐ BUỔI ĐĂNG KÍ', 'SỐ BUỔI ĐĂNG KÝ', 'Gói học'] },
+  { excelColumn: 'Số buổi đã học', dbField: 'attendedSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI ĐÃ HỌC ĐẾN NGÀY', 'SỐ BUỔI ĐÃ HỌC ĐẾN', 'SỐ BUỔI ĐÃ HỌC', 'ĐÃ HỌC ĐẾN', 'Đã học', 'ĐÃ HỌC'] },
+  { excelColumn: 'Số buổi còn lại', dbField: 'remainingSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI CÒN LẠI TÍNH ĐẾN', 'SỐ BUỔI CÒN LẠI', 'CÒN LẠI TÍNH ĐẾN', 'Còn lại', 'CÒN LẠI'] },
+  { excelColumn: 'Tình trạng', dbField: 'status', transform: parseStudentStatus, aliases: ['Trạng thái', 'TÌNH TRẠNG', 'Status'] },
+  { excelColumn: 'Ghi chú', dbField: 'note', aliases: ['GHI CHÚ', 'Note'] },
 ];
+
+// Parse số buổi - hỗ trợ số âm
+function parseSessionNumber(val: any): number | undefined {
+  if (val === undefined || val === null || val === '') return undefined;
+  const num = parseInt(String(val).replace(/[^\d-]/g, ''));
+  return isNaN(num) ? undefined : num;
+}
+
+// Parse trạng thái học viên - map từ nhiều format khác nhau
+function parseStudentStatus(val: any): string {
+  if (!val) return 'Đang học';
+  const v = String(val).toLowerCase().trim();
+  if (v.includes('hết phí') || v.includes('học hết')) return 'Đã học hết phí';
+  if (v.includes('nợ')) return 'Nợ phí';
+  if (v.includes('bảo lưu')) return 'Bảo lưu';
+  if (v.includes('nghỉ')) return 'Nghỉ học';
+  if (v.includes('đang học') || v.includes('active')) return 'Đang học';
+  if (v.includes('học thử') || v.includes('trial')) return 'Học thử';
+  return val; // Giữ nguyên nếu không match
+}
 
 // Staff fields
 export const STAFF_FIELDS = [

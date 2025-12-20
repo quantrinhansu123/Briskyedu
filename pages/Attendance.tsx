@@ -335,15 +335,16 @@ export const Attendance: React.FC = () => {
           classId: selectedClassId,
           className: selectedClass.name,
           date: dateToUse,
-          sessionNumber: selectedSession?.sessionNumber,
-          sessionId: selectedSession?.id,
+          // Use null instead of undefined - Firestore doesn't accept undefined values
+          sessionNumber: selectedSession?.sessionNumber ?? null,
+          sessionId: selectedSession?.id ?? null,
           totalStudents: attendanceData.length,
           present: attendanceData.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE).length,
           absent: absentCount,
           reserved: attendanceData.filter(s => s.status === AttendanceStatus.RESERVED).length,
           tutored: attendanceData.filter(s => s.status === AttendanceStatus.TUTORED).length,
           status: 'Đã điểm danh',
-          createdBy: user?.uid,
+          createdBy: user?.uid ?? null,
         },
         attendanceData.map(s => ({
           studentId: s.studentId,
@@ -379,7 +380,9 @@ export const Attendance: React.FC = () => {
       // Reset selection
       setSelectedSession(null);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Không thể lưu điểm danh. Vui lòng thử lại.' });
+      console.error('[Attendance] Save error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Không thể lưu điểm danh. Vui lòng thử lại.';
+      setMessage({ type: 'error', text: errorMessage });
     } finally {
       setSaving(false);
     }

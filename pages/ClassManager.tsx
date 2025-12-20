@@ -9,6 +9,7 @@ import { db } from '../src/config/firebase';
 import { getScheduleTime, getScheduleDays, formatSchedule } from '../src/utils/scheduleUtils';
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { CLASS_FIELDS, CLASS_MAPPING, prepareClassExport } from '../src/utils/excelUtils';
+import { CLASS_COLOR_PALETTE, hashClassName } from './Schedule';
 
 // Helper to safely format date
 const formatDateSafe = (dateValue: any): string => {
@@ -37,6 +38,7 @@ export const ClassManager: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassModel | null>(null);
   const [selectedClassHistory, setSelectedClassHistory] = useState<ClassModel | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   // Progress modal removed - progress is now auto-calculated from sessions
   const [showTestModal, setShowTestModal] = useState(false);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
@@ -435,6 +437,10 @@ export const ClassManager: React.FC = () => {
       setShowEditModal(false);
       setEditingClass(null);
       
+      // Hiển thị thông báo thành công
+      setToast({ type: 'success', message: 'Cập nhật lớp học thành công!' });
+      setTimeout(() => setToast(null), 3000);
+      
       // Wait for realtime update then reopen detail modal
       setTimeout(() => {
         const updatedClass = classes.find(c => c.id === id);
@@ -446,7 +452,8 @@ export const ClassManager: React.FC = () => {
       }, 200);
     } catch (err: any) {
       console.error('Error updating class:', err);
-      alert('Lỗi khi cập nhật lớp học: ' + (err.message || err));
+      setToast({ type: 'error', message: 'Lỗi khi cập nhật: ' + (err.message || 'Vui lòng thử lại') });
+      setTimeout(() => setToast(null), 5000);
     }
   };
 
@@ -519,6 +526,24 @@ export const ClassManager: React.FC = () => {
 
   return (
     <div className="space-y-4 font-sans text-gray-800">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[100] px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-pulse ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.type === 'success' ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className="font-medium">{toast.message}</span>
+        </div>
+      )}
+      
       {/* Top Control Bar */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1">
@@ -659,9 +684,7 @@ export const ClassManager: React.FC = () => {
               <span key={col} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded border border-gray-200">{col}</span>
             ))}
           </div>
-          <button className="flex items-center gap-1 text-teal-600 text-sm hover:text-teal-700 border border-teal-200 bg-teal-50 px-3 py-1.5 rounded">
-            <RotateCcw size={14} /> Khôi phục
-          </button>
+
         </div>
 
         <div className="overflow-x-auto">
@@ -1020,6 +1043,8 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
     foreignTeacherDuration: classData?.foreignTeacherDuration || 45,
     assistantEnabled: classData?.assistantDuration ? true : !!classData?.assistant,
     assistantDuration: classData?.assistantDuration || 90,
+    // Color: -1 = auto (hash từ tên), 0-15 = manual color index
+    color: classData?.color ?? -1,
   });
 
   // State cho cấu hình chi tiết từng ngày
@@ -1156,19 +1181,29 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
     fetchDropdownData();
   }, []);
 
-  // Filter staff by position
-  const vietnameseTeachers = staffList.filter(s => 
-    s.position?.toLowerCase().includes('giáo viên việt') || 
-    s.position?.toLowerCase().includes('gv việt')
-  );
-  const foreignTeachers = staffList.filter(s => 
-    s.position?.toLowerCase().includes('nước ngoài') || 
-    s.position?.toLowerCase().includes('gv ngoại') ||
-    s.position?.toLowerCase().includes('foreign')
-  );
-  const assistants = staffList.filter(s => 
-    s.position?.toLowerCase().includes('trợ giảng')
-  );
+  // Filter staff by position - với fallback nếu không có ai match
+  const vietnameseTeachers = useMemo(() => {
+    const filtered = staffList.filter(s => 
+      s.position?.toLowerCase().includes('giáo viên việt') || 
+      s.position?.toLowerCase().includes('gv việt') ||
+      s.position?.toLowerCase().includes('giáo viên') ||
+      s.position?.toLowerCase() === 'giáo viên'
+    );
+    // Fallback: nếu không có ai match, hiển thị tất cả staff
+    return filtered.length > 0 ? filtered : staffList;
+  }, [staffList]);
+
+  const foreignTeachers = useMemo(() => {
+    const filtered = staffList.filter(s => 
+      s.position?.toLowerCase().includes('nước ngoài') || 
+      s.position?.toLowerCase().includes('gv ngoại') ||
+      s.position?.toLowerCase().includes('foreign')
+    );
+    return filtered.length > 0 ? filtered : staffList;
+  }, [staffList]);
+
+  // Trợ giảng: hiển thị TẤT CẢ staff vì ai cũng có thể làm TG (linh hoạt theo nghiệp vụ)
+  const assistants = useMemo(() => staffList, [staffList]);
 
   // Days options
   const daysOptions = [
@@ -1432,13 +1467,16 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
       activeStudents: formData.activeStudents,
       debtStudents: formData.debtStudents,
       reservedStudents: formData.reservedStudents,
-      // Teacher fields - only include if NOT using detailed schedule (legacy mode)
-      teacher: !useDetailedSchedule && formData.teacherEnabled ? formData.teacher : '',
-      teacherDuration: !useDetailedSchedule && formData.teacherEnabled ? formData.teacherDuration : null,
-      foreignTeacher: !useDetailedSchedule && formData.foreignTeacherEnabled ? formData.foreignTeacher : '',
-      foreignTeacherDuration: !useDetailedSchedule && formData.foreignTeacherEnabled ? formData.foreignTeacherDuration : null,
-      assistant: !useDetailedSchedule && formData.assistantEnabled ? formData.assistant : '',
-      assistantDuration: !useDetailedSchedule && formData.assistantEnabled ? formData.assistantDuration : null,
+      // Teacher fields - LUÔN lưu từ formData (dùng cho hiển thị + fallback)
+      // Detailed schedule chỉ bổ sung cấu hình chi tiết, không thay thế GV chính
+      teacher: formData.teacher || '',
+      teacherDuration: formData.teacherDuration || null,
+      foreignTeacher: formData.foreignTeacher || '',
+      foreignTeacherDuration: formData.foreignTeacherDuration || null,
+      assistant: formData.assistant || '',
+      assistantDuration: formData.assistantDuration || null,
+      // Color: -1 hoặc undefined = auto, 0-15 = manual color index
+      color: formData.color >= 0 ? formData.color : undefined,
     };
     
     console.log('[ClassFormModal] Submitting:', submitData);
@@ -1446,14 +1484,20 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50">
           <h3 className="text-lg font-bold text-gray-900">
             {classData ? 'Chỉnh sửa lớp học' : 'Tạo lớp học mới'}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-            <X size={22} />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+            <X size={20} />
           </button>
         </div>
 
@@ -2062,6 +2106,43 @@ const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClose, onS
               </select>
             </div>
 
+            {/* Color Picker */}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Màu hiển thị trên TKB
+                <span className="text-xs text-gray-400 font-normal ml-2">(nhấn để chọn, bỏ chọn = tự động)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CLASS_COLOR_PALETTE.map((color, idx) => {
+                  const isSelected = formData.color === idx;
+                  const isAuto = formData.color < 0;
+                  const autoIndex = hashClassName(formData.name || 'default');
+                  const isAutoSelected = isAuto && autoIndex === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, color: isSelected ? -1 : idx })}
+                      className={`w-8 h-8 rounded-lg border-2 transition-all ${color.accent} ${
+                        isSelected 
+                          ? 'ring-2 ring-offset-2 ring-gray-400 scale-110 border-gray-600' 
+                          : isAutoSelected
+                            ? 'ring-1 ring-offset-1 ring-gray-300 border-dashed border-gray-400'
+                            : 'border-transparent hover:scale-105 hover:border-gray-300'
+                      }`}
+                      title={isSelected ? 'Bỏ chọn (tự động)' : `Màu ${idx + 1}`}
+                    />
+                  );
+                })}
+              </div>
+              {formData.color < 0 && (
+                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                  <span className="w-3 h-3 rounded inline-block" style={{ background: 'linear-gradient(45deg, #ccc 50%, #999 50%)' }}></span>
+                  Tự động từ tên lớp (màu viền nét đứt)
+                </p>
+              )}
+            </div>
+
             {/* Chỉ hiển thị số lượng học viên khi đang sửa lớp (đã có classData) */}
             {classData && (
               <div className="col-span-2 border-t pt-4 mt-2">
@@ -2146,20 +2227,26 @@ const TestScheduleModal: React.FC<TestScheduleModalProps> = ({ classData, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-50 via-indigo-50 to-violet-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calendar className="text-blue-600" size={20} />
+            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-200">
+              <Calendar className="text-white" size={20} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Thêm lịch test</h3>
-              <p className="text-sm text-gray-600">{classData.name}</p>
+              <p className="text-sm text-gray-500">{classData.name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-            <X size={22} />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+            <X size={20} />
           </button>
         </div>
 
@@ -2432,21 +2519,27 @@ const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ classData, 
   }, [allStudents, searchTerm]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Users className="text-green-600" size={20} />
+            <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg shadow-emerald-200">
+              <Users className="text-white" size={20} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Quản lý học viên trong lớp</h3>
-              <p className="text-sm text-gray-600">{classData.name} - {studentsInClass.length} học viên</p>
+              <p className="text-sm text-gray-500">{classData.name} - {studentsInClass.length} học viên</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-            <X size={22} />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-lg transition-colors">
+            <X size={20} />
           </button>
         </div>
 
@@ -2854,15 +2947,21 @@ const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-5 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold">{classData.name}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(classData.status)}`}>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(classData.status)}`}>
                   {classData.status}
                 </span>
                 {classData.level && (
@@ -2870,8 +2969,8 @@ const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
                 )}
               </div>
             </div>
-            <button onClick={onClose} className="text-white/80 hover:text-white">
-              <X size={24} />
+            <button onClick={onClose} className="text-white/70 hover:text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+              <X size={22} />
             </button>
           </div>
         </div>

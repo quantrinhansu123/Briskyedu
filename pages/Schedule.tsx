@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Printer, ChevronLeft, ChevronRight, Plus, X, MapPin, Users, User, BookOpen, Clock, Home, ChevronUp, Calendar, GraduationCap, CheckCircle, Umbrella } from 'lucide-react';
+import { Printer, ChevronLeft, ChevronRight, Plus, X, MapPin, Users, User, BookOpen, Clock, Home, ChevronUp, Calendar, GraduationCap, CheckCircle, Umbrella, Palette, Check, RotateCcw } from 'lucide-react';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
 import { usePermissions } from '../src/hooks/usePermissions';
@@ -8,9 +8,62 @@ import { useHolidays } from '../src/hooks/useHolidays';
 import { useRooms } from '../src/hooks/useRooms';
 import { useStaff } from '../src/hooks/useStaff';
 import { ClassModel, Student, Holiday } from '../types';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { getScheduleTime, getScheduleDays, formatSchedule } from '../src/utils/scheduleUtils';
+
+// ============================================
+// CLASS COLOR PALETTE SYSTEM
+// Soft pastel education theme với 16 màu đẹp
+// ============================================
+const CLASS_COLOR_PALETTE = [
+  // Warm tones
+  { bg: 'bg-rose-50', border: 'border-l-rose-400', accent: 'bg-rose-400', ring: 'ring-rose-200', text: 'text-rose-700', gradient: 'from-rose-50 to-rose-100/50' },
+  { bg: 'bg-orange-50', border: 'border-l-orange-400', accent: 'bg-orange-400', ring: 'ring-orange-200', text: 'text-orange-700', gradient: 'from-orange-50 to-orange-100/50' },
+  { bg: 'bg-amber-50', border: 'border-l-amber-400', accent: 'bg-amber-400', ring: 'ring-amber-200', text: 'text-amber-700', gradient: 'from-amber-50 to-amber-100/50' },
+  { bg: 'bg-yellow-50', border: 'border-l-yellow-400', accent: 'bg-yellow-400', ring: 'ring-yellow-200', text: 'text-yellow-700', gradient: 'from-yellow-50 to-yellow-100/50' },
+  // Cool tones  
+  { bg: 'bg-lime-50', border: 'border-l-lime-500', accent: 'bg-lime-500', ring: 'ring-lime-200', text: 'text-lime-700', gradient: 'from-lime-50 to-lime-100/50' },
+  { bg: 'bg-emerald-50', border: 'border-l-emerald-400', accent: 'bg-emerald-400', ring: 'ring-emerald-200', text: 'text-emerald-700', gradient: 'from-emerald-50 to-emerald-100/50' },
+  { bg: 'bg-teal-50', border: 'border-l-teal-400', accent: 'bg-teal-400', ring: 'ring-teal-200', text: 'text-teal-700', gradient: 'from-teal-50 to-teal-100/50' },
+  { bg: 'bg-cyan-50', border: 'border-l-cyan-400', accent: 'bg-cyan-400', ring: 'ring-cyan-200', text: 'text-cyan-700', gradient: 'from-cyan-50 to-cyan-100/50' },
+  // Blue tones
+  { bg: 'bg-sky-50', border: 'border-l-sky-400', accent: 'bg-sky-400', ring: 'ring-sky-200', text: 'text-sky-700', gradient: 'from-sky-50 to-sky-100/50' },
+  { bg: 'bg-blue-50', border: 'border-l-blue-400', accent: 'bg-blue-400', ring: 'ring-blue-200', text: 'text-blue-700', gradient: 'from-blue-50 to-blue-100/50' },
+  { bg: 'bg-indigo-50', border: 'border-l-indigo-400', accent: 'bg-indigo-400', ring: 'ring-indigo-200', text: 'text-indigo-700', gradient: 'from-indigo-50 to-indigo-100/50' },
+  { bg: 'bg-violet-50', border: 'border-l-violet-400', accent: 'bg-violet-400', ring: 'ring-violet-200', text: 'text-violet-700', gradient: 'from-violet-50 to-violet-100/50' },
+  // Purple/Pink tones
+  { bg: 'bg-purple-50', border: 'border-l-purple-400', accent: 'bg-purple-400', ring: 'ring-purple-200', text: 'text-purple-700', gradient: 'from-purple-50 to-purple-100/50' },
+  { bg: 'bg-fuchsia-50', border: 'border-l-fuchsia-400', accent: 'bg-fuchsia-400', ring: 'ring-fuchsia-200', text: 'text-fuchsia-700', gradient: 'from-fuchsia-50 to-fuchsia-100/50' },
+  { bg: 'bg-pink-50', border: 'border-l-pink-400', accent: 'bg-pink-400', ring: 'ring-pink-200', text: 'text-pink-700', gradient: 'from-pink-50 to-pink-100/50' },
+  // Neutral accent
+  { bg: 'bg-slate-50', border: 'border-l-slate-400', accent: 'bg-slate-400', ring: 'ring-slate-200', text: 'text-slate-700', gradient: 'from-slate-50 to-slate-100/50' },
+];
+
+// Hash function để gán màu consistent cho mỗi lớp (fallback khi chưa chọn màu)
+const hashClassName = (className: string): number => {
+  let hash = 0;
+  for (let i = 0; i < className.length; i++) {
+    const char = className.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % CLASS_COLOR_PALETTE.length;
+};
+
+// Lấy màu cho lớp: ưu tiên màu đã lưu, fallback về hash từ tên
+const getClassColor = (cls: { name?: string; id?: string; color?: number }): typeof CLASS_COLOR_PALETTE[0] => {
+  // Nếu có màu đã lưu, sử dụng nó
+  if (typeof cls.color === 'number' && cls.color >= 0 && cls.color < CLASS_COLOR_PALETTE.length) {
+    return CLASS_COLOR_PALETTE[cls.color];
+  }
+  // Fallback: hash từ tên lớp
+  const index = hashClassName(cls.name || cls.id || '');
+  return CLASS_COLOR_PALETTE[index];
+};
+
+// Export để dùng ở ClassManager
+export { CLASS_COLOR_PALETTE, hashClassName };
 
 export const Schedule: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState('');
@@ -21,6 +74,8 @@ export const Schedule: React.FC = () => {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [detailModalClass, setDetailModalClass] = useState<ClassModel | null>(null);
+  const [savingColorId, setSavingColorId] = useState<string | null>(null);
+  const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
     const day = today.getDay();
@@ -43,6 +98,21 @@ export const Schedule: React.FC = () => {
   const activeHolidays = useMemo(() => {
     return holidays.filter(h => h.status === 'Đã áp dụng');
   }, [holidays]);
+
+  // Handle color change for a class
+  const handleColorChange = async (classId: string, colorIndex: number | undefined) => {
+    setSavingColorId(classId);
+    try {
+      await updateDoc(doc(db, 'classes', classId), {
+        color: colorIndex ?? null // null = auto (hash-based)
+      });
+      setShowColorPicker(null);
+    } catch (error) {
+      console.error('Error updating class color:', error);
+    } finally {
+      setTimeout(() => setSavingColorId(null), 500);
+    }
+  };
 
   // Format date to YYYY-MM-DD in local timezone
   const formatDateLocal = (date: Date): string => {
@@ -545,16 +615,19 @@ export const Schedule: React.FC = () => {
                             const classHoliday = getHolidayForDate(cellDate, cls.id, cls.branch);
                             const isOnHoliday = classHoliday !== null;
                             
+                            // Get consistent color for this class (uses saved color or fallback to hash)
+                            const classColor = getClassColor(cls);
+                            
                             return (
                               <div 
                                 key={cardKey}
                                 onClick={() => setExpandedCardId(isExpanded ? null : cardKey)}
-                                className={`group rounded-lg text-xs cursor-pointer transition-all duration-300 ease-out print:rounded-none print:border-0 print:shadow-none print:bg-transparent ${
+                                className={`group rounded-lg text-xs cursor-pointer transition-all duration-300 ease-out border-l-[3px] print:rounded-none print:border-0 print:shadow-none print:bg-transparent ${
                                   isOnHoliday
-                                    ? 'bg-red-50 border border-red-200 opacity-60'
+                                    ? 'bg-red-50 border border-red-200 border-l-red-400 opacity-60'
                                     : isExpanded 
-                                      ? 'bg-gradient-to-br from-slate-50 to-white shadow-xl shadow-slate-200/50 ring-1 ring-slate-200 print:ring-0' 
-                                      : 'bg-white/80 backdrop-blur-sm border border-slate-200/60 hover:shadow-lg hover:shadow-slate-200/40 hover:border-slate-300 hover:-translate-y-0.5'
+                                      ? `bg-gradient-to-br ${classColor.gradient} shadow-xl ${classColor.ring} ring-1 border ${classColor.border} print:ring-0` 
+                                      : `${classColor.bg} border border-slate-200/60 ${classColor.border} hover:shadow-lg hover:shadow-slate-200/40 hover:-translate-y-0.5 hover:ring-2 ${classColor.ring}`
                                 }`}
                               >
                                 {/* Holiday Badge */}
@@ -568,13 +641,12 @@ export const Schedule: React.FC = () => {
                                 {/* Compact Header */}
                                 <div className={`p-2.5 print:p-0.5 print:block ${isExpanded ? 'pb-0' : ''}`}>
                                   <div className="flex items-start gap-2">
-                                    <div className={`w-1 self-stretch rounded-full transition-colors ${
-                                      isOnHoliday ? 'bg-red-400' :
-                                      isExpanded ? 'bg-indigo-500' : 'bg-slate-300 group-hover:bg-indigo-400'
+                                    <div className={`w-1.5 self-stretch rounded-full transition-colors ${
+                                      isOnHoliday ? 'bg-red-400' : classColor.accent
                                     }`} />
                                     <div className="flex-1 min-w-0">
-                                      <p className={`font-semibold truncate print:text-[8px] print:font-medium leading-tight ${
-                                        isOnHoliday ? 'text-red-700 line-through' : 'text-slate-800'
+                                      <p className={`font-bold truncate print:text-[8px] print:font-medium leading-tight ${
+                                        isOnHoliday ? 'text-red-700 line-through' : classColor.text
                                       }`}>
                                         {info.className}
                                       </p>
@@ -666,6 +738,74 @@ export const Schedule: React.FC = () => {
                                       )}
                                     </div>
 
+                                    {/* Color Picker - Elegant Inline Design */}
+                                    <div 
+                                      className="relative"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        onClick={() => setShowColorPicker(showColorPicker === cls.id ? null : cls.id)}
+                                        className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${
+                                          showColorPicker === cls.id 
+                                            ? 'bg-white border-slate-300 shadow-sm' 
+                                            : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:border-slate-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Palette size={12} className="text-slate-400" />
+                                          <span className="text-[10px] text-slate-500">Màu hiển thị</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          <div className={`w-4 h-4 rounded-full ${classColor.accent} ring-1 ring-white shadow-sm`} />
+                                          {savingColorId === cls.id && (
+                                            <div className="w-3 h-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                                          )}
+                                        </div>
+                                      </button>
+                                      
+                                      {/* Color Picker Dropdown */}
+                                      {showColorPicker === cls.id && (
+                                        <div className="absolute bottom-full left-0 right-0 mb-1 p-2 bg-white rounded-xl shadow-xl border border-slate-200 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Chọn màu</span>
+                                            <button
+                                              onClick={() => handleColorChange(cls.id, undefined)}
+                                              className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded transition-colors ${
+                                                cls.color === undefined || cls.color === null
+                                                  ? 'bg-slate-200 text-slate-700 font-medium'
+                                                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                                              }`}
+                                            >
+                                              <RotateCcw size={9} />
+                                              Tự động
+                                            </button>
+                                          </div>
+                                          <div className="grid grid-cols-8 gap-1">
+                                            {CLASS_COLOR_PALETTE.map((color, idx) => {
+                                              const isSelected = cls.color === idx;
+                                              const isAutoSelected = (cls.color === undefined || cls.color === null) && hashClassName(cls.name || '') === idx;
+                                              return (
+                                                <button
+                                                  key={idx}
+                                                  onClick={() => handleColorChange(cls.id, idx)}
+                                                  className={`group relative w-5 h-5 rounded-md transition-all duration-150 ${color.accent} ${
+                                                    isSelected 
+                                                      ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' 
+                                                      : isAutoSelected
+                                                        ? 'ring-1 ring-offset-1 ring-dashed ring-slate-300'
+                                                        : 'hover:scale-110 hover:ring-2 hover:ring-offset-1 hover:ring-slate-200'
+                                                  }`}
+                                                >
+                                                  {isSelected && (
+                                                    <Check size={10} className="absolute inset-0 m-auto text-white drop-shadow-sm" />
+                                                  )}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
 
                                   </div>
                                 )}

@@ -99,8 +99,8 @@ interface DashboardStats {
   salaryPercent: number;
   businessHealth: { metric: string; value: number; status: string }[];
   lowStockProducts: { name: string; quantity: number }[];
-  upcomingBirthdays: { name: string; position: string; date: string }[];
-  studentBirthdays: { id: string; name: string; position: string; date: string; dayOfMonth: number }[];
+  upcomingBirthdays: { name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
+  studentBirthdays: { id: string; name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
   classStats: { name: string; count: number }[];
 }
 
@@ -144,6 +144,7 @@ export const Dashboard: React.FC = () => {
   const [birthdayFilter, setBirthdayFilter] = useState<'month' | 'week' | 'today'>('month');
   const [birthdayType, setBirthdayType] = useState<'staff' | 'student'>('staff');
   const [birthdayGifts, setBirthdayGifts] = useState<Record<string, { giftPrepared: boolean; giftGiven: boolean }>>({});
+  const [birthdayBranch, setBirthdayBranch] = useState<string>('all');
   
   // State cho bảng vật phẩm kho
   const [stockFilter, setStockFilter] = useState<'low' | 'all'>('low');
@@ -409,6 +410,7 @@ export const Dashboard: React.FC = () => {
             position: s.position || 'Nhân viên',
             date: `${String(bday.getDate()).padStart(2, '0')}/${String(bday.getMonth() + 1).padStart(2, '0')}/${bday.getFullYear()}`,
             dayOfMonth: bday.getDate(),
+            branch: s.branch || s.center || '',
           };
         })
         .sort((a: any, b: any) => a.dayOfMonth - b.dayOfMonth);
@@ -433,6 +435,7 @@ export const Dashboard: React.FC = () => {
             position: 'Học viên',
             date: `${String(bday.getDate()).padStart(2, '0')}/${String(bday.getMonth() + 1).padStart(2, '0')}/${bday.getFullYear()}`,
             dayOfMonth: bday.getDate(),
+            branch: s.branch || '',
           };
         })
         .sort((a: any, b: any) => a.dayOfMonth - b.dayOfMonth);
@@ -1329,17 +1332,33 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="p-4">
-                <div className="flex items-center gap-2 text-sm mb-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
-                  <span className="text-gray-600">Hiển thị theo</span>
-                  <select
-                    value={birthdayFilter}
-                    onChange={(e) => setBirthdayFilter(e.target.value as any)}
-                    className="text-[#FF6B5A] font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
-                  >
-                    <option value="today">Hôm nay</option>
-                    <option value="week">Tuần này</option>
-                    <option value="month">Tháng này</option>
-                  </select>
+                <div className="flex flex-wrap items-center gap-3 text-sm mb-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600">Hiển thị theo</span>
+                    <select
+                      value={birthdayFilter}
+                      onChange={(e) => setBirthdayFilter(e.target.value as any)}
+                      className="text-[#FF6B5A] font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
+                    >
+                      <option value="today">Hôm nay</option>
+                      <option value="week">Tuần này</option>
+                      <option value="month">Tháng này</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">|</span>
+                    <span className="text-gray-600">Cơ sở</span>
+                    <select
+                      value={birthdayBranch}
+                      onChange={(e) => setBirthdayBranch(e.target.value)}
+                      className="text-[#FF6B5A] font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
+                    >
+                      <option value="all">Tất cả</option>
+                      {centerList.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <table className="w-full text-sm">
                   <thead className="bg-orange-50/50 border-b-2 border-orange-100">
@@ -1362,10 +1381,15 @@ export const Dashboard: React.FC = () => {
                       const thisYear = now.getFullYear();
                       
                       const birthdayData = birthdayType === 'staff' ? stats.upcomingBirthdays : stats.studentBirthdays;
-                      
+
                       const filteredBirthdays = birthdayData.filter((item: any) => {
                         const [day, month] = item.date.split('/').map(Number);
-                        
+
+                        // Filter by branch for both staff and students
+                        if (birthdayBranch !== 'all') {
+                          if (item.branch !== birthdayBranch) return false;
+                        }
+
                         if (birthdayFilter === 'today') {
                           return day === today && month === thisMonth + 1;
                         } else if (birthdayFilter === 'week') {
@@ -1431,7 +1455,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Dev Tools - Admin Only */}
+      {/* Dev Tools - Hidden (uncomment for development)
       <div className="fixed bottom-4 right-4 z-40 flex gap-2">
         <button
           onClick={handleSeedData}
@@ -1448,6 +1472,7 @@ export const Dashboard: React.FC = () => {
           {seeding ? '⏳ Đang xử lý...' : '🗑️ Xóa Data'}
         </button>
       </div>
+      */}
 
       {/* Modal danh sách học viên */}
       {showStudentModal && selectedCategory && (

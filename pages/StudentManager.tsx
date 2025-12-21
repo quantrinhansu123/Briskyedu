@@ -290,7 +290,31 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
   const handleUpdateStudent = async (id: string, data: Partial<Student>) => {
     try {
+      // Check if sessions changed to create enrollment record
+      const oldSessions = editingStudent?.registeredSessions || 0;
+      const newSessions = data.registeredSessions ?? oldSessions;
+      const sessionChange = newSessions - oldSessions;
+
       await updateStudent(id, data);
+
+      // Create enrollment record if sessions changed
+      if (sessionChange !== 0 && editingStudent) {
+        await createEnrollment({
+          studentId: id,
+          studentName: editingStudent.fullName,
+          classId: editingStudent.classId || '',
+          className: editingStudent.class || '',
+          sessions: sessionChange,
+          type: 'Ghi danh thủ công',
+          reason: `Chỉnh sửa thủ công: ${oldSessions} → ${newSessions} buổi`,
+          note: `Chỉnh sửa thủ công: ${oldSessions} → ${newSessions} buổi`,
+          createdBy: staffData?.name || 'Admin',
+          createdAt: new Date().toISOString(),
+          createdDate: new Date().toLocaleDateString('vi-VN'),
+          finalAmount: 0,
+        });
+      }
+
       setShowEditModal(false);
       setEditingStudent(null);
     } catch (err) {

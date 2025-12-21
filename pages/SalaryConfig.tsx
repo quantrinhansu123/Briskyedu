@@ -20,6 +20,7 @@ interface StaffOption {
   name: string;
   position: string;
   department?: string;
+  roles?: string[]; // Support multiple roles
 }
 
 interface ClassOption {
@@ -71,6 +72,7 @@ export const SalaryConfig: React.FC = () => {
   const [staffList, setStaffList] = useState<StaffOption[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [selectedStaff, setSelectedStaff] = useState<StaffOption | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>(''); // Selected role for multi-role staff
   const [staffClasses, setStaffClasses] = useState<ClassOption[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
   
@@ -97,10 +99,13 @@ export const SalaryConfig: React.FC = () => {
     if (lower.includes('nước ngoài') || lower.includes('ngoại') || lower === 'foreign') return 'Giáo Viên Nước Ngoài';
     if (lower.includes('việt') || lower === 'gv việt') return 'Giáo Viên Việt';
     if (lower.includes('trợ') || lower === 'tg') return 'Trợ Giảng';
-    return pos;
+    if (lower.includes('nhân viên') || lower === 'nv') return 'Nhân viên';
+    if (lower.includes('văn phòng') || lower === 'vp') return 'Văn phòng';
+    if (lower.includes('sale')) return 'Sale';
+    return pos || 'Nhân viên';
   };
 
-  // Fetch staff list
+  // Fetch staff list - includes all positions (GV, TG, NV, VP, Sale...)
   useEffect(() => {
     const fetchStaff = async () => {
       try {
@@ -109,14 +114,18 @@ export const SalaryConfig: React.FC = () => {
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
           const normalizedPos = normalizePosition(data.position || '');
-          if (['Giáo Viên Việt', 'Giáo Viên Nước Ngoài', 'Trợ Giảng'].includes(normalizedPos)) {
-            staffData.push({
-              id: docSnap.id,
-              name: data.name || '',
-              position: normalizedPos,
-              department: data.department || 'Khoa Tiếng Anh',
-            });
-          }
+          // Get roles array or create from single position
+          const roles = data.roles && Array.isArray(data.roles) && data.roles.length > 0
+            ? data.roles
+            : [normalizedPos || data.role || 'Nhân viên'];
+          // Include all staff for salary configuration
+          staffData.push({
+            id: docSnap.id,
+            name: data.name || '',
+            position: normalizedPos,
+            department: data.department || '',
+            roles: roles,
+          });
         });
         staffData.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
         setStaffList(staffData);
@@ -271,6 +280,12 @@ export const SalaryConfig: React.FC = () => {
   const handleStaffSelect = (staffId: string) => {
     const staff = staffList.find(s => s.id === staffId);
     setSelectedStaff(staff || null);
+    // Auto-select first role if staff has roles
+    if (staff?.roles && staff.roles.length > 0) {
+      setSelectedRole(staff.roles[0]);
+    } else {
+      setSelectedRole(staff?.position || '');
+    }
     // Reset form
     setClassConfigs([]);
     setNote('');
@@ -310,33 +325,64 @@ export const SalaryConfig: React.FC = () => {
   // Save configuration
   const handleSave = async () => {
     if (!selectedStaff) {
-      alert('Vui lòng chọn giáo viên');
+      alert('Vui lòng chọn nhân viên');
+      return;
+    }
+    if (!selectedRole) {
+      alert('Vui lòng chọn vai trò cấu hình');
       return;
     }
 
     setSaving(true);
     try {
-      // Delete existing rules for this staff
-      const existingRules = salaryRules.filter(r => r.staffId === selectedStaff.id);
+      // Delete existing rules for this staff + role combination only
+      const existingRules = salaryRules.filter(r =>
+        r.staffId === selectedStaff.id && r.position === selectedRole
+      );
       for (const rule of existingRules) {
         if (rule.id) {
           await deleteRule(rule.id);
         }
       }
 
-      // Create new rules for each class
-      for (const config of classConfigs) {
+      // Create new rules for each class (for teaching roles)
+      // Or create a single rule for non-teaching roles (Nhân viên, Văn phòng)
+      const isTeachingRole = ['Giáo viên', 'Giáo Viên Việt', 'Giáo Viên Nước Ngoài', 'Trợ Giảng', 'Trợ giảng'].includes(selectedRole);
+
+      if (isTeachingRole && classConfigs.length > 0) {
+        // Teaching role: create rules per class
+        for (const config of classConfigs) {
+          await createRule({
+            staffId: selectedStaff.id,
+            staffName: selectedStaff.name,
+            position: selectedRole, // Use selected role
+            classId: config.classId,
+            className: config.className,
+            classCode: config.classCode,
+            salaryMethod: config.unit === 'Giờ' ? 'Theo giờ' : 'Theo ca',
+            baseRate: fixedSalary,
+            workMethod: 'Cố định',
+            ratePerSession: config.ratePerUnit,
+            allowance: allowance,
+            kpiBonus: kpiBonus,
+            note: note,
+            effectiveDate: new Date().toISOString().split('T')[0],
+            salaryCycle: salaryCycle,
+          });
+        }
+      } else {
+        // Non-teaching role (Nhân viên, Văn phòng, Sale): create single rule
         await createRule({
           staffId: selectedStaff.id,
           staffName: selectedStaff.name,
-          position: selectedStaff.position,
-          classId: config.classId,
-          className: config.className,
-          classCode: config.classCode,
-          salaryMethod: config.unit === 'Giờ' ? 'Theo giờ' : 'Theo ca',
+          position: selectedRole,
+          classId: '',
+          className: '',
+          classCode: '',
+          salaryMethod: 'Theo giờ',
           baseRate: fixedSalary,
           workMethod: 'Cố định',
-          ratePerSession: config.ratePerUnit,
+          ratePerSession: 0,
           allowance: allowance,
           kpiBonus: kpiBonus,
           note: note,
@@ -345,7 +391,7 @@ export const SalaryConfig: React.FC = () => {
         });
       }
 
-      alert('Đã lưu cấu hình lương thành công!');
+      alert(`Đã lưu cấu hình lương cho ${selectedStaff.name} - ${selectedRole}!`);
     } catch (err) {
       console.error('Error saving config:', err);
       alert('Không thể lưu cấu hình');
@@ -357,6 +403,7 @@ export const SalaryConfig: React.FC = () => {
   // Reset form
   const handleReset = () => {
     setSelectedStaff(null);
+    setSelectedRole('');
     setClassConfigs([]);
     setFixedSalary(0);
     setAllowance(0);
@@ -368,8 +415,8 @@ export const SalaryConfig: React.FC = () => {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg">
-        <h1 className="text-2xl font-bold text-center mb-2">CẤU HÌNH CƠ CẤU LƯƠNG GIÁO VIÊN</h1>
-        <p className="text-center text-blue-100">Lương giáo viên được tính theo ca/giờ và phân theo lớp học khác nhau.</p>
+        <h1 className="text-2xl font-bold text-center mb-2">CẤU HÌNH CƠ CẤU LƯƠNG NHÂN SỰ</h1>
+        <p className="text-center text-blue-100">Cấu hình lương theo vai trò: GV theo ca/giờ dạy, NV theo giờ làm việc. Hỗ trợ đa vai trò.</p>
       </div>
 
       {/* Main Form */}
@@ -382,9 +429,9 @@ export const SalaryConfig: React.FC = () => {
             Chọn Giáo Viên & Xác Định Chu Kỳ
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tên Giáo Viên</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tên Nhân Viên</label>
               <div className="relative">
                 <select
                   value={selectedStaff?.id || ''}
@@ -392,15 +439,35 @@ export const SalaryConfig: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 appearance-none"
                   disabled={loadingStaff}
                 >
-                  <option value="">{loadingStaff ? 'Đang tải...' : '-- Chọn giáo viên --'}</option>
+                  <option value="">{loadingStaff ? 'Đang tải...' : '-- Chọn nhân viên --'}</option>
                   {staffList.map((staff) => (
                     <option key={staff.id} value={staff.id}>
-                      {staff.name}
+                      {staff.name} {staff.roles && staff.roles.length > 1 ? `(${staff.roles.length} vai trò)` : `(${staff.position})`}
                     </option>
                   ))}
                 </select>
                 <User className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Vai trò cấu hình
+                {selectedStaff?.roles && selectedStaff.roles.length > 1 && (
+                  <span className="text-xs text-amber-600 ml-1">({selectedStaff.roles.length} vai trò)</span>
+                )}
+              </label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={!selectedStaff}
+              >
+                <option value="">-- Chọn vai trò --</option>
+                {selectedStaff?.roles?.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -563,17 +630,15 @@ export const SalaryConfig: React.FC = () => {
               <span className="text-gray-700">Phụ Cấp Trách Nhiệm</span>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500">{allowance > 0 ? formatCurrency(allowance) : '0'}</span>
-                <select
+                <input
+                  type="number"
                   value={allowance}
-                  onChange={(e) => setAllowance(parseInt(e.target.value))}
-                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
-                >
-                  <option value={0}>0</option>
-                  <option value={100000}>100,000</option>
-                  <option value={200000}>200,000</option>
-                  <option value={300000}>300,000</option>
-                  <option value={500000}>500,000</option>
-                </select>
+                  onChange={(e) => setAllowance(parseInt(e.target.value) || 0)}
+                  className="w-32 px-3 py-1 border border-gray-300 rounded-lg text-sm text-right"
+                  step={50000}
+                  min={0}
+                  placeholder="Nhập số tiền"
+                />
               </div>
             </div>
 
@@ -636,10 +701,10 @@ export const SalaryConfig: React.FC = () => {
             <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
               <tr>
                 <th className="px-4 py-3">No</th>
-                <th className="px-4 py-3">Tên Giáo Viên</th>
-                <th className="px-4 py-3">Vị Trí</th>
-                <th className="px-4 py-3">Lớp</th>
-                <th className="px-4 py-3 text-right">Mức Lương/Ca</th>
+                <th className="px-4 py-3">Tên Nhân Viên</th>
+                <th className="px-4 py-3">Vai Trò</th>
+                <th className="px-4 py-3">Lớp/Loại</th>
+                <th className="px-4 py-3 text-right">Mức Lương</th>
                 <th className="px-4 py-3">Đơn Vị</th>
                 <th className="px-4 py-3">Ngày Hiệu Lực</th>
                 <th className="px-4 py-3 text-center">Xóa</th>
@@ -670,16 +735,29 @@ export const SalaryConfig: React.FC = () => {
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       rule.position === 'Giáo Viên Việt' ? 'bg-blue-100 text-blue-700' :
                       rule.position === 'Giáo Viên Nước Ngoài' ? 'bg-purple-100 text-purple-700' :
-                      'bg-green-100 text-green-700'
+                      rule.position === 'Trợ Giảng' ? 'bg-green-100 text-green-700' :
+                      rule.position === 'Nhân viên' ? 'bg-amber-100 text-amber-700' :
+                      rule.position === 'Văn phòng' ? 'bg-slate-100 text-slate-700' :
+                      rule.position === 'Sale' ? 'bg-pink-100 text-pink-700' :
+                      'bg-gray-100 text-gray-700'
                     }`}>
                       {rule.position}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{rule.className || '-'}</td>
-                  <td className="px-4 py-3 text-right font-bold text-indigo-600">
-                    {formatCurrency(rule.ratePerSession)}
+                  <td className="px-4 py-3">
+                    {rule.className || (
+                      <span className="text-gray-400 italic">Lương cố định</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3">{rule.salaryMethod === 'Theo giờ' ? 'Giờ' : 'Ca'}</td>
+                  <td className="px-4 py-3 text-right font-bold text-indigo-600">
+                    {rule.ratePerSession > 0
+                      ? formatCurrency(rule.ratePerSession)
+                      : rule.baseRate > 0
+                        ? formatCurrency(rule.baseRate)
+                        : '-'
+                    }
+                  </td>
+                  <td className="px-4 py-3">{rule.className ? (rule.salaryMethod === 'Theo giờ' ? 'Giờ' : 'Ca') : 'Tháng'}</td>
                   <td className="px-4 py-3">{rule.effectiveDate}</td>
                   <td className="px-4 py-3 text-center">
                     <button

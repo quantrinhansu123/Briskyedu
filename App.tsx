@@ -68,15 +68,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 // Protected Route Component
-const DEV_MODE = false; // Set true to bypass auth for testing
-
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
-  // Skip auth check in dev mode
-  if (DEV_MODE) {
-    return <>{children}</>;
-  }
 
   if (loading) {
     return (

@@ -269,9 +269,9 @@ describe('usePermissions Hook', () => {
       });
     });
 
-    it('should default to gv_viet role', () => {
+    it('should default to tro_giang role for security', () => {
       const { result } = renderHook(() => usePermissions());
-      expect(result.current.role).toBe('gv_viet');
+      expect(result.current.role).toBe('tro_giang');
     });
   });
 });

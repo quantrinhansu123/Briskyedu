@@ -10,22 +10,13 @@ import { getScheduleTime, getScheduleDays, formatSchedule } from '../src/utils/s
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { CLASS_FIELDS, CLASS_MAPPING, prepareClassExport } from '../src/utils/excelUtils';
 import { CLASS_COLOR_PALETTE, hashClassName } from './Schedule';
+import { formatDisplayDate } from '../src/utils/dateUtils';
+import { normalizeStudentStatus as normalizeStatus } from '../src/utils/statusUtils';
 
-// Helper to safely format date
-const formatDateSafe = (dateValue: any): string => {
-  if (!dateValue) return '?';
-  try {
-    // Handle Timestamp object
-    if (dateValue && typeof dateValue.toDate === 'function') {
-      return dateValue.toDate().toLocaleDateString('vi-VN');
-    }
-    // Handle string or Date
-    const date = new Date(dateValue);
-    if (isNaN(date.getTime())) return '?';
-    return date.toLocaleDateString('vi-VN');
-  } catch {
-    return '?';
-  }
+// Helper to safely format date (uses shared utility)
+const formatDateSafe = (dateValue: unknown): string => {
+  const formatted = formatDisplayDate(dateValue);
+  return formatted || '?';
 };
 
 export const ClassManager: React.FC = () => {
@@ -116,17 +107,6 @@ export const ClassManager: React.FC = () => {
     fetchCurriculums();
   }, []);
 
-  // Normalize student status
-  const normalizeStudentStatus = (status: string): string => {
-    const lower = status?.toLowerCase() || '';
-    if (lower === 'active' || lower.includes('đang học')) return 'Đang học';
-    if (lower === 'inactive' || lower.includes('nghỉ')) return 'Nghỉ học';
-    if (lower === 'reserved' || lower.includes('bảo lưu')) return 'Bảo lưu';
-    if (lower === 'trial' || lower.includes('học thử')) return 'Học thử';
-    if (lower === 'debt' || lower.includes('nợ')) return 'Nợ phí';
-    return status;
-  };
-
   // REALTIME: Listen to students collection and calculate counts for each class
   useEffect(() => {
     if (classes.length === 0) {
@@ -151,7 +131,7 @@ export const ClassManager: React.FC = () => {
         students.forEach((student: any) => {
           const classId = student.classId;
           const className = student.class || student.className;
-          const status = normalizeStudentStatus(student.status || '');
+          const status = normalizeStatus(student.status || '');
           
           // Find matching class by ID or name
           let matchedClassId = classId;
@@ -166,23 +146,23 @@ export const ClassManager: React.FC = () => {
           
           if (matchedClassId && counts[matchedClassId]) {
             counts[matchedClassId].total++;
-            
+
             // Count by status - "Nợ phí" takes priority if hasDebt is true
-            if (status === 'Nợ phí' || student.hasDebt === true) {
+            if (status === StudentStatus.DEBT || student.hasDebt === true) {
               counts[matchedClassId].debt++;
-            } else if (status === 'Học thử') {
+            } else if (status === StudentStatus.TRIAL) {
               counts[matchedClassId].trial++;
-            } else if (status === 'Đang học') {
+            } else if (status === StudentStatus.ACTIVE) {
               counts[matchedClassId].active++;
-            } else if (status === 'Bảo lưu') {
+            } else if (status === StudentStatus.RESERVED) {
               counts[matchedClassId].reserved++;
-            } else if (status === 'Nghỉ học') {
+            } else if (status === StudentStatus.DROPPED) {
               counts[matchedClassId].dropped++;
             }
-            
+
             // Calculate remaining sessions (công nợ buổi học còn lại)
             // Chỉ tính cho học viên đang học, học thử (không tính nghỉ học, bảo lưu)
-            if (status !== 'Nghỉ học' && status !== 'Bảo lưu') {
+            if (status !== StudentStatus.DROPPED && status !== StudentStatus.RESERVED) {
               const registered = student.registeredSessions || 0;
               const attended = student.attendedSessions || 0;
               const remaining = registered - attended;

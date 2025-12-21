@@ -16,24 +16,8 @@ import { db } from '../src/config/firebase';
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { STUDENT_FIELDS, STUDENT_MAPPING, prepareStudentExport } from '../src/utils/excelUtils';
 import { getCenters, Center } from '../src/services/centerService';
-
-// Normalize English status to Vietnamese - defined outside component to avoid hoisting issues
-const normalizeStatus = (status: string): StudentStatus | string => {
-  if (!status) return '';
-  
-  const lower = status.toLowerCase().trim().normalize('NFC');
-  
-  // Map various status formats to enum values
-  if (lower === 'active' || lower === 'đang học') return StudentStatus.ACTIVE;
-  if (lower === 'inactive' || lower === 'dropped' || lower === 'nghỉ học' || lower === 'đã nghỉ' || lower.includes('nghỉ')) return StudentStatus.DROPPED;
-  if (lower === 'reserved' || lower === 'bảo lưu' || lower.includes('bảo lưu')) return StudentStatus.RESERVED;
-  if (lower === 'trial' || lower === 'học thử' || lower.includes('học thử')) return StudentStatus.TRIAL;
-  if (lower.includes('hết phí') || lower.includes('học hết')) return StudentStatus.EXPIRED_FEE;
-  if (lower === 'debt' || lower === 'nợ phí' || (lower.includes('nợ') && !lower.includes('hợp đồng'))) return StudentStatus.DEBT;
-  if (lower === 'contract_debt' || lower === 'nợ hợp đồng' || lower.includes('nợ hợp đồng')) return StudentStatus.CONTRACT_DEBT;
-  
-  return status;
-};
+import { normalizeStudentStatus } from '../src/utils/statusUtils';
+import { formatDisplayDate } from '../src/utils/dateUtils';
 
 interface StudentManagerProps {
   initialStatusFilter?: StudentStatus;
@@ -146,7 +130,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       // Filter by status (client-side to handle legacy status values like "Đã nghỉ")
       let matchesStatus = true;
       if (filterStatus !== 'ALL') {
-        const normalizedStatus = normalizeStatus(student.status);
+        const normalizedStatus = normalizeStudentStatus(student.status);
         matchesStatus = normalizedStatus === filterStatus;
       }
       
@@ -246,7 +230,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   };
 
   const getStatusColor = (status: string) => {
-    const normalizedStatus = normalizeStatus(status);
+    const normalizedStatus = normalizeStudentStatus(status);
     switch(normalizedStatus) {
       case StudentStatus.ACTIVE: return 'text-green-600 bg-green-50 ring-green-500/10';
       case StudentStatus.DEBT: return 'text-red-600 bg-red-50 ring-red-500/10';
@@ -369,7 +353,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           : parseInt(row.remainingSessions) || 0;
 
         // Auto-set status = 'Nợ phí' nếu số buổi còn lại < 0
-        let status = row.status ? normalizeStatus(row.status) : StudentStatus.ACTIVE;
+        let status = row.status ? normalizeStudentStatus(row.status) : StudentStatus.ACTIVE;
         if (remainingSessions < 0) {
           status = StudentStatus.DEBT;
         }
@@ -624,14 +608,14 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </td>
                     <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white ${
-                            normalizeStatus(student.status) === StudentStatus.ACTIVE ? 'bg-green-500' : 
-                            normalizeStatus(student.status) === StudentStatus.DEBT ? 'bg-red-500' :
-                            normalizeStatus(student.status) === StudentStatus.RESERVED ? 'bg-yellow-500' :
-                            normalizeStatus(student.status) === StudentStatus.DROPPED ? 'bg-gray-500' :
-                            normalizeStatus(student.status) === StudentStatus.TRIAL ? 'bg-purple-500' :
-                            normalizeStatus(student.status) === StudentStatus.EXPIRED_FEE ? 'bg-orange-500' : 'bg-gray-400'
+                            normalizeStudentStatus(student.status) === StudentStatus.ACTIVE ? 'bg-green-500' : 
+                            normalizeStudentStatus(student.status) === StudentStatus.DEBT ? 'bg-red-500' :
+                            normalizeStudentStatus(student.status) === StudentStatus.RESERVED ? 'bg-yellow-500' :
+                            normalizeStudentStatus(student.status) === StudentStatus.DROPPED ? 'bg-gray-500' :
+                            normalizeStudentStatus(student.status) === StudentStatus.TRIAL ? 'bg-purple-500' :
+                            normalizeStudentStatus(student.status) === StudentStatus.EXPIRED_FEE ? 'bg-orange-500' : 'bg-gray-400'
                         }`}>
-                            {normalizeStatus(student.status)}
+                            {normalizeStudentStatus(student.status)}
                         </span>
                     </td>
                     <td className="px-4 py-3">
@@ -784,7 +768,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </div>
                     <div className="p-2 bg-white rounded border border-gray-100">
                         <p className="text-xs text-gray-400">Trạng thái</p>
-                        <p className="font-medium text-blue-600">{normalizeStatus(selectedStudent.status)}</p>
+                        <p className="font-medium text-blue-600">{normalizeStudentStatus(selectedStudent.status)}</p>
                     </div>
                  </div>
               </div>

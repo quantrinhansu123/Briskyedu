@@ -18,6 +18,21 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
-    }
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks - split heavy dependencies
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+            'vendor-charts': ['recharts'],
+            'vendor-ui': ['lucide-react'],
+            'vendor-xlsx': ['xlsx'],
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600, // KB
+    },
   };
 });

@@ -1,46 +1,58 @@
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Dashboard } from './pages/Dashboard';
-import { ClassManager } from './pages/ClassManager';
-import { StudentManager } from './pages/StudentManager';
-import { TrialStudents } from './pages/TrialStudents';
-import { Schedule } from './pages/Schedule';
-import { HolidayManager } from './pages/HolidayManager';
-import { TutoringManager } from './pages/TutoringManager';
-import { AttendanceHistory } from './pages/AttendanceHistory';
-import { Attendance } from './pages/Attendance';
-import { StudentDetail } from './pages/StudentDetail';
-import { StaffManager } from './pages/StaffManager';
-import { ProductManager } from './pages/ProductManager';
-import { InventoryManager } from './pages/InventoryManager';
-import { RoomManager } from './pages/RoomManager';
-import { EnrollmentHistory } from './pages/EnrollmentHistory';
-import { ParentManager } from './pages/ParentManager';
-import { SalaryConfig } from './pages/SalaryConfig';
-import { StaffRewardPenalty } from './pages/StaffRewardPenalty';
-import { WorkConfirmation } from './pages/WorkConfirmation';
-import { SalaryReportTeacher } from './pages/SalaryReportTeacher';
-import { SalaryReportStaff } from './pages/SalaryReportStaff';
-import { ContractCreation } from './pages/ContractCreation';
-import { ContractList } from './pages/ContractList';
-import { FeedbackManager } from './pages/FeedbackManager';
-import { RevenueReport } from './pages/RevenueReport';
-import { DebtManagement } from './pages/DebtManagement';
-import { CustomerDatabase } from './pages/CustomerDatabase';
-import { CampaignManager } from './pages/CampaignManager';
-import { TrainingReport } from './pages/TrainingReport';
-import { InvoiceManager } from './pages/InvoiceManager';
-import { CenterSettings } from './pages/CenterSettings';
-import { CurriculumManager } from './pages/CurriculumManager';
-import { HomeworkManager } from './pages/HomeworkManager';
-import { MonthlyReport } from './pages/MonthlyReport';
-import { Login } from './pages/Login';
 import { StudentStatus } from './types';
 import { useAuth } from './src/hooks/useAuth';
+
+// Lazy load page components for code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const ClassManager = lazy(() => import('./pages/ClassManager').then(m => ({ default: m.ClassManager })));
+const StudentManager = lazy(() => import('./pages/StudentManager').then(m => ({ default: m.StudentManager })));
+const TrialStudents = lazy(() => import('./pages/TrialStudents').then(m => ({ default: m.TrialStudents })));
+const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.Schedule })));
+const HolidayManager = lazy(() => import('./pages/HolidayManager').then(m => ({ default: m.HolidayManager })));
+const TutoringManager = lazy(() => import('./pages/TutoringManager').then(m => ({ default: m.TutoringManager })));
+const AttendanceHistory = lazy(() => import('./pages/AttendanceHistory').then(m => ({ default: m.AttendanceHistory })));
+const Attendance = lazy(() => import('./pages/Attendance').then(m => ({ default: m.Attendance })));
+const StudentDetail = lazy(() => import('./pages/StudentDetail').then(m => ({ default: m.StudentDetail })));
+const StaffManager = lazy(() => import('./pages/StaffManager').then(m => ({ default: m.StaffManager })));
+const ProductManager = lazy(() => import('./pages/ProductManager').then(m => ({ default: m.ProductManager })));
+const InventoryManager = lazy(() => import('./pages/InventoryManager').then(m => ({ default: m.InventoryManager })));
+const RoomManager = lazy(() => import('./pages/RoomManager').then(m => ({ default: m.RoomManager })));
+const EnrollmentHistory = lazy(() => import('./pages/EnrollmentHistory').then(m => ({ default: m.EnrollmentHistory })));
+const ParentManager = lazy(() => import('./pages/ParentManager').then(m => ({ default: m.ParentManager })));
+const SalaryConfig = lazy(() => import('./pages/SalaryConfig').then(m => ({ default: m.SalaryConfig })));
+const StaffRewardPenalty = lazy(() => import('./pages/StaffRewardPenalty').then(m => ({ default: m.StaffRewardPenalty })));
+const WorkConfirmation = lazy(() => import('./pages/WorkConfirmation').then(m => ({ default: m.WorkConfirmation })));
+const SalaryReportTeacher = lazy(() => import('./pages/SalaryReportTeacher').then(m => ({ default: m.SalaryReportTeacher })));
+const SalaryReportStaff = lazy(() => import('./pages/SalaryReportStaff').then(m => ({ default: m.SalaryReportStaff })));
+const ContractCreation = lazy(() => import('./pages/ContractCreation').then(m => ({ default: m.ContractCreation })));
+const ContractList = lazy(() => import('./pages/ContractList').then(m => ({ default: m.ContractList })));
+const FeedbackManager = lazy(() => import('./pages/FeedbackManager').then(m => ({ default: m.FeedbackManager })));
+const RevenueReport = lazy(() => import('./pages/RevenueReport').then(m => ({ default: m.RevenueReport })));
+const DebtManagement = lazy(() => import('./pages/DebtManagement').then(m => ({ default: m.DebtManagement })));
+const CustomerDatabase = lazy(() => import('./pages/CustomerDatabase').then(m => ({ default: m.CustomerDatabase })));
+const CampaignManager = lazy(() => import('./pages/CampaignManager').then(m => ({ default: m.CampaignManager })));
+const TrainingReport = lazy(() => import('./pages/TrainingReport').then(m => ({ default: m.TrainingReport })));
+const InvoiceManager = lazy(() => import('./pages/InvoiceManager').then(m => ({ default: m.InvoiceManager })));
+const CenterSettings = lazy(() => import('./pages/CenterSettings').then(m => ({ default: m.CenterSettings })));
+const CurriculumManager = lazy(() => import('./pages/CurriculumManager').then(m => ({ default: m.CurriculumManager })));
+const HomeworkManager = lazy(() => import('./pages/HomeworkManager').then(m => ({ default: m.HomeworkManager })));
+const MonthlyReport = lazy(() => import('./pages/MonthlyReport').then(m => ({ default: m.MonthlyReport })));
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+
+// Page loading spinner component
+const PageLoader: React.FC = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="flex flex-col items-center gap-3">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <span className="text-gray-500 text-sm">Đang tải...</span>
+    </div>
+  </div>
+);
 
 // Placeholder components for routes not fully implemented
 const Placeholder: React.FC<{ title: string }> = ({ title }) => (
@@ -59,7 +71,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <Header title="Hệ thống quản lý trung tâm" />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 print:p-0 print:overflow-visible">
           <ErrorBoundary>
-            {children}
+            <Suspense fallback={<PageLoader />}>
+              {children}
+            </Suspense>
           </ErrorBoundary>
         </main>
       </div>
@@ -94,7 +108,7 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         {/* Public Route */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
 
         {/* Protected Routes */}
         <Route path="/*" element={

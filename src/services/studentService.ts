@@ -22,6 +22,7 @@ import {
 import { db } from '../config/firebase';
 import { Student, StudentStatus, CareLog } from '../../types';
 import { getParent, createParent, findParentByPhone } from './parentService';
+import { convertTimestamp } from '../utils/firestoreUtils';
 
 const COLLECTION_NAME = 'students';
 
@@ -57,11 +58,11 @@ export class StudentService {
       let students = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        dob: doc.data().dob?.toDate?.()?.toISOString() || doc.data().dob || '',
-        careHistory: doc.data().careHistory?.map((log: any) => ({
+        dob: convertTimestamp(doc.data().dob),
+        careHistory: (doc.data().careHistory as CareLog[] || []).map((log) => ({
           ...log,
-          date: log.date?.toDate?.()?.toISOString() || log.date
-        })) || []
+          date: convertTimestamp(log.date)
+        }))
       })) as Student[];
       
       // Client-side search if searchTerm provided
@@ -92,11 +93,11 @@ export class StudentService {
         return {
           id: docSnap.id,
           ...docSnap.data(),
-          dob: docSnap.data().dob?.toDate?.()?.toISOString() || docSnap.data().dob || '',
-          careHistory: docSnap.data().careHistory?.map((log: any) => ({
+          dob: convertTimestamp(docSnap.data().dob),
+          careHistory: (docSnap.data().careHistory as CareLog[] || []).map((log) => ({
             ...log,
-            date: log.date?.toDate?.()?.toISOString() || log.date
-          })) || []
+            date: convertTimestamp(log.date)
+          }))
         } as Student;
       }
       
@@ -178,7 +179,7 @@ export class StudentService {
       // Get current student to check parentId
       const currentStudent = await this.getStudentById(id);
       
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         ...updates,
         updatedAt: Timestamp.now()
       };
@@ -197,10 +198,10 @@ export class StudentService {
       // Sync parent info to parents collection if parentName/parentPhone changed
       if (currentStudent?.parentId && (updates.parentName || updates.parentPhone)) {
         const { updateParent } = await import('./parentService');
-        const parentUpdates: any = {};
+        const parentUpdates: Record<string, string> = {};
         if (updates.parentName) parentUpdates.name = updates.parentName;
         if (updates.parentPhone) parentUpdates.phone = updates.parentPhone;
-        
+
         await updateParent(currentStudent.parentId, parentUpdates);
       }
       

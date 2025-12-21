@@ -8,10 +8,12 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { Staff } from '../../types';
+import { sanitizeFirebaseError } from '../utils/errorUtils';
 
 export interface AuthUser extends FirebaseUser {
   role?: string;
-  staffData?: any;
+  staffData?: Staff;
 }
 
 export class AuthService {
@@ -33,9 +35,9 @@ export class AuthService {
       }
       
       return user as AuthUser;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Sign in error:', error);
-      throw new Error(this.getErrorMessage(error.code));
+      throw new Error(sanitizeFirebaseError(error));
     }
   }
   
@@ -90,9 +92,9 @@ export class AuthService {
       });
       
       return user.uid;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Register error:', error);
-      throw new Error(this.getErrorMessage(error.code));
+      throw new Error(sanitizeFirebaseError(error));
     }
   }
   
@@ -120,25 +122,5 @@ export class AuthService {
         callback(null);
       }
     });
-  }
-  
-  // Get error message in Vietnamese
-  private static getErrorMessage(errorCode: string): string {
-    switch (errorCode) {
-      case 'auth/user-not-found':
-        return 'Email không tồn tại trong hệ thống';
-      case 'auth/wrong-password':
-        return 'Mật khẩu không chính xác';
-      case 'auth/email-already-in-use':
-        return 'Email đã được sử dụng';
-      case 'auth/weak-password':
-        return 'Mật khẩu quá yếu (tối thiểu 6 ký tự)';
-      case 'auth/invalid-email':
-        return 'Email không hợp lệ';
-      case 'auth/too-many-requests':
-        return 'Quá nhiều lần thử. Vui lòng thử lại sau';
-      default:
-        return 'Đã có lỗi xảy ra. Vui lòng thử lại';
-    }
   }
 }

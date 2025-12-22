@@ -31,6 +31,17 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
     startDate: student.startDate ? new Date(student.startDate).toISOString().split('T')[0] : '',
   });
 
+  // Auto-recalculate remainingSessions when registeredSessions or attendedSessions changes
+  const handleRegisteredChange = (value: number) => {
+    const remaining = value - formData.attendedSessions;
+    setFormData({ ...formData, registeredSessions: value, remainingSessions: remaining });
+  };
+
+  const handleAttendedChange = (value: number) => {
+    const remaining = formData.registeredSessions - value;
+    setFormData({ ...formData, attendedSessions: value, remainingSessions: remaining });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Auto-set status = 'Nợ phí' nếu số buổi còn lại < 0
@@ -196,7 +207,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
                 type="number"
                 min={0}
                 value={formData.registeredSessions}
-                onChange={(e) => setFormData({ ...formData, registeredSessions: parseInt(e.target.value) || 0 })}
+                onChange={(e) => handleRegisteredChange(parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
             </div>
@@ -209,7 +220,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
                 type="number"
                 min={0}
                 value={formData.attendedSessions}
-                onChange={(e) => setFormData({ ...formData, attendedSessions: parseInt(e.target.value) || 0 })}
+                onChange={(e) => handleAttendedChange(parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">Nhập thủ công nếu cần điều chỉnh</p>
@@ -222,7 +233,18 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
               <input
                 type="number"
                 value={formData.remainingSessions}
-                onChange={(e) => setFormData({ ...formData, remainingSessions: parseInt(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow empty, minus sign, or any number (including negative)
+                  if (val === '' || val === '-') {
+                    setFormData({ ...formData, remainingSessions: 0 });
+                  } else {
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num)) {
+                      setFormData({ ...formData, remainingSessions: num });
+                    }
+                  }
+                }}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                   formData.remainingSessions < 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 }`}

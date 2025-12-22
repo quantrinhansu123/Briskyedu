@@ -331,10 +331,15 @@ export const countStudentAttendedSessions = async (
  * Check and update student debt status
  * If attendedSessions === registeredSessions => status = "Đã học hết phí"
  * If attendedSessions > registeredSessions => status = "Nợ phí"
+ *
+ * IMPORTANT: This function now handles incremental attendance correctly.
+ * When historical attendance wasn't tracked in studentAttendance collection,
+ * we use the stored attendedSessions as baseline and add new attendance on top.
  */
 export const checkAndUpdateStudentDebtStatus = async (
   studentId: string,
-  classId: string
+  classId: string,
+  attendanceId?: string  // Optional: pass to track which attendance was processed
 ): Promise<void> => {
   try {
     // Get student data
@@ -355,14 +360,51 @@ export const checkAndUpdateStudentDebtStatus = async (
     const countedAttended = await countStudentAttendedSessions(studentId, classId);
     const currentAttended = studentData.attendedSessions || 0;
 
-    // Use MAX of current and counted (never decrease, handles legacy data)
-    const attendedSessions = Math.max(currentAttended, countedAttended);
+    // Track processed attendance IDs to avoid double-counting
+    const processedAttendanceIds: string[] = studentData.processedAttendanceIds || [];
+
+    let attendedSessions: number;
+
+    // Case 1: Collection count >= stored count - use collection count (accurate data)
+    if (countedAttended >= currentAttended) {
+      attendedSessions = countedAttended;
+    } else {
+      // Case 2: Historical data exists outside collection (e.g., manual entry of 24 sessions)
+      // We need to ADD new attendance on top of the historical baseline
+
+      // Check if this attendance was already processed (to avoid double-incrementing on re-save)
+      if (attendanceId && processedAttendanceIds.includes(attendanceId)) {
+        // Already processed, don't increment again
+        attendedSessions = currentAttended;
+        console.log(`[checkDebtStatus] Attendance ${attendanceId} already processed for student ${studentId}, skipping increment`);
+      } else {
+        // New attendance! Increment by 1
+        attendedSessions = currentAttended + 1;
+        console.log(`[checkDebtStatus] New attendance for student ${studentId}: ${currentAttended} -> ${attendedSessions} (historical data mode)`);
+
+        // Track this attendance as processed
+        if (attendanceId) {
+          processedAttendanceIds.push(attendanceId);
+        }
+      }
+    }
 
     // Calculate remaining sessions
     const remainingSessions = registeredSessions - attendedSessions;
 
-    // Always update attendedSessions and remainingSessions fields
-    await updateDoc(studentRef, { attendedSessions, remainingSessions });
+    // Prepare update data
+    const updateData: Record<string, unknown> = {
+      attendedSessions,
+      remainingSessions,
+    };
+
+    // Track processed attendance IDs (limit to last 100 to avoid growing too large)
+    if (attendanceId && !processedAttendanceIds.includes(attendanceId)) {
+      updateData.processedAttendanceIds = processedAttendanceIds.slice(-99).concat(attendanceId);
+    }
+
+    // Update attendedSessions and remainingSessions
+    await updateDoc(studentRef, updateData);
 
     // Check status based on remaining sessions
     if (registeredSessions > 0) {
@@ -381,12 +423,14 @@ export const checkAndUpdateStudentDebtStatus = async (
             debtSessions: Math.abs(remainingSessions)
           });
         }
-      } else if (remainingSessions === 0 && currentStatus === StudentStatus.ACTIVE) {
-        // Exactly 0 remaining = "Đã học hết phí"
-        await updateDoc(studentRef, {
-          status: StudentStatus.EXPIRED_FEE
-        });
-        console.log(`[checkDebtStatus] Student ${studentId} status changed to "Đã học hết phí" (attended: ${attendedSessions}, registered: ${registeredSessions})`);
+      } else if (remainingSessions === 0) {
+        // Exactly 0 remaining = "Đã học hết phí" (only if not already in debt)
+        if (currentStatus === StudentStatus.ACTIVE) {
+          await updateDoc(studentRef, {
+            status: StudentStatus.EXPIRED_FEE
+          });
+          console.log(`[checkDebtStatus] Student ${studentId} status changed to "Đã học hết phí" (attended: ${attendedSessions}, registered: ${registeredSessions})`);
+        }
       }
     }
   } catch (error) {
@@ -484,10 +528,11 @@ export const saveFullAttendance = async (
     console.log('[saveFullAttendance] Tutoring created!');
     
     // Check and update debt status for present students (ON_TIME or LATE)
+    // Pass attendanceId to track which attendance was processed (avoids double-counting on re-save)
     const presentStudents = markedStudents.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE);
     console.log('[saveFullAttendance] Checking debt for', presentStudents.length, 'present students...');
     for (const student of presentStudents) {
-      await checkAndUpdateStudentDebtStatus(student.studentId, attendanceData.classId);
+      await checkAndUpdateStudentDebtStatus(student.studentId, attendanceData.classId, attendanceId);
     }
     
     console.log('[saveFullAttendance] All done! Returning attendanceId:', attendanceId);
@@ -501,6 +546,10 @@ export const saveFullAttendance = async (
 /**
  * Manually recalculate student's attended sessions and update status
  * Used to fix existing data or trigger status update manually
+ *
+ * This function trusts the stored attendedSessions value (which may include
+ * historical data not tracked in studentAttendance collection) and recalculates
+ * the remainingSessions and status based on that.
  */
 export const recalculateStudentStatus = async (
   studentId: string,
@@ -522,9 +571,41 @@ export const recalculateStudentStatus = async (
     // Count attended sessions from studentAttendance collection
     const countedAttended = await countStudentAttendedSessions(studentId, classId);
 
-    // Use MAX of current value and counted value (never decrease attendance)
-    // This handles cases where historical attendance wasn't saved in studentAttendance collection
-    const attendedSessions = Math.max(currentAttended, countedAttended);
+    // Determine attended sessions:
+    // - If collection count >= stored count: use collection count (accurate tracking)
+    // - If stored count > collection count: stored includes historical data
+    //   In this case, ADD unprocessed new records on top of stored count
+    let attendedSessions: number;
+
+    if (countedAttended >= currentAttended) {
+      // Collection has all data - use collection count
+      attendedSessions = countedAttended;
+    } else {
+      // Historical data exists outside collection
+      // Check for unprocessed attendance records by comparing with processedAttendanceIds
+      const processedAttendanceIds: string[] = studentData.processedAttendanceIds || [];
+
+      // Count only records that weren't processed yet
+      const allAttendanceRecords = await getDocs(query(
+        collection(db, STUDENT_ATTENDANCE_COLLECTION),
+        where('studentId', '==', studentId),
+        where('classId', '==', classId),
+        where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE])
+      ));
+
+      let unprocessedCount = 0;
+      allAttendanceRecords.docs.forEach(doc => {
+        const attendanceId = doc.data().attendanceId;
+        if (attendanceId && !processedAttendanceIds.includes(attendanceId)) {
+          unprocessedCount++;
+        }
+      });
+
+      // Add unprocessed records to current count
+      attendedSessions = currentAttended + unprocessedCount;
+      console.log(`[recalculateStudentStatus] Historical mode: current=${currentAttended}, unprocessed=${unprocessedCount}, new total=${attendedSessions}`);
+    }
+
     const remainingSessions = registeredSessions - attendedSessions;
 
     console.log(`[recalculateStudentStatus] Student ${studentId}: current=${currentAttended}, counted=${countedAttended}, using=${attendedSessions}, registered=${registeredSessions}, remaining=${remainingSessions}`);

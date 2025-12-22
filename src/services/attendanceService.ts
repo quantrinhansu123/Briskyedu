@@ -329,6 +329,7 @@ export const countStudentAttendedSessions = async (
 
 /**
  * Check and update student debt status
+ * If attendedSessions === registeredSessions => status = "Đã học hết phí"
  * If attendedSessions > registeredSessions => status = "Nợ phí"
  */
 export const checkAndUpdateStudentDebtStatus = async (
@@ -339,31 +340,49 @@ export const checkAndUpdateStudentDebtStatus = async (
     // Get student data
     const studentRef = doc(db, 'students', studentId);
     const studentSnap = await getDoc(studentRef);
-    
+
     if (!studentSnap.exists()) return;
-    
+
     const studentData = studentSnap.data();
     const registeredSessions = studentData.registeredSessions || 0;
     const currentStatus = studentData.status;
-    
-    // Skip if student is not "Đang học" or already "Nợ phí"
-    if (currentStatus !== StudentStatus.ACTIVE) return;
-    
+
+    // Skip if student has already dropped, reserved, or is in trial
+    const skipStatuses = [StudentStatus.DROPPED, StudentStatus.RESERVED, StudentStatus.TRIAL];
+    if (skipStatuses.includes(currentStatus)) return;
+
     // Count attended sessions
     const attendedSessions = await countStudentAttendedSessions(studentId, classId);
-    
-    // Update attendedSessions field
+
+    // Always update attendedSessions field
     await updateDoc(studentRef, { attendedSessions });
-    
-    // Check if student has exceeded registered sessions
-    if (registeredSessions > 0 && attendedSessions > registeredSessions) {
-      // Update status to "Nợ phí"
-      await updateDoc(studentRef, { 
-        status: StudentStatus.DEBT,
-        debtStartDate: new Date().toISOString(),
-        debtSessions: attendedSessions - registeredSessions
-      });
-      console.log(`[checkDebtStatus] Student ${studentId} status changed to "Nợ phí" (attended: ${attendedSessions}, registered: ${registeredSessions})`);
+
+    // Check status based on remaining sessions
+    if (registeredSessions > 0) {
+      const remainingSessions = registeredSessions - attendedSessions;
+
+      if (remainingSessions < 0) {
+        // Negative remaining = "Nợ phí" (debt)
+        if (currentStatus !== StudentStatus.DEBT) {
+          await updateDoc(studentRef, {
+            status: StudentStatus.DEBT,
+            debtStartDate: new Date().toISOString(),
+            debtSessions: Math.abs(remainingSessions)
+          });
+          console.log(`[checkDebtStatus] Student ${studentId} status changed to "Nợ phí" (attended: ${attendedSessions}, registered: ${registeredSessions}, remaining: ${remainingSessions})`);
+        } else {
+          // Already in debt, just update debtSessions
+          await updateDoc(studentRef, {
+            debtSessions: Math.abs(remainingSessions)
+          });
+        }
+      } else if (remainingSessions === 0 && currentStatus === StudentStatus.ACTIVE) {
+        // Exactly 0 remaining = "Đã học hết phí"
+        await updateDoc(studentRef, {
+          status: StudentStatus.EXPIRED_FEE
+        });
+        console.log(`[checkDebtStatus] Student ${studentId} status changed to "Đã học hết phí" (attended: ${attendedSessions}, registered: ${registeredSessions})`);
+      }
     }
   } catch (error) {
     console.error('Error checking student debt status:', error);

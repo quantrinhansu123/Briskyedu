@@ -354,13 +354,14 @@ export const checkAndUpdateStudentDebtStatus = async (
     // Count attended sessions
     const attendedSessions = await countStudentAttendedSessions(studentId, classId);
 
-    // Always update attendedSessions field
-    await updateDoc(studentRef, { attendedSessions });
+    // Calculate remaining sessions
+    const remainingSessions = registeredSessions - attendedSessions;
+
+    // Always update attendedSessions and remainingSessions fields
+    await updateDoc(studentRef, { attendedSessions, remainingSessions });
 
     // Check status based on remaining sessions
     if (registeredSessions > 0) {
-      const remainingSessions = registeredSessions - attendedSessions;
-
       if (remainingSessions < 0) {
         // Negative remaining = "Nợ phí" (debt)
         if (currentStatus !== StudentStatus.DEBT) {
@@ -521,7 +522,10 @@ export const recalculateStudentStatus = async (
 
     // Determine new status
     let newStatus = studentData.status;
-    const updateData: Record<string, unknown> = { attendedSessions };
+    const updateData: Record<string, unknown> = {
+      attendedSessions,
+      remainingSessions, // Also update remainingSessions for UI display
+    };
 
     if (registeredSessions > 0) {
       if (remainingSessions < 0) {
@@ -534,6 +538,12 @@ export const recalculateStudentStatus = async (
       } else if (remainingSessions === 0) {
         newStatus = StudentStatus.EXPIRED_FEE;
         updateData.status = StudentStatus.EXPIRED_FEE;
+      } else {
+        // Still has remaining sessions - status should be ACTIVE
+        if (studentData.status === StudentStatus.EXPIRED_FEE || studentData.status === StudentStatus.DEBT) {
+          newStatus = StudentStatus.ACTIVE;
+          updateData.status = StudentStatus.ACTIVE;
+        }
       }
     }
 

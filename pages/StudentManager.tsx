@@ -11,6 +11,7 @@ import { useAuth } from '../src/hooks/useAuth';
 import { getFeedbacks, FeedbackRecord } from '../src/services/feedbackService';
 import { ClassModel } from '../types';
 import { createEnrollment } from '../src/services/enrollmentService';
+import { recalculateStudentStatus } from '../src/services/attendanceService';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { ImportExportButtons } from '../components/ImportExportButtons';
@@ -325,7 +326,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
   const handleDeleteStudent = async (id: string) => {
     if (!confirm('Bạn có chắc chắn muốn xóa học viên này?')) return;
-    
+
     try {
       await deleteStudent(id);
       if (selectedStudent?.id === id) {
@@ -334,6 +335,24 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     } catch (err) {
       console.error('Error deleting student:', err);
       alert('Không thể xóa học viên. Vui lòng thử lại.');
+    }
+  };
+
+  // Recalculate student status based on attendance records
+  const handleRecalculateStatus = async (student: Student) => {
+    if (!student.classId) {
+      alert('Học viên chưa có lớp học để tính toán');
+      return;
+    }
+
+    try {
+      const result = await recalculateStudentStatus(student.id, student.classId);
+      alert(`Đã cập nhật trạng thái:\n- Đã học: ${result.attended} buổi\n- Đăng ký: ${result.registered} buổi\n- Còn lại: ${result.remaining} buổi\n- Trạng thái: ${result.newStatus}`);
+      // Refresh students list
+      window.location.reload();
+    } catch (err) {
+      console.error('Error recalculating status:', err);
+      alert('Không thể cập nhật trạng thái. Vui lòng thử lại.');
     }
   };
 
@@ -747,6 +766,17 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                                   >
                                     <Pause size={14} className="text-orange-500" />
                                     Bảo lưu
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRecalculateStatus(student);
+                                      setActionDropdownId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <RefreshCw size={14} className="text-cyan-500" />
+                                    Cập nhật trạng thái
                                   </button>
                                   <button
                                     onClick={(e) => {

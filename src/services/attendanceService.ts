@@ -492,3 +492,62 @@ export const saveFullAttendance = async (
     throw new Error('Không thể lưu điểm danh');
   }
 };
+
+/**
+ * Manually recalculate student's attended sessions and update status
+ * Used to fix existing data or trigger status update manually
+ */
+export const recalculateStudentStatus = async (
+  studentId: string,
+  classId: string
+): Promise<{ attended: number; registered: number; remaining: number; newStatus: string }> => {
+  try {
+    // Get student data
+    const studentRef = doc(db, 'students', studentId);
+    const studentSnap = await getDoc(studentRef);
+
+    if (!studentSnap.exists()) {
+      throw new Error('Không tìm thấy học viên');
+    }
+
+    const studentData = studentSnap.data();
+    const registeredSessions = studentData.registeredSessions || 0;
+
+    // Count attended sessions from studentAttendance collection
+    const attendedSessions = await countStudentAttendedSessions(studentId, classId);
+    const remainingSessions = registeredSessions - attendedSessions;
+
+    console.log(`[recalculateStudentStatus] Student ${studentId}: attended=${attendedSessions}, registered=${registeredSessions}, remaining=${remainingSessions}`);
+
+    // Determine new status
+    let newStatus = studentData.status;
+    const updateData: Record<string, unknown> = { attendedSessions };
+
+    if (registeredSessions > 0) {
+      if (remainingSessions < 0) {
+        newStatus = StudentStatus.DEBT;
+        updateData.status = StudentStatus.DEBT;
+        updateData.debtSessions = Math.abs(remainingSessions);
+        if (!studentData.debtStartDate) {
+          updateData.debtStartDate = new Date().toISOString();
+        }
+      } else if (remainingSessions === 0) {
+        newStatus = StudentStatus.EXPIRED_FEE;
+        updateData.status = StudentStatus.EXPIRED_FEE;
+      }
+    }
+
+    // Update student
+    await updateDoc(studentRef, updateData);
+
+    return {
+      attended: attendedSessions,
+      registered: registeredSessions,
+      remaining: remainingSessions,
+      newStatus,
+    };
+  } catch (error) {
+    console.error('Error recalculating student status:', error);
+    throw error;
+  }
+};

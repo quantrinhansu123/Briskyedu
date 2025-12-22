@@ -351,8 +351,12 @@ export const checkAndUpdateStudentDebtStatus = async (
     const skipStatuses = [StudentStatus.DROPPED, StudentStatus.RESERVED, StudentStatus.TRIAL];
     if (skipStatuses.includes(currentStatus)) return;
 
-    // Count attended sessions
-    const attendedSessions = await countStudentAttendedSessions(studentId, classId);
+    // Count attended sessions from attendance records
+    const countedAttended = await countStudentAttendedSessions(studentId, classId);
+    const currentAttended = studentData.attendedSessions || 0;
+
+    // Use MAX of current and counted (never decrease, handles legacy data)
+    const attendedSessions = Math.max(currentAttended, countedAttended);
 
     // Calculate remaining sessions
     const remainingSessions = registeredSessions - attendedSessions;
@@ -513,12 +517,17 @@ export const recalculateStudentStatus = async (
 
     const studentData = studentSnap.data();
     const registeredSessions = studentData.registeredSessions || 0;
+    const currentAttended = studentData.attendedSessions || 0;
 
     // Count attended sessions from studentAttendance collection
-    const attendedSessions = await countStudentAttendedSessions(studentId, classId);
+    const countedAttended = await countStudentAttendedSessions(studentId, classId);
+
+    // Use MAX of current value and counted value (never decrease attendance)
+    // This handles cases where historical attendance wasn't saved in studentAttendance collection
+    const attendedSessions = Math.max(currentAttended, countedAttended);
     const remainingSessions = registeredSessions - attendedSessions;
 
-    console.log(`[recalculateStudentStatus] Student ${studentId}: attended=${attendedSessions}, registered=${registeredSessions}, remaining=${remainingSessions}`);
+    console.log(`[recalculateStudentStatus] Student ${studentId}: current=${currentAttended}, counted=${countedAttended}, using=${attendedSessions}, registered=${registeredSessions}, remaining=${remainingSessions}`);
 
     // Determine new status
     let newStatus = studentData.status;

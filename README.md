@@ -1,20 +1,70 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# EduManager Pro: Education Center Management System
 
-# Run and deploy your AI Studio app
+EduManager Pro is a comprehensive web-based application designed to streamline operations for Vietnamese language learning centers. Built with React 19, TypeScript, and Firebase, it offers robust features for managing students, classes, attendance, staff, contracts, and financial aspects.
 
-This contains everything you need to run your app locally.
+## Key Features
 
-View your app in AI Studio: https://ai.studio/apps/temp/2
+*   **Student Management**: Enrollment, status tracking, detailed profiles.
+*   **Class & Attendance**: Class scheduling, real-time attendance, history.
+*   **Staff & HR**: Staff profiles, roles, salary configuration, work confirmations.
+*   **Financials**: Contract management, invoicing, debt tracking, revenue reports.
+*   **CRM**: Lead management, campaign tracking, customer feedback.
+*   **Reporting**: Dashboards, training and monthly reports.
 
-## Run Locally
+## Tech Stack
 
-**Prerequisites:**  Node.js
+*   **Frontend**: React 19, TypeScript, Vite 7, TailwindCSS
+*   **Backend**: Firebase (Auth, Firestore, Cloud Functions, Hosting)
+*   **Routing**: `react-router-dom` with `HashRouter`
+*   **Charting**: Recharts
+*   **Icons**: `lucide-react`
 
+## Quick Start (Development)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+To get EduManager Pro running locally, follow these steps:
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/your-repo/edumanager-pro.git
+    cd edumanager-pro
+    ```
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Configure Firebase**:
+    Create a `.env.local` file in the project root and add your Firebase project configuration:
+    ```
+    VITE_FIREBASE_API_KEY=YOUR_API_KEY
+    VITE_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN
+    VITE_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+    VITE_FIREBASE_STORAGE_BUCKET=YOUR_STORAGE_BUCKET
+    VITE_FIREBASE_MESSAGING_SENDER_ID=YOUR_SENDER_ID
+    VITE_FIREBASE_APP_ID=YOUR_APP_ID
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY  # Optional, for AI features
+    ```
+4.  **Start Firebase Emulators (for local development)**:
+    ```bash
+    firebase emulators:start
+    ```
+5.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
+    The application will be accessible at `http://localhost:5173` (or another port if 5173 is in use).
+
+## Testing
+
+*   **Run tests in watch mode**: `npm run test`
+*   **Run tests once (for CI/CD)**: `npm run test:run`
+*   **Generate coverage report**: `npm run test:coverage`
+
+## Deployment
+
+To deploy to Firebase Hosting:
+```bash
+npm run build
+firebase deploy
+```
+
+For more detailed documentation, refer to the `docs/` directory.

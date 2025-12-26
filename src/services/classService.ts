@@ -96,15 +96,19 @@ export class ClassService {
   // Create new class
   static async createClass(classData: Omit<ClassModel, 'id'>): Promise<string> {
     try {
+      // Trim name to avoid trailing spaces
+      const trimmedName = classData.name?.trim() || classData.name;
+
       const dataToSave: any = {
         ...classData,
+        name: trimmedName,
         startDate: classData.startDate ? Timestamp.fromDate(new Date(classData.startDate)) : null,
         endDate: classData.endDate ? Timestamp.fromDate(new Date(classData.endDate)) : null,
         history: [{
           id: `HIST_${Date.now()}`,
           date: Timestamp.now(),
           type: 'Tạo lớp',
-          description: `Lớp học ${classData.name} được tạo`,
+          description: `Lớp học ${trimmedName} được tạo`,
           staffId: '',
           staffName: 'System'
         }],
@@ -128,26 +132,36 @@ export class ClassService {
   static async updateClass(id: string, updates: Partial<ClassModel>): Promise<void> {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
-      
+
+      // Filter out undefined values (Firestore doesn't accept undefined)
+      const filteredUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      );
+
       const updateData: any = {
-        ...updates,
+        ...filteredUpdates,
         updatedAt: Timestamp.now()
       };
-      
+
+      // Trim string fields to remove trailing spaces
+      if (updateData.name) {
+        updateData.name = updateData.name.trim();
+      }
+
       // Convert date strings to Timestamps (handle empty strings)
       if (updates.startDate !== undefined) {
         updateData.startDate = updates.startDate ? Timestamp.fromDate(new Date(updates.startDate)) : null;
       }
-      
+
       if (updates.endDate !== undefined) {
         updateData.endDate = updates.endDate ? Timestamp.fromDate(new Date(updates.endDate)) : null;
       }
-      
+
       await updateDoc(docRef, updateData);
       
-      // Cascade update className to students if name changed
-      if (updates.name) {
-        await cascadeUpdateClassName(id, updates.name);
+      // Cascade update className to students if name changed (use trimmed name)
+      if (updateData.name) {
+        await cascadeUpdateClassName(id, updateData.name);
       }
     } catch (error) {
       console.error('Error updating class:', error);

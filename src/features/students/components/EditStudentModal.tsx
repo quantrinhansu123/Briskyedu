@@ -24,7 +24,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
     parentPhone: student.parentPhone || '',
     status: student.status || StudentStatus.ACTIVE,
     branch: student.branch || '',
-    class: student.class || '',
+    // Note: 'class' field is intentionally excluded - use "Chuyển lớp" feature instead
     registeredSessions: student.registeredSessions || 0,
     remainingSessions: student.remainingSessions ?? ((student.registeredSessions || 0) - (student.attendedSessions || 0)),
     attendedSessions: student.attendedSessions || 0,
@@ -193,10 +193,13 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
               </label>
               <input
                 type="text"
-                value={formData.class}
-                onChange={(e) => setFormData({ ...formData, class: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                value={student.class || '(Chưa có lớp)'}
+                disabled
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Sử dụng chức năng "Chuyển lớp" để thay đổi lớp học
+              </p>
             </div>
 
             <div>

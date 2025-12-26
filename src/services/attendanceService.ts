@@ -33,6 +33,8 @@ export const createAttendanceRecord = async (
   try {
     const recordData = {
       ...data,
+      // Trim className to avoid trailing spaces
+      className: data.className?.trim() || data.className,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

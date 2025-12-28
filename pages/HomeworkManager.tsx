@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Plus, X, Save, Trash2, Check, Edit2, ChevronDown, Settings, Calendar, MessageSquare, FileText, AlertCircle } from 'lucide-react';
+import { BookOpen, Plus, X, Save, Trash2, Settings, FileText, AlertCircle } from 'lucide-react';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
 import { useAuth } from '../src/hooks/useAuth';
@@ -56,31 +56,6 @@ interface HomeworkSession {
   createdBy: string;
 }
 
-interface MonthlyComment {
-  id?: string;
-  classId: string;
-  studentId: string;
-  studentName: string;
-  month: string; // YYYY-MM
-  comment: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-}
-
-interface TestComment {
-  id?: string;
-  classId: string;
-  studentId: string;
-  studentName: string;
-  testName: string;
-  testDate: string;
-  comment: string;
-  score: number | null;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-}
 
 export const HomeworkManager: React.FC = () => {
   const { classes } = useClasses();
@@ -89,8 +64,8 @@ export const HomeworkManager: React.FC = () => {
   const { shouldShowOnlyOwnClasses, staffId } = usePermissions();
   const { holidays } = useHolidays();
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'homework' | 'monthly' | 'test'>('homework');
+  // Tab state (only homework tab remains after refactor)
+  const [activeTab, setActiveTab] = useState<'homework'>('homework');
 
   // State
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -119,17 +94,6 @@ export const HomeworkManager: React.FC = () => {
   const [newStatusLabel, setNewStatusLabel] = useState('');
   const [newStatusColor, setNewStatusColor] = useState('bg-gray-500');
 
-  // Monthly comments state
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [monthlyComments, setMonthlyComments] = useState<MonthlyComment[]>([]);
-  const [loadingMonthly, setLoadingMonthly] = useState(false);
-
-  // Test comments state
-  const [testComments, setTestComments] = useState<TestComment[]>([]);
-  const [loadingTests, setLoadingTests] = useState(false);
-  const [showAddTestModal, setShowAddTestModal] = useState(false);
-  const [newTestName, setNewTestName] = useState('');
-  const [newTestDate, setNewTestDate] = useState('');
 
   // Filter classes for teachers
   const filteredClasses = useMemo(() => {
@@ -265,53 +229,6 @@ export const HomeworkManager: React.FC = () => {
     loadExistingRecord();
   }, [selectedClassId, selectedSessionId, studentsInClass]);
 
-  // Load monthly comments
-  useEffect(() => {
-    const loadMonthlyComments = async () => {
-      if (!selectedClassId || activeTab !== 'monthly') return;
-      
-      setLoadingMonthly(true);
-      try {
-        const q = query(
-          collection(db, 'monthlyComments'),
-          where('classId', '==', selectedClassId),
-          where('month', '==', selectedMonth)
-        );
-        const snap = await getDocs(q);
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as MonthlyComment[];
-        setMonthlyComments(data);
-      } catch (err) {
-        console.error('Error loading monthly comments:', err);
-      } finally {
-        setLoadingMonthly(false);
-      }
-    };
-    loadMonthlyComments();
-  }, [selectedClassId, selectedMonth, activeTab]);
-
-  // Load test comments
-  useEffect(() => {
-    const loadTestComments = async () => {
-      if (!selectedClassId || activeTab !== 'test') return;
-      
-      setLoadingTests(true);
-      try {
-        const q = query(
-          collection(db, 'testComments'),
-          where('classId', '==', selectedClassId)
-        );
-        const snap = await getDocs(q);
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as TestComment[];
-        data.sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
-        setTestComments(data);
-      } catch (err) {
-        console.error('Error loading test comments:', err);
-      } finally {
-        setLoadingTests(false);
-      }
-    };
-    loadTestComments();
-  }, [selectedClassId, activeTab]);
 
   // Add new homework
   const handleAddHomework = () => {
@@ -556,73 +473,6 @@ export const HomeworkManager: React.FC = () => {
     }
   };
 
-  // Save monthly comment
-  const handleSaveMonthlyComment = async (studentId: string, studentName: string, comment: string) => {
-    try {
-      const existing = monthlyComments.find(c => c.studentId === studentId);
-      if (existing?.id) {
-        await updateDoc(doc(db, 'monthlyComments', existing.id), {
-          comment,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        await addDoc(collection(db, 'monthlyComments'), {
-          classId: selectedClassId,
-          studentId,
-          studentName,
-          month: selectedMonth,
-          comment,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: staffData?.name || user?.displayName || 'Unknown'
-        });
-      }
-      // Reload
-      const q = query(
-        collection(db, 'monthlyComments'),
-        where('classId', '==', selectedClassId),
-        where('month', '==', selectedMonth)
-      );
-      const snap = await getDocs(q);
-      setMonthlyComments(snap.docs.map(d => ({ id: d.id, ...d.data() })) as MonthlyComment[]);
-    } catch (err) {
-      console.error('Error saving monthly comment:', err);
-      alert('Có lỗi xảy ra!');
-    }
-  };
-
-  // Save test comment
-  const handleSaveTestComment = async (testName: string, studentId: string, studentName: string, comment: string, score: number | null) => {
-    try {
-      const existing = testComments.find(c => c.testName === testName && c.studentId === studentId);
-      if (existing?.id) {
-        await updateDoc(doc(db, 'testComments', existing.id), {
-          comment,
-          score,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        await addDoc(collection(db, 'testComments'), {
-          classId: selectedClassId,
-          studentId,
-          studentName,
-          testName,
-          testDate: '',
-          comment,
-          score,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: staffData?.name || user?.displayName || 'Unknown'
-        });
-      }
-      // Reload
-      const q = query(collection(db, 'testComments'), where('classId', '==', selectedClassId));
-      const snap = await getDocs(q);
-      setTestComments(snap.docs.map(d => ({ id: d.id, ...d.data() })) as TestComment[]);
-    } catch (err) {
-      console.error('Error saving test comment:', err);
-    }
-  };
 
   // Get status style
   const getStatusStyle = (status: string): { color: string; textColor: string; label: string } => {
@@ -702,28 +552,7 @@ export const HomeworkManager: React.FC = () => {
               <FileText size={16} className="inline mr-2" />
               Bài tập theo buổi
             </button>
-            <button
-              onClick={() => setActiveTab('monthly')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                activeTab === 'monthly' 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Calendar size={16} className="inline mr-2" />
-              Nhận xét tháng
-            </button>
-            <button
-              onClick={() => setActiveTab('test')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                activeTab === 'test' 
-                  ? 'border-blue-600 text-blue-600' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <MessageSquare size={16} className="inline mr-2" />
-              Nhận xét bài Test
-            </button>
+            {/* Note: "Nhận xét tháng" and "Nhận xét bài Test" tabs moved to Reports > Báo cáo Học tập */}
           </div>
         )}
       </div>
@@ -918,128 +747,6 @@ export const HomeworkManager: React.FC = () => {
         </>
       )}
 
-      {/* TAB: Monthly Comments */}
-      {activeTab === 'monthly' && selectedClassId && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Nhận xét hàng tháng</h3>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {loadingMonthly ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {studentsInClass.map(student => {
-                const existing = monthlyComments.find(c => c.studentId === student.id);
-                return (
-                  <div key={student.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="font-medium text-gray-800 mb-2">{student.fullName || student.name}</div>
-                    <textarea
-                      defaultValue={existing?.comment || ''}
-                      onBlur={(e) => handleSaveMonthlyComment(student.id, student.fullName || student.name || '', e.target.value)}
-                      placeholder="Nhập nhận xét cho học viên..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                );
-              })}
-              {studentsInClass.length === 0 && (
-                <p className="text-center text-gray-400 py-8">Không có học sinh trong lớp này</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB: Test Comments */}
-      {activeTab === 'test' && selectedClassId && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Nhận xét theo bài Test lớn</h3>
-            <button
-              onClick={() => setShowAddTestModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
-            >
-              <Plus size={16} />
-              Thêm bài Test
-            </button>
-          </div>
-
-          {loadingTests ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Group by test */}
-              {Array.from(new Set(testComments.map(t => t.testName))).map(testName => {
-                const testItems = testComments.filter(t => t.testName === testName);
-                const testDate = testItems[0]?.testDate;
-                return (
-                  <div key={testName} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-3 font-medium text-gray-800 border-b">
-                      {testName} {testDate && `- ${testDate}`}
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                      {studentsInClass.map(student => {
-                        const existing = testItems.find(t => t.studentId === student.id);
-                        const studentName = student.fullName || student.name || '';
-                        return (
-                          <div key={student.id} className="p-4 flex items-start gap-4">
-                            <div className="w-40 font-medium text-gray-800">{studentName}</div>
-                            <div className="flex-1">
-                              <textarea
-                                defaultValue={existing?.comment || ''}
-                                placeholder="Nhận xét..."
-                                rows={2}
-                                onBlur={(e) => handleSaveTestComment(
-                                  testName, 
-                                  student.id, 
-                                  studentName, 
-                                  e.target.value, 
-                                  existing?.score ?? null
-                                )}
-                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-blue-500"
-                              />
-                            </div>
-                            <div className="w-20">
-                              <input
-                                type="number"
-                                defaultValue={existing?.score ?? ''}
-                                placeholder="Điểm"
-                                onBlur={(e) => handleSaveTestComment(
-                                  testName, 
-                                  student.id, 
-                                  studentName, 
-                                  existing?.comment || '', 
-                                  e.target.value ? parseFloat(e.target.value) : null
-                                )}
-                                className="w-full px-2 py-2 border border-gray-300 rounded text-sm text-center focus:ring-2 focus:ring-blue-500"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-              {testComments.length === 0 && (
-                <p className="text-center text-gray-400 py-8">Chưa có bài test nào. Bấm "Thêm bài Test" để tạo mới.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Empty State */}
       {!selectedClassId && (
@@ -1244,90 +951,6 @@ export const HomeworkManager: React.FC = () => {
         </div>
       )}
 
-      {/* Add Test Modal */}
-      {showAddTestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">Thêm bài Test mới</h3>
-              <button onClick={() => setShowAddTestModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên bài Test</label>
-                <input
-                  type="text"
-                  value={newTestName}
-                  onChange={(e) => setNewTestName(e.target.value)}
-                  placeholder="VD: Test giữa kỳ 1..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ngày Test</label>
-                <input
-                  type="date"
-                  value={newTestDate}
-                  onChange={(e) => setNewTestDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                onClick={() => setShowAddTestModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={async () => {
-                  if (!newTestName.trim()) {
-                    alert('Vui lòng nhập tên bài test!');
-                    return;
-                  }
-                  try {
-                    // Create test records for all students
-                    for (const student of studentsInClass) {
-                      await addDoc(collection(db, 'testComments'), {
-                        classId: selectedClassId,
-                        studentId: student.id,
-                        studentName: student.fullName || student.name || '',
-                        testName: newTestName,
-                        testDate: newTestDate,
-                        comment: '',
-                        score: null,
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        createdBy: staffData?.name || user?.displayName || 'Unknown'
-                      });
-                    }
-                    // Reload
-                    const q = query(collection(db, 'testComments'), where('classId', '==', selectedClassId));
-                    const snap = await getDocs(q);
-                    setTestComments(snap.docs.map(d => ({ id: d.id, ...d.data() })) as TestComment[]);
-                    setShowAddTestModal(false);
-                    setNewTestName('');
-                    setNewTestDate('');
-                    alert('Đã thêm bài test!');
-                  } catch (err) {
-                    console.error('Error adding test:', err);
-                    alert('Có lỗi xảy ra!');
-                  }
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Plus size={18} />
-                Thêm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

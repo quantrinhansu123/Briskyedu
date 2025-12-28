@@ -3,7 +3,7 @@
  * Báo cáo học tập theo tháng cho từng học sinh
  */
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   FileText,
   Download,
@@ -20,7 +20,9 @@ import {
   Save,
   X,
   Search,
-  Users
+  Users,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useStudents } from '../src/hooks/useStudents';
 import { useClasses } from '../src/hooks/useClasses';
@@ -34,7 +36,10 @@ import {
   preparePDFReportData,
   StudentPDFReportData
 } from '../src/services/monthlyReportService';
-import { AttendanceStatus, MonthlyComment, Student, StudentStatus } from '../types';
+import { AttendanceStatus, MonthlyComment, Student, StudentStatus, TestComment } from '../types';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
+import { generateTestCommentPDF, downloadBlob as downloadTestPdfBlob } from '../src/services/testCommentPdfService';
 import { SearchableClassDropdown } from '../src/features/attendance/components/SearchableClassDropdown';
 import { MonthlyCommentTab } from '../src/features/reports/components/MonthlyCommentTab';
 import { TestCommentTab } from '../src/features/reports/components/TestCommentTab';
@@ -54,6 +59,9 @@ export const MonthlyReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Student filter by class (for "Theo Học sinh" mode)
+  const [filterClassId, setFilterClassId] = useState('');
+
   // "Theo Lớp" mode states
   const [selectedClassId, setSelectedClassId] = useState('');
   const [classStudents, setClassStudents] = useState<Student[]>([]);
@@ -68,6 +76,12 @@ export const MonthlyReport: React.FC = () => {
   // PDF export state
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Test export state (for "Theo học sinh" mode)
+  const [studentTestComments, setStudentTestComments] = useState<TestComment[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState('');
+  const [loadingTests, setLoadingTests] = useState(false);
+  const [exportingTestPDF, setExportingTestPDF] = useState(false);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -98,20 +112,117 @@ export const MonthlyReport: React.FC = () => {
     setClassStudents(studentsInClass);
     setLoadingStudents(false);
   }, [selectedClassId, students, mode]);
-  
-  // Filter students by search
+
+  // Fetch test comments for selected student (defined before useEffect that uses it)
+  const fetchStudentTestComments = useCallback(async (studentId: string) => {
+    if (!studentId) {
+      setStudentTestComments([]);
+      return;
+    }
+
+    setLoadingTests(true);
+    try {
+      const q = query(
+        collection(db, 'testComments'),
+        where('studentId', '==', studentId)
+      );
+      const snapshot = await getDocs(q);
+      const tests = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      })) as TestComment[];
+
+      // Sort by date descending
+      tests.sort((a, b) => (b.testDate || '').localeCompare(a.testDate || ''));
+      setStudentTestComments(tests);
+    } catch (error) {
+      console.error('Error fetching test comments:', error);
+      setStudentTestComments([]);
+    } finally {
+      setLoadingTests(false);
+    }
+  }, []);
+
+  // Fetch test comments when student changes (for "Theo học sinh" mode)
+  useEffect(() => {
+    if (mode === 'byStudent' && selectedStudentId) {
+      fetchStudentTestComments(selectedStudentId);
+    } else {
+      setStudentTestComments([]);
+      setSelectedTestId('');
+    }
+  }, [mode, selectedStudentId, fetchStudentTestComments]);
+
+  // Filter students by class for "Theo Học sinh" mode
+  const studentsInFilterClass = useMemo(() => {
+    if (!filterClassId) return [];
+    return students.filter(s =>
+      s.classId === filterClassId ||
+      s.classIds?.includes(filterClassId)
+    ).sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+  }, [students, filterClassId]);
+
+  // Filter students by search (within class if selected)
   const filteredStudents = useMemo(() => {
-    if (!searchQuery) return students;
+    const baseList = filterClassId ? studentsInFilterClass : students;
+    if (!searchQuery) return baseList;
     const query = searchQuery.toLowerCase();
-    return students.filter(s => 
+    return baseList.filter(s =>
       s.fullName?.toLowerCase().includes(query) ||
       s.code?.toLowerCase().includes(query)
     );
-  }, [students, searchQuery]);
-  
+  }, [students, studentsInFilterClass, searchQuery, filterClassId]);
+
   // Get selected student
   const selectedStudent = students.find(s => s.id === selectedStudentId);
-  
+
+  // Get current student index in list (for next/prev navigation)
+  const currentStudentIndex = useMemo(() => {
+    if (!selectedStudentId || studentsInFilterClass.length === 0) return -1;
+    return studentsInFilterClass.findIndex(s => s.id === selectedStudentId);
+  }, [selectedStudentId, studentsInFilterClass]);
+
+  // Navigate to next student
+  const handleNextStudent = () => {
+    if (currentStudentIndex < studentsInFilterClass.length - 1) {
+      const nextStudent = studentsInFilterClass[currentStudentIndex + 1];
+      setSelectedStudentId(nextStudent.id);
+      setReportData(null);
+    }
+  };
+
+  // Navigate to previous student
+  const handlePrevStudent = () => {
+    if (currentStudentIndex > 0) {
+      const prevStudent = studentsInFilterClass[currentStudentIndex - 1];
+      setSelectedStudentId(prevStudent.id);
+      setReportData(null);
+    }
+  };
+
+  // Export test comment PDF
+  const handleExportTestPDF = async () => {
+    const selectedTest = studentTestComments.find(t => t.id === selectedTestId);
+    if (!selectedTest) {
+      alert('Vui lòng chọn bài test!');
+      return;
+    }
+
+    setExportingTestPDF(true);
+    try {
+      const blob = await generateTestCommentPDF(selectedTest);
+      const dateStr = selectedTest.testDate || new Date().toISOString().split('T')[0];
+      const filename = `${selectedTest.studentName}_${selectedTest.testName}_${dateStr}.pdf`;
+      downloadTestPdfBlob(blob, filename);
+    } catch (error) {
+      console.error('Error exporting test PDF:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Có lỗi xảy ra khi xuất PDF: ${errorMsg}`);
+    } finally {
+      setExportingTestPDF(false);
+    }
+  };
+
   // Generate report
   const handleGenerateReport = async () => {
     if (!selectedStudent) return;
@@ -387,92 +498,165 @@ export const MonthlyReport: React.FC = () => {
 
         {/* Filters - "Theo Học sinh" mode */}
         {mode === 'byStudent' && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Student Search */}
-            <div className="md:col-span-2 relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Học sinh</label>
-              {!selectedStudent ? (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder="Tìm theo tên hoặc mã học sinh..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                  {searchQuery && filteredStudents.length > 0 && (
-                    <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {filteredStudents.slice(0, 10).map(student => (
-                        <button
-                          key={student.id}
-                          onClick={() => {
-                            setSelectedStudentId(student.id);
-                            setSearchQuery('');
-                          }}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <User size={16} className="text-gray-400" />
-                          <span className="font-medium">{student.fullName}</span>
-                          <span className="text-gray-400 text-sm">({student.code})</span>
-                        </button>
+          <div className="mt-6 space-y-4">
+            {/* Row 1: Class filter + Month/Year */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Class Filter (optional) */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lọc theo lớp (tùy chọn)</label>
+                <SearchableClassDropdown
+                  classes={classes}
+                  selectedClassId={filterClassId}
+                  onSelect={(classId) => {
+                    setFilterClassId(classId);
+                    setSelectedStudentId('');
+                    setSearchQuery('');
+                    setReportData(null);
+                  }}
+                  disabled={classesLoading}
+                  placeholder="Chọn lớp để lọc học sinh..."
+                />
+              </div>
+
+              {/* Month */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  {months.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Year */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  {years.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Student selector with navigation */}
+            <div className="flex items-end gap-3">
+              {/* Student Search/Select */}
+              <div className="flex-1 relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Học sinh {filterClassId && studentsInFilterClass.length > 0 && `(${studentsInFilterClass.length} học sinh trong lớp)`}
+                </label>
+                {!selectedStudent ? (
+                  filterClassId ? (
+                    // Dropdown mode when class is selected
+                    <select
+                      value={selectedStudentId}
+                      onChange={(e) => {
+                        setSelectedStudentId(e.target.value);
+                        setReportData(null);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">-- Chọn học sinh --</option>
+                      {studentsInFilterClass.map((student, idx) => (
+                        <option key={student.id} value={student.id}>
+                          {idx + 1}. {student.fullName} ({student.code})
+                        </option>
                       ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-2">
-                  <User size={16} className="text-indigo-600" />
-                  <span className="font-medium text-indigo-700">{selectedStudent.fullName}</span>
-                  <span className="text-indigo-500 text-sm">({selectedStudent.code})</span>
+                    </select>
+                  ) : (
+                    // Search mode when no class is selected
+                    <>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input
+                          type="text"
+                          placeholder="Tìm theo tên hoặc mã học sinh..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
+                      {searchQuery && filteredStudents.length > 0 && (
+                        <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                          {filteredStudents.slice(0, 10).map(student => (
+                            <button
+                              key={student.id}
+                              onClick={() => {
+                                setSelectedStudentId(student.id);
+                                setSearchQuery('');
+                              }}
+                              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <User size={16} className="text-gray-400" />
+                              <span className="font-medium">{student.fullName}</span>
+                              <span className="text-gray-400 text-sm">({student.code})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )
+                ) : (
+                  <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-2">
+                    <User size={16} className="text-indigo-600" />
+                    <span className="font-medium text-indigo-700">{selectedStudent.fullName}</span>
+                    <span className="text-indigo-500 text-sm">({selectedStudent.code})</span>
+                    {filterClassId && currentStudentIndex >= 0 && (
+                      <span className="text-indigo-400 text-sm ml-1">
+                        [{currentStudentIndex + 1}/{studentsInFilterClass.length}]
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelectedStudentId('');
+                        setSearchQuery('');
+                        setReportData(null);
+                      }}
+                      className="ml-auto text-indigo-400 hover:text-indigo-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Prev/Next buttons - only show when class is filtered and student is selected */}
+              {filterClassId && selectedStudent && studentsInFilterClass.length > 1 && (
+                <div className="flex gap-1">
                   <button
-                    onClick={() => {
-                      setSelectedStudentId('');
-                      setSearchQuery('');
-                      setReportData(null);
-                    }}
-                    className="ml-auto text-indigo-400 hover:text-indigo-600"
+                    onClick={handlePrevStudent}
+                    disabled={currentStudentIndex <= 0}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Học sinh trước"
                   >
-                    <X size={16} />
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={handleNextStudent}
+                    disabled={currentStudentIndex >= studentsInFilterClass.length - 1}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Học sinh tiếp theo"
+                  >
+                    <ChevronRight size={20} />
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Month */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              >
-                {months.map(m => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Year */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              >
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-              ))}
-              </select>
             </div>
           </div>
         )}
 
         {/* Generate Button - only for "Theo Học sinh" mode */}
         {mode === 'byStudent' && (
+          <>
           <div className="mt-4 flex gap-3">
             <button
               onClick={handleGenerateReport}
@@ -521,6 +705,62 @@ export const MonthlyReport: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* Test Export Section */}
+          {selectedStudentId && studentTestComments.length > 0 && (
+            <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                <Award size={16} />
+                Xuất báo cáo bài Test
+              </h4>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs text-purple-600 mb-1">Chọn bài test</label>
+                  <select
+                    value={selectedTestId}
+                    onChange={(e) => setSelectedTestId(e.target.value)}
+                    className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 bg-white"
+                  >
+                    <option value="">-- Chọn bài test --</option>
+                    {studentTestComments.map(test => (
+                      <option key={test.id} value={test.id}>
+                        {test.testName} {test.testDate ? `(${test.testDate})` : ''}
+                        {test.book ? ` - ${test.book}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleExportTestPDF}
+                  disabled={!selectedTestId || exportingTestPDF}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2 text-sm"
+                >
+                  {exportingTestPDF ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Đang xuất...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      Xuất PDF Test
+                    </>
+                  )}
+                </button>
+              </div>
+              {loadingTests && (
+                <p className="text-xs text-purple-500 mt-2">Đang tải danh sách bài test...</p>
+              )}
+            </div>
+          )}
+
+          {/* No tests message */}
+          {selectedStudentId && studentTestComments.length === 0 && !loadingTests && (
+            <div className="mt-4 text-sm text-gray-500 italic p-4 bg-gray-50 rounded-lg">
+              Học sinh này chưa có bài test nào.
+            </div>
+          )}
+          </>
         )}
       </div>
 
@@ -656,7 +896,7 @@ export const MonthlyReport: React.FC = () => {
               <TrendingUp className="text-indigo-600" size={20} />
               THỐNG KÊ TỔNG HỢP THÁNG {selectedMonth}/{selectedYear}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <p className="text-3xl font-bold text-indigo-600">{reportData.overallStats.totalSessions}</p>
                 <p className="text-xs text-gray-500 mt-1">Tổng số buổi</p>
@@ -673,6 +913,22 @@ export const MonthlyReport: React.FC = () => {
                 <p className="text-3xl font-bold text-emerald-600">{reportData.overallStats.attendanceRate}%</p>
                 <p className="text-xs text-gray-500 mt-1">Tỷ lệ tham gia</p>
               </div>
+              {/* Homework completion rate - calculate from class reports */}
+              <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                <p className="text-3xl font-bold text-blue-600">
+                  {(() => {
+                    const hwStats = reportData.classReports.reduce(
+                      (acc, cr) => ({
+                        total: acc.total + (cr.homeworkSummary?.totalHomeworks || 0),
+                        completed: acc.completed + (cr.homeworkSummary?.completedHomeworks || 0)
+                      }),
+                      { total: 0, completed: 0 }
+                    );
+                    return hwStats.total > 0 ? Math.round((hwStats.completed / hwStats.total) * 100) : 0;
+                  })()}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Tỷ lệ hoàn thành BTVN</p>
+              </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <p className="text-3xl font-bold text-amber-600">
                   {reportData.overallStats.averageScore !== null ? reportData.overallStats.averageScore : '-'}
@@ -686,7 +942,7 @@ export const MonthlyReport: React.FC = () => {
           <div className="p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <BookOpen className="text-indigo-600" size={20} />
-              BẢNG ĐIỂM THEO MÔN
+              BẢNG ĐIỂM THEO KỸ NĂNG
             </h3>
             
             {reportData.classReports.map((classReport, index) => (

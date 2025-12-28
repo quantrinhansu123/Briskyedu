@@ -17,6 +17,8 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   MonthlyComment, 
   MonthlyReportStats, 
@@ -624,3 +626,264 @@ export const batchUpdateAttendanceGrades = async (
     throw new Error('Không thể cập nhật điểm số');
   }
 };
+
+// ==================== PDF GENERATION ====================
+
+/**
+ * Interface for PDF report data
+ */
+export interface StudentPDFReportData {
+  student: {
+    fullName: string;
+    code: string;
+    className: string;
+    branch?: string;
+  };
+  month: number;
+  year: number;
+  attendance: {
+    totalSessions: number;
+    attended: number;
+    onTime: number;
+    late: number;
+    absent: number;
+    rate: number;
+  };
+  homework: {
+    total: number;
+    completed: number;
+    rate: number;
+    avgScore?: number;
+  };
+  monthlyComment?: string;
+  testResults: Array<{
+    testName: string;
+    score: number | null;
+    comment?: string;
+  }>;
+}
+
+/**
+ * Generate HTML template for PDF
+ */
+function generatePDFHTML(data: StudentPDFReportData): string {
+  const escapeHtml = (text: string | undefined): string => {
+    if (!text) return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  return `
+    <div style="padding: 24px; font-family: 'Arial', sans-serif; font-size: 13px; line-height: 1.5; color: #333; background: #fff;">
+      <!-- Header -->
+      <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid #4F46E5;">
+        <h1 style="color: #4F46E5; margin: 0; font-size: 24px; font-weight: bold;">BRISKY ENGLISH</h1>
+        <h2 style="margin: 12px 0 0; font-size: 18px; color: #1F2937;">BÁO CÁO HỌC TẬP THÁNG ${data.month}/${data.year}</h2>
+      </div>
+
+      <!-- Student Info -->
+      <div style="border: 1px solid #E5E7EB; padding: 16px; margin-bottom: 16px; border-radius: 8px; background: #F9FAFB;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 4px 0; width: 50%;"><strong>Học sinh:</strong> ${escapeHtml(data.student.fullName)}</td>
+            <td style="padding: 4px 0;"><strong>Mã HS:</strong> ${escapeHtml(data.student.code)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0;"><strong>Lớp:</strong> ${escapeHtml(data.student.className)}</td>
+            ${data.student.branch ? `<td style="padding: 4px 0;"><strong>Cơ sở:</strong> ${escapeHtml(data.student.branch)}</td>` : '<td></td>'}
+          </tr>
+        </table>
+      </div>
+
+      <!-- Attendance Stats -->
+      <div style="border: 1px solid #E5E7EB; padding: 16px; margin-bottom: 16px; border-radius: 8px;">
+        <h3 style="color: #4F46E5; margin: 0 0 12px; font-size: 15px;">📊 THỐNG KÊ ĐIỂM DANH</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB;">Tổng số buổi</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right; font-weight: bold;">${data.attendance.totalSessions} buổi</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB;">Đi học</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right; font-weight: bold; color: #059669;">${data.attendance.attended} buổi (${data.attendance.rate}%)</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">Đúng giờ / Trễ giờ / Vắng</td>
+            <td style="padding: 8px 0; text-align: right;">${data.attendance.onTime} / ${data.attendance.late} / ${data.attendance.absent}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Homework Stats -->
+      <div style="border: 1px solid #E5E7EB; padding: 16px; margin-bottom: 16px; border-radius: 8px;">
+        <h3 style="color: #4F46E5; margin: 0 0 12px; font-size: 15px;">📝 THỐNG KÊ BÀI TẬP VỀ NHÀ</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB;">Hoàn thành</td>
+            <td style="padding: 8px 0; border-bottom: 1px solid #E5E7EB; text-align: right; font-weight: bold;">${data.homework.completed}/${data.homework.total} bài (${data.homework.rate}%)</td>
+          </tr>
+          ${data.homework.avgScore !== undefined ? `
+          <tr>
+            <td style="padding: 8px 0;">Điểm trung bình</td>
+            <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #D97706;">${data.homework.avgScore}/10</td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
+
+      <!-- Monthly Comment -->
+      ${data.monthlyComment ? `
+      <div style="border: 1px solid #D1FAE5; padding: 16px; margin-bottom: 16px; border-radius: 8px; background: #ECFDF5;">
+        <h3 style="color: #059669; margin: 0 0 12px; font-size: 15px;">💬 NHẬN XÉT CỦA GIÁO VIÊN</h3>
+        <p style="margin: 0; white-space: pre-line; color: #374151;">${escapeHtml(data.monthlyComment)}</p>
+      </div>
+      ` : ''}
+
+      <!-- Test Results -->
+      ${data.testResults.length > 0 ? `
+      <div style="border: 1px solid #E5E7EB; padding: 16px; margin-bottom: 16px; border-radius: 8px;">
+        <h3 style="color: #4F46E5; margin: 0 0 12px; font-size: 15px;">📋 KẾT QUẢ BÀI KIỂM TRA</h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #E5E7EB;">
+          <thead>
+            <tr style="background: #F3F4F6;">
+              <th style="padding: 10px; border: 1px solid #E5E7EB; text-align: left; font-weight: 600;">Bài Test</th>
+              <th style="padding: 10px; border: 1px solid #E5E7EB; text-align: center; width: 80px; font-weight: 600;">Điểm</th>
+              <th style="padding: 10px; border: 1px solid #E5E7EB; text-align: left; font-weight: 600;">Nhận xét</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.testResults.map(t => `
+              <tr>
+                <td style="padding: 10px; border: 1px solid #E5E7EB;">${escapeHtml(t.testName)}</td>
+                <td style="padding: 10px; border: 1px solid #E5E7EB; text-align: center; font-weight: bold; color: ${t.score !== null && t.score >= 8 ? '#059669' : t.score !== null && t.score >= 5 ? '#D97706' : '#DC2626'};">${t.score !== null ? t.score : '-'}</td>
+                <td style="padding: 10px; border: 1px solid #E5E7EB;">${escapeHtml(t.comment) || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
+      <!-- Footer -->
+      <div style="text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
+        <p style="margin: 4px 0;">Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} - ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</p>
+        <p style="margin: 4px 0;">© EduManager Pro - Hệ thống quản lý giáo dục</p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate PDF for a single student report
+ */
+export async function generateStudentPDF(data: StudentPDFReportData): Promise<Blob> {
+  // Create temporary HTML element
+  const container = document.createElement('div');
+  container.innerHTML = generatePDFHTML(data);
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.width = '210mm'; // A4 width
+  container.style.background = '#fff';
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    // Handle multi-page if content is too long
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let heightLeft = pdfHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - pdfHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+    }
+
+    return pdf.output('blob');
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+/**
+ * Download a blob as a file
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Prepare PDF report data from MonthlyReportData
+ */
+export function preparePDFReportData(reportData: MonthlyReportData): StudentPDFReportData[] {
+  const student = reportData.student;
+
+  return reportData.classReports.map(classReport => {
+    // Calculate attendance breakdown
+    const onTime = classReport.attendance.filter(a => a.status === AttendanceStatus.ON_TIME).length;
+    const late = classReport.attendance.filter(a => a.status === AttendanceStatus.LATE).length;
+    const tutored = classReport.attendance.filter(a => a.status === AttendanceStatus.TUTORED).length;
+    const absent = classReport.attendance.filter(a => a.status === AttendanceStatus.ABSENT).length;
+    const attended = onTime + late + tutored;
+    const total = classReport.attendance.length;
+    const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
+
+    return {
+      student: {
+        fullName: student.fullName,
+        code: student.code,
+        className: classReport.className,
+        branch: student.branch,
+      },
+      month: reportData.month,
+      year: reportData.year,
+      attendance: {
+        totalSessions: total,
+        attended,
+        onTime,
+        late,
+        absent,
+        rate,
+      },
+      homework: {
+        total: classReport.homeworkSummary.totalHomeworks,
+        completed: classReport.homeworkSummary.completedHomeworks,
+        rate: classReport.homeworkSummary.completionRate,
+        avgScore: classReport.stats.averageScore ?? undefined,
+      },
+      monthlyComment: classReport.comment?.teacherComment,
+      testResults: classReport.testComments.map(t => ({
+        testName: t.testName,
+        score: t.score,
+        comment: t.comment,
+      })),
+    };
+  });
+}

@@ -28,7 +28,11 @@ import {
   generateMonthlyReport,
   saveMonthlyComment,
   generateAIComment,
-  MonthlyReportData
+  MonthlyReportData,
+  generateStudentPDF,
+  downloadBlob,
+  preparePDFReportData,
+  StudentPDFReportData
 } from '../src/services/monthlyReportService';
 import { AttendanceStatus, MonthlyComment, Student, StudentStatus } from '../types';
 import { SearchableClassDropdown } from '../src/features/attendance/components/SearchableClassDropdown';
@@ -60,6 +64,10 @@ export const MonthlyReport: React.FC = () => {
   const [editingCommentClassId, setEditingCommentClassId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   const [savingComment, setSavingComment] = useState(false);
+
+  // PDF export state
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -129,7 +137,42 @@ export const MonthlyReport: React.FC = () => {
   const handlePrint = () => {
     window.print();
   };
-  
+
+  // Export PDF for "Theo Học sinh" mode
+  const handleExportPDF = async () => {
+    if (!reportData) return;
+
+    setExportingPDF(true);
+    try {
+      const pdfDataList = preparePDFReportData(reportData);
+
+      if (pdfDataList.length === 0) {
+        alert('Không có dữ liệu để xuất PDF');
+        return;
+      }
+
+      // Export each class report as separate PDF
+      for (let i = 0; i < pdfDataList.length; i++) {
+        setExportProgress({ current: i + 1, total: pdfDataList.length });
+        const pdfData = pdfDataList[i];
+        const blob = await generateStudentPDF(pdfData);
+        const filename = `bao-cao-${reportData.student.code}-${pdfData.student.className.replace(/\s+/g, '-')}-T${selectedMonth}-${selectedYear}.pdf`;
+        downloadBlob(blob, filename);
+
+        // Small delay between downloads to prevent browser issues
+        if (i < pdfDataList.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Có lỗi xảy ra khi xuất PDF');
+    } finally {
+      setExportingPDF(false);
+      setExportProgress(null);
+    }
+  };
+
   // Save comment
   const handleSaveComment = async (classId: string, className: string) => {
     if (!selectedStudent || !editingCommentText.trim()) return;
@@ -450,13 +493,32 @@ export const MonthlyReport: React.FC = () => {
             </button>
 
             {reportData && (
-              <button
-                onClick={handlePrint}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                <Printer size={18} />
-                In báo cáo
-              </button>
+              <>
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Printer size={18} />
+                  In báo cáo
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  disabled={exportingPDF}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {exportingPDF ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      {exportProgress ? `Xuất ${exportProgress.current}/${exportProgress.total}...` : 'Đang xuất...'}
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} />
+                      Xuất PDF
+                    </>
+                  )}
+                </button>
+              </>
             )}
           </div>
         )}

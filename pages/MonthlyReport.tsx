@@ -32,6 +32,8 @@ import {
 } from '../src/services/monthlyReportService';
 import { AttendanceStatus, MonthlyComment, Student, StudentStatus } from '../types';
 import { SearchableClassDropdown } from '../src/features/attendance/components/SearchableClassDropdown';
+import { MonthlyCommentTab } from '../src/features/reports/components/MonthlyCommentTab';
+import { TestCommentTab } from '../src/features/reports/components/TestCommentTab';
 
 export const MonthlyReport: React.FC = () => {
   const { students, loading: studentsLoading } = useStudents();
@@ -52,6 +54,7 @@ export const MonthlyReport: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [activeTab, setActiveTab] = useState<'monthly' | 'test'>('monthly');
 
   // Edit comment state
   const [editingCommentClassId, setEditingCommentClassId] = useState<string | null>(null);
@@ -459,13 +462,14 @@ export const MonthlyReport: React.FC = () => {
         )}
       </div>
 
-      {/* "Theo Lớp" Mode - Student List (Placeholder for Phase 2 comment tabs) */}
+      {/* "Theo Lớp" Mode - Comment Tabs */}
       {mode === 'byClass' && selectedClassId && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               <Users className="text-indigo-600" size={20} />
-              {selectedClass?.name || 'Lớp học'} - Danh sách học sinh
+              {selectedClass?.name || 'Lớp học'}
             </h3>
             <span className="text-sm text-gray-500">
               {classStudents.length} học sinh • Tháng {selectedMonth}/{selectedYear}
@@ -484,41 +488,52 @@ export const MonthlyReport: React.FC = () => {
               <p className="text-sm mt-1">Hãy chọn lớp khác hoặc kiểm tra dữ liệu học sinh</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {classStudents.map((student, index) => (
-                <div
-                  key={student.id}
-                  className="p-3 bg-gray-50 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition-colors"
+            <>
+              {/* Tab buttons */}
+              <div className="flex gap-1 border-b border-gray-200 mb-4">
+                <button
+                  onClick={() => setActiveTab('monthly')}
+                  className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${
+                    activeTab === 'monthly'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </span>
-                  <User size={16} className="text-gray-400" />
-                  <span className="font-medium text-gray-800">{student.fullName}</span>
-                  <span className="text-sm text-gray-500">({student.code})</span>
-                  {student.status && (
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                      student.status === StudentStatus.ACTIVE
-                        ? 'bg-green-100 text-green-700'
-                        : student.status === StudentStatus.RESERVED
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {student.status}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                  <MessageSquare size={16} className="inline mr-2" />
+                  Nhận xét tháng
+                </button>
+                <button
+                  onClick={() => setActiveTab('test')}
+                  className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${
+                    activeTab === 'test'
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Award size={16} className="inline mr-2" />
+                  Nhận xét bài Test
+                </button>
+              </div>
 
-          {/* Placeholder info for Phase 2 */}
-          {classStudents.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>💡 Gợi ý:</strong> Chức năng "Nhận xét tháng" và "Nhận xét bài Test" sẽ được thêm ở đây trong Phase 2.
-              </p>
-            </div>
+              {/* Tab content */}
+              {activeTab === 'monthly' ? (
+                <MonthlyCommentTab
+                  students={classStudents}
+                  classId={selectedClassId}
+                  className={selectedClass?.name || ''}
+                  month={selectedMonth}
+                  year={selectedYear}
+                />
+              ) : (
+                <TestCommentTab
+                  students={classStudents}
+                  classId={selectedClassId}
+                  className={selectedClass?.name || ''}
+                  month={selectedMonth}
+                  year={selectedYear}
+                />
+              )}
+            </>
           )}
         </div>
       )}

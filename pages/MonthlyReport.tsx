@@ -3,13 +3,13 @@
  * Báo cáo học tập theo tháng cho từng học sinh
  */
 
-import React, { useState, useMemo, useRef } from 'react';
-import { 
-  FileText, 
-  Download, 
-  Printer, 
-  Calendar, 
-  User, 
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import {
+  FileText,
+  Download,
+  Printer,
+  Calendar,
+  User,
   BookOpen,
   CheckCircle,
   XCircle,
@@ -19,35 +19,74 @@ import {
   Edit3,
   Save,
   X,
-  Search
+  Search,
+  Users
 } from 'lucide-react';
 import { useStudents } from '../src/hooks/useStudents';
 import { useClasses } from '../src/hooks/useClasses';
-import { 
-  generateMonthlyReport, 
+import {
+  generateMonthlyReport,
   saveMonthlyComment,
   generateAIComment,
-  MonthlyReportData 
+  MonthlyReportData
 } from '../src/services/monthlyReportService';
-import { AttendanceStatus, MonthlyComment } from '../types';
+import { AttendanceStatus, MonthlyComment, Student, StudentStatus } from '../types';
+import { SearchableClassDropdown } from '../src/features/attendance/components/SearchableClassDropdown';
 
 export const MonthlyReport: React.FC = () => {
   const { students, loading: studentsLoading } = useStudents();
   const { classes, loading: classesLoading } = useClasses();
-  
+
+  // Mode: 'byStudent' (existing) or 'byClass' (new)
+  const [mode, setMode] = useState<'byStudent' | 'byClass'>('byStudent');
+
+  // "Theo Học sinh" mode states
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [reportData, setReportData] = useState<MonthlyReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
+  // "Theo Lớp" mode states
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [classStudents, setClassStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
   // Edit comment state
   const [editingCommentClassId, setEditingCommentClassId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   const [savingComment, setSavingComment] = useState(false);
-  
+
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // Get selected class for display
+  const selectedClass = useMemo(() =>
+    classes.find(c => c.id === selectedClassId),
+    [classes, selectedClassId]
+  );
+
+  // Effect: Load students when class is selected in "byClass" mode
+  useEffect(() => {
+    if (!selectedClassId || mode !== 'byClass') {
+      setClassStudents([]);
+      return;
+    }
+
+    setLoadingStudents(true);
+
+    // Filter students that belong to selected class
+    const studentsInClass = students.filter(s =>
+      s.classId === selectedClassId ||
+      s.classIds?.includes(selectedClassId)
+    );
+
+    // Sort by name
+    studentsInClass.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+
+    setClassStudents(studentsInClass);
+    setLoadingStudents(false);
+  }, [selectedClassId, students, mode]);
   
   // Filter students by search
   const filteredStudents = useMemo(() => {
@@ -217,113 +256,197 @@ export const MonthlyReport: React.FC = () => {
             </p>
           </div>
         </div>
-        
-        {/* Filters */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Student Search */}
-          <div className="md:col-span-2 relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Học sinh</label>
-            {!selectedStudent ? (
-              <>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Tìm theo tên hoặc mã học sinh..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                {searchQuery && filteredStudents.length > 0 && (
-                  <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                    {filteredStudents.slice(0, 10).map(student => (
-                      <button
-                        key={student.id}
-                        onClick={() => {
-                          setSelectedStudentId(student.id);
-                          setSearchQuery('');
-                        }}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
-                      >
-                        <User size={16} className="text-gray-400" />
-                        <span className="font-medium">{student.fullName}</span>
-                        <span className="text-gray-400 text-sm">({student.code})</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-2">
-                <User size={16} className="text-indigo-600" />
-                <span className="font-medium text-indigo-700">{selectedStudent.fullName}</span>
-                <span className="text-indigo-500 text-sm">({selectedStudent.code})</span>
-                <button 
-                  onClick={() => {
-                    setSelectedStudentId('');
-                    setSearchQuery('');
-                    setReportData(null);
-                  }}
-                  className="ml-auto text-indigo-400 hover:text-indigo-600"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-          </div>
-          
-          {/* Month */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              {months.map(m => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Year */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              {years.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        {/* Generate Button */}
-        <div className="mt-4 flex gap-3">
+
+        {/* Mode Selector */}
+        <div className="mt-4 flex gap-2">
           <button
-            onClick={handleGenerateReport}
-            disabled={!selectedStudentId || loading}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+            onClick={() => {
+              setMode('byClass');
+              // Reset byStudent state
+              setSelectedStudentId('');
+              setSearchQuery('');
+              setReportData(null);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+              mode === 'byClass'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
           >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                Đang tạo...
-              </>
-            ) : (
-              <>
-                <FileText size={18} />
-                Tạo báo cáo
-              </>
-            )}
+            <Users size={18} />
+            Theo Lớp
           </button>
-          
-          {reportData && (
-            <>
+          <button
+            onClick={() => {
+              setMode('byStudent');
+              // Reset byClass state
+              setSelectedClassId('');
+              setClassStudents([]);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+              mode === 'byStudent'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <User size={18} />
+            Theo Học sinh
+          </button>
+        </div>
+
+        {/* Filters - "Theo Lớp" mode */}
+        {mode === 'byClass' && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Branch + Class Search */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lớp học</label>
+              <SearchableClassDropdown
+                classes={classes}
+                selectedClassId={selectedClassId}
+                onSelect={setSelectedClassId}
+                disabled={classesLoading}
+                placeholder="Tìm kiếm lớp..."
+              />
+            </div>
+
+            {/* Month/Year picker */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  {months.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  {years.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters - "Theo Học sinh" mode */}
+        {mode === 'byStudent' && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Student Search */}
+            <div className="md:col-span-2 relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Học sinh</label>
+              {!selectedStudent ? (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Tìm theo tên hoặc mã học sinh..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+                  {searchQuery && filteredStudents.length > 0 && (
+                    <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {filteredStudents.slice(0, 10).map(student => (
+                        <button
+                          key={student.id}
+                          onClick={() => {
+                            setSelectedStudentId(student.id);
+                            setSearchQuery('');
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <User size={16} className="text-gray-400" />
+                          <span className="font-medium">{student.fullName}</span>
+                          <span className="text-gray-400 text-sm">({student.code})</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-2">
+                  <User size={16} className="text-indigo-600" />
+                  <span className="font-medium text-indigo-700">{selectedStudent.fullName}</span>
+                  <span className="text-indigo-500 text-sm">({selectedStudent.code})</span>
+                  <button
+                    onClick={() => {
+                      setSelectedStudentId('');
+                      setSearchQuery('');
+                      setReportData(null);
+                    }}
+                    className="ml-auto text-indigo-400 hover:text-indigo-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Month */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Year */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              >
+                {years.map(y => (
+                  <option key={y} value={y}>{y}</option>
+              ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Generate Button - only for "Theo Học sinh" mode */}
+        {mode === 'byStudent' && (
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleGenerateReport}
+              disabled={!selectedStudentId || loading}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                  Đang tạo...
+                </>
+              ) : (
+                <>
+                  <FileText size={18} />
+                  Tạo báo cáo
+                </>
+              )}
+            </button>
+
+            {reportData && (
               <button
                 onClick={handlePrint}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
@@ -331,13 +454,77 @@ export const MonthlyReport: React.FC = () => {
                 <Printer size={18} />
                 In báo cáo
               </button>
-            </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* "Theo Lớp" Mode - Student List (Placeholder for Phase 2 comment tabs) */}
+      {mode === 'byClass' && selectedClassId && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Users className="text-indigo-600" size={20} />
+              {selectedClass?.name || 'Lớp học'} - Danh sách học sinh
+            </h3>
+            <span className="text-sm text-gray-500">
+              {classStudents.length} học sinh • Tháng {selectedMonth}/{selectedYear}
+            </span>
+          </div>
+
+          {loadingStudents ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent mx-auto"></div>
+              <p className="text-gray-500 mt-2">Đang tải danh sách học sinh...</p>
+            </div>
+          ) : classStudents.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-lg">
+              <Users className="mx-auto mb-2 text-gray-300" size={48} />
+              <p>Không có học sinh trong lớp này</p>
+              <p className="text-sm mt-1">Hãy chọn lớp khác hoặc kiểm tra dữ liệu học sinh</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {classStudents.map((student, index) => (
+                <div
+                  key={student.id}
+                  className="p-3 bg-gray-50 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition-colors"
+                >
+                  <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    {index + 1}
+                  </span>
+                  <User size={16} className="text-gray-400" />
+                  <span className="font-medium text-gray-800">{student.fullName}</span>
+                  <span className="text-sm text-gray-500">({student.code})</span>
+                  {student.status && (
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded ${
+                      student.status === StudentStatus.ACTIVE
+                        ? 'bg-green-100 text-green-700'
+                        : student.status === StudentStatus.RESERVED
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {student.status}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Placeholder info for Phase 2 */}
+          {classStudents.length > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>💡 Gợi ý:</strong> Chức năng "Nhận xét tháng" và "Nhận xét bài Test" sẽ được thêm ở đây trong Phase 2.
+              </p>
+            </div>
           )}
         </div>
-      </div>
+      )}
       
-      {/* Report Content */}
-      {reportData && (
+      {/* Report Content - only for "Theo Học sinh" mode */}
+      {mode === 'byStudent' && reportData && (
         <div id="monthly-report-content" ref={reportRef} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:shadow-none print:border-none">
           {/* Report Header */}
           <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 print:bg-indigo-600">
@@ -680,8 +867,8 @@ export const MonthlyReport: React.FC = () => {
         </div>
       )}
       
-      {/* Empty State */}
-      {!reportData && !loading && (
+      {/* Empty State - only for "Theo Học sinh" mode */}
+      {mode === 'byStudent' && !reportData && !loading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <FileText className="mx-auto text-gray-300 mb-4" size={64} />
           <h3 className="text-lg font-medium text-gray-600">Chưa có báo cáo</h3>

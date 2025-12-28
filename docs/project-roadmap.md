@@ -1,8 +1,10 @@
 # EduManager Pro - Project Roadmap
 
+**Last Updated**: December 28, 2025
+
 ## Vision
 
-Xây dựng hệ thống quản lý trung tâm giáo dục toàn diện, hiệu quả và dễ sử dụng cho các trung tâm ngoại ngữ tại Việt Nam.
+Build a comprehensive, efficient, and user-friendly education center management system for Vietnamese language learning centers. The system manages 35+ Firestore collections across 7 domains with robust real-time synchronization and role-based access control.
 
 ## Roadmap Overview
 
@@ -17,7 +19,20 @@ Xây dựng hệ thống quản lý trung tâm giáo dục toàn diện, hiệu 
 └── v1.0 Release (Dec 2025)      └── v1.1 Release (Mar 2026)     └── v1.2 Release (Jun 2026)
 ```
 
-## Version 1.0 (Current - Dec 2025)
+## Current Status (December 28, 2025)
+
+**System Health**: 6.5/10 - Quality score indicates room for improvement
+**Phase**: Version 1.0 Complete, Codebase Review Phase Active
+**Active Plan**: `plans/251226-2134-codebase-review/plan.md`
+**Critical Items**: 4 P0 security issues identified, targeting v1.1
+
+### Recent Work Summary
+
+- **Completed**: Full codebase audit across 28 services, 29 hooks, 37 pages
+- **In Progress**: Security issue remediation
+- **Next Priority**: Implement codebase review recommendations
+
+## Version 1.0 (Released - Dec 2025)
 
 ### Features ✅
 
@@ -64,25 +79,40 @@ Xây dựng hệ thống quản lý trung tâm giáo dục toàn diện, hiệu 
 - [x] Production deployment
 - [x] User documentation
 
-## Version 1.1 (Q1 2026)
+## Version 1.1 (Q1 2026) - Active Phase
 
-### Planned Features
+### Critical Focus: Codebase Quality & Security
 
-| Feature | Priority | Description |
-|---------|----------|-------------|
-| Mobile Responsive | High | Improve mobile/tablet experience |
-| Push Notifications | High | Notifications for important events |
-| Enhanced Dashboard | Medium | More analytics, charts |
-| Email Integration | Medium | Send reports via email |
-| Zalo Integration | Medium | Notifications via Zalo |
-| Data Export | Low | Export all data to Excel/PDF |
+Per the active review plan (`plans/251226-2134-codebase-review/plan.md`), v1.1 prioritizes:
 
-### Improvements
+**Phase 1: Security Fixes (P0)**
+- [ ] Firestore rules hardening (35 collections)
+- [ ] Permission checks in all operations
+- [ ] Input validation across services
+- [ ] Target: 9.0/10 quality score
 
-- Performance optimization for large datasets
-- Better error handling and user feedback
-- Improved search and filtering
-- Bulk operations support
+**Phase 2: Code Quality (P1)**
+- [ ] DRY violations (timestamp conversion, query building)
+- [ ] Hook consistency (onSnapshot vs getDocs)
+- [ ] Service layer refactoring
+- [ ] 95%+ test coverage
+
+**Phase 3: User Features**
+- [ ] Mobile responsive improvements
+- [ ] Enhanced error handling
+- [ ] Performance optimization
+- [ ] Better user feedback
+
+### Secondary Features
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Mobile Responsive | High | Planned |
+| Push Notifications | High | Planned |
+| Enhanced Dashboard | Medium | Planned |
+| Email Integration | Medium | Planned |
+| Zalo Integration | Medium | Planned |
+| Data Export | Low | Planned |
 
 ## Version 1.2 (Q2 2026)
 

@@ -1,15 +1,28 @@
 # EduManager Pro: Education Center Management System
 
-EduManager Pro is a comprehensive web-based application designed to streamline operations for Vietnamese language learning centers. Built with React 19, TypeScript, and Firebase, it offers robust features for managing students, classes, attendance, staff, contracts, and financial aspects.
+EduManager Pro is a comprehensive web-based application for Vietnamese language learning centers. Built with React 19, TypeScript, and Firebase, it manages students, classes, attendance, staff, contracts, and financials with real-time synchronization across 35+ Firestore collections.
+
+**Status**: v1.0 Stable | Active Codebase Review Phase | 6.5/10 Quality Score
+
+## Quick Stats
+
+| Metric | Value | Location |
+|--------|-------|----------|
+| **Pages** | 37 | 7 domains |
+| **Services** | 28 | Static class methods |
+| **Hooks** | 29 | Real-time listeners |
+| **Collections** | 35 | Firestore |
+| **Cloud Functions** | 8 | Serverless triggers |
+| **Test Coverage** | 155+ tests | Unit, integration |
 
 ## Key Features
 
-*   **Student Management**: Enrollment, status tracking, detailed profiles.
-*   **Class & Attendance**: Class scheduling, real-time attendance, history.
-*   **Staff & HR**: Staff profiles, roles, salary configuration, work confirmations.
+*   **Student Management**: Enrollment, status tracking, detailed profiles, enrollment history.
+*   **Class & Attendance**: Class scheduling, real-time attendance, history tracking, tutoring.
+*   **Staff & HR**: Staff profiles, roles, salary configuration, work confirmations, rewards/penalties.
 *   **Financials**: Contract management, invoicing, debt tracking, revenue reports.
-*   **CRM**: Lead management, campaign tracking, customer feedback.
-*   **Reporting**: Dashboards, training and monthly reports.
+*   **CRM**: Lead management, campaign tracking, customer feedback, database.
+*   **Reporting**: Real-time dashboards, training and monthly reports.
 
 ## Tech Stack
 
@@ -67,4 +80,58 @@ npm run build
 firebase deploy
 ```
 
-For more detailed documentation, refer to the `docs/` directory.
+For production deployment guide, see `docs/deployment-guide.md`.
+
+## Architecture
+
+EduManager Pro uses a strict **three-layer architecture**:
+
+1. **Services** (`src/services/` - 28 files): Firestore CRUD with static methods
+2. **Hooks** (`src/hooks/` - 29 files): Real-time listeners with `onSnapshot`
+3. **Pages** (`pages/` - 37 files): UI components consuming hooks
+
+This pattern ensures clean separation of concerns and maintainable code.
+
+For detailed architecture documentation, refer to `docs/system-architecture.md`.
+
+## Recent Changes (December 28, 2025)
+
+- **Codebase Review**: Completed full audit of all 28 services, 29 hooks, 37 pages
+- **Quality Assessment**: 6.5/10 score with identified security (P0) and code quality (P1) issues
+- **Active Plan**: Phase-based remediation plan in `plans/251226-2134-codebase-review/`
+- **Documentation**: Updated all core documentation files with latest statistics
+
+## Development
+
+For complete development guide, see `docs/QUICKSTART.md` or `CLAUDE.md`.
+
+### Common Commands
+
+```bash
+npm run dev              # Start dev server
+npm run build           # Production build
+npm run test            # Run tests (watch mode)
+npm run test:coverage   # Test coverage report
+firebase emulators:start # Local Firebase emulators
+```
+
+## Documentation
+
+Complete documentation available in the `docs/` directory:
+
+- `docs/codebase-summary.md` - Codebase overview and statistics
+- `docs/system-architecture.md` - Architecture and data flow
+- `docs/code-standards.md` - Coding standards and patterns
+- `docs/project-roadmap.md` - Development roadmap and timeline
+- `docs/FIRESTORE_SCHEMA.md` - Database schema (35 collections)
+- `docs/decisions/` - Architecture decision records (ADRs)
+
+## Current Focus
+
+The project is in the **Codebase Review Phase** targeting v1.1 (Q1 2026):
+
+1. **Security Hardening** (P0): Firestore rules, permission checks
+2. **Code Quality** (P1): DRY violations, hook consistency, test coverage
+3. **User Features** (P2): Mobile responsive, notifications, integrations
+
+See `docs/project-roadmap.md` for complete roadmap.

@@ -1,8 +1,10 @@
 # EduManager Pro - System Architecture
 
+**Last Updated**: December 28, 2025
+
 ## Overview
 
-EduManager Pro sử dụng kiến trúc 3-layer (Services → Hooks → Pages) với Firebase làm backend. Đây là một Single Page Application (SPA) với client-side rendering và real-time data synchronization.
+EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 35 Firestore collections across 7 domains via 28 services, 29 hooks, and 37 pages (components).
 
 ## High-Level Architecture
 
@@ -235,18 +237,47 @@ service cloud.firestore {
 }
 ```
 
-## Firestore Collections
+## Firestore Collections (35 Total)
 
-The system utilizes 28+ Firestore collections to store various data. Key collections include:
--   `students`: Student records with enrollment history.
--   `classes`: Class definitions and schedules.
--   `staff`: Staff/teacher profiles with roles and permissions.
--   `attendance`/`studentAttendance`: Records for student attendance.
--   `contracts`: Payment contracts and enrollment details.
--   `workSessions`: Teacher work sessions for salary calculation.
--   `leads`/`campaigns`: CRM and marketing data.
+The system utilizes 35 Firestore collections organized across multiple domains:
 
-For a comprehensive and up-to-date schema, refer to `docs/FIRESTORE_SCHEMA.md`.
+| Category | Collections | Purpose |
+|----------|-------------|---------|
+| **Core** | students, classes, staff | Core entities |
+| **Operational** | attendance, studentAttendance, contracts, enrollments, workSessions, invoices | Business operations |
+| **Business** | leads, campaigns, parents, feedback | CRM and customer relations |
+| **Configuration** | products, rooms, curriculum, salaryConfigs, centerSettings | System configuration |
+| **Finance** | invoices, contracts, revenue, debt | Financial management |
+| **Reporting** | reports, analytics | Business intelligence |
+
+For a comprehensive and up-to-date schema with all 35 collections, refer to `docs/FIRESTORE_SCHEMA.md`.
+
+## Cloud Functions Architecture (8 Triggers)
+
+Serverless functions in `/functions/src/triggers/` provide backend automation:
+
+```
+┌─────────────────────────────────────────┐
+│     Cloud Functions (8 Triggers)        │
+├─────────────────────────────────────────┤
+│  ├─ Scheduled Tasks                     │
+│  │  └─ Data synchronization, cleanup    │
+│  ├─ Event Triggers                      │
+│  │  └─ Student enrollment, attendance   │
+│  ├─ Webhook Processors                  │
+│  │  └─ External integrations            │
+│  ├─ Batch Operations                    │
+│  │  └─ Bulk updates, exports            │
+│  └─ Background Processing               │
+│     └─ Reports, notifications           │
+└─────────────────────────────────────────┘
+```
+
+**Benefits**:
+- Offload heavy computation from client
+- Automate recurring tasks
+- Enforce business logic at backend
+- Decouple frontend from backend operations
 
 ## Route Structure
 

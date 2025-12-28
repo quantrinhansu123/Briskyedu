@@ -1,8 +1,10 @@
 # EduManager Pro - Code Standards
 
+**Last Updated**: December 28, 2025
+
 ## Overview
 
-Tài liệu này định nghĩa các quy chuẩn code và best practices cho dự án EduManager Pro.
+This document defines code standards and best practices for the EduManager Pro project. All developers must follow these standards to maintain code quality, consistency, and architectural integrity across the three-layer pattern (Services → Hooks → Pages).
 
 ## TypeScript Standards
 
@@ -611,9 +613,43 @@ test: Add tests for StudentService
 4. **Color Contrast** - Maintain WCAG AA contrast ratios
 5. **Alt Text** - Provide meaningful descriptions for images
 
+## Architecture Pattern Summary
+
+### Services Layer Pattern
+- **Location**: `/src/services/`
+- **File Count**: 28 services
+- **Implementation**: Static class methods (no instantiation)
+- **Responsibility**: Firestore CRUD, business logic
+- **Return Type**: Promise<T> or void (no React hooks)
+- **Key Constraint**: No side effects, pure functions preferred
+
+### Hooks Layer Pattern
+- **Location**: `/src/hooks/`
+- **File Count**: 29 hooks
+- **Implementation**: React custom hooks with useEffect
+- **Responsibility**: Real-time listeners, state management
+- **Return Pattern**: `{ data: T[], loading: boolean, error: string | null }`
+- **Key Constraint**: Must use onSnapshot for real-time updates
+
+### Pages Layer Pattern
+- **Location**: `/pages/`
+- **File Count**: 37 pages (7 domains)
+- **Implementation**: Functional React components
+- **Responsibility**: UI rendering, user interactions
+- **Data Source**: Consume hooks exclusively
+- **Code Splitting**: All pages lazy-loaded with React.lazy()
+
+## Critical Pattern Violations to Avoid
+
+1. **Service Layer**: Never use React hooks in services
+2. **Hook Layer**: Prefer onSnapshot over getDocs for dynamic data
+3. **Pages Layer**: Never import from services directly (always use hooks)
+4. **Types**: Always define types in `types.ts`, not inline
+5. **Timestamps**: Use centralized timestamp conversion utilities
+
 ## Technical Debt / Known Issues
 
-Based on the latest codebase review (December 26, 2025):
+Based on the latest codebase review (December 28, 2025):
 
 -   **Quality Score**: 6.5/10 - Indicating areas for improvement across the codebase.
 -   **Security**: There are identified weaknesses in current Firestore rules and some areas lack explicit permission checks, which need to be addressed to prevent unauthorized access or data manipulation.

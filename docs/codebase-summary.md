@@ -12,25 +12,25 @@ EduManager Pro is a comprehensive education center management system designed fo
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Functions, Storage, Hosting)
 -   **Routing**: react-router-dom 7 with HashRouter
 
-## 📊 Codebase Statistics
+## 📊 Codebase Statistics (Latest Audit: Dec 28, 2025)
 
 | Component | Count | Location |
 |-----------|-------|----------|
-| **Pages** | 37 | `/pages/` (7 domains) |
+| **Pages** | 36 | `/pages/` (7 domains) |
 | **Services** | 28 | `/src/services/` (static class methods) |
-| **Hooks** | 29 | `/src/hooks/` (real-time listeners) |
+| **Hooks** | 27 | `/src/hooks/` (real-time listeners) |
 | **Utilities** | 12 | `/src/utils/` |
 | **Shared Components** | 5 | `/components/` |
 | **Cloud Functions** | 8 | `/functions/src/triggers/` |
 | **Firestore Collections** | 35 | Multiple domains |
 | **TypeScript Interfaces** | 27 | `types.ts` (single source of truth) |
 | **TypeScript Enums** | 9 | `types.ts` |
-| **Test Files** | 18 | Various (unit, integration, utilities) |
+| **Test Files** | 155+ | Unit, integration, utilities |
 | **Maintenance Scripts** | 18 | `/scripts/` (data seeding, consistency checks) |
 
 ## 🧩 Domain-Based Module Structure
 
-The application is organized into 7 functional domains with 37 pages distributed across them:
+The application is organized into 7 functional domains with 36 pages distributed across them:
 
 | Domain | Pages | Key Features |
 |--------|-------|--------------|
@@ -40,10 +40,11 @@ The application is organized into 7 functional domains with 37 pages distributed
 | **HR** | 6 | Staff, SalaryConfig, WorkConfirmation, SalaryReports (Teacher/Staff), Rewards |
 | **Finance** | 6 | ContractList, ContractCreate, Invoices, Debt, Revenue, EnrollmentSync |
 | **Reports** | 2 | Training, Monthly |
-| **Settings** | 5 | Products, Rooms, Curriculum, Inventory, Center |
+| **Settings** | 4 | Products, Rooms, Curriculum, Center |
 | **Core** | 2 | Dashboard, Login |
+| **Total** | **36** | |
 
-**Service-to-Page Mapping**: Each domain has corresponding services in `/src/services/` for CRUD operations and hooks in `/src/hooks/` for real-time listeners.
+**Architecture Pattern**: Each domain has corresponding services in `/src/services/` (28 total) for CRUD operations and hooks in `/src/hooks/` (27 total) for real-time listeners.
 
 ## 🏗️ Architectural Patterns
 

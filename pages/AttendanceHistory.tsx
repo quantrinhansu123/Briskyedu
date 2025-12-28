@@ -6,7 +6,8 @@ import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStudents } from '../src/hooks/useStudents';
 import { useStaff } from '../src/hooks/useStaff';
-import { AttendanceRecord, AttendanceStatus, StudentAttendance } from '../types';
+import { useHolidays } from '../src/hooks/useHolidays';
+import { AttendanceRecord, AttendanceStatus, StudentAttendance, Holiday } from '../types';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import * as XLSX from 'xlsx';
@@ -69,6 +70,48 @@ export const AttendanceHistory: React.FC = () => {
   const { classes: allClasses } = useClasses({});
   const { students: allStudents } = useStudents({});
   const { staff: allStaff } = useStaff();
+  const { holidays } = useHolidays();
+
+  // Helper: Check if a date is a holiday for a specific class
+  const getHolidayForDate = (dateStr: string, classId?: string): Holiday | null => {
+    if (!holidays.length) return null;
+
+    // Normalize date format (handle both YYYY-MM-DD and DD/MM/YYYY)
+    const normalizedDate = dateStr.includes('/')
+      ? dateStr.split('/').reverse().join('-')
+      : dateStr;
+
+    for (const holiday of holidays) {
+      if (holiday.status !== 'Đã áp dụng') continue;
+
+      // Check if date falls within holiday range
+      const start = holiday.startDate;
+      const end = holiday.endDate || holiday.startDate;
+      if (normalizedDate < start || normalizedDate > end) continue;
+
+      // Check apply type
+      if (holiday.applyType === 'all_classes' || holiday.applyType === 'all_branches') {
+        return holiday;
+      }
+
+      // For specific classes, check if this class is affected
+      if (holiday.applyType === 'specific_classes' && classId) {
+        if (holiday.classIds?.includes(classId)) {
+          return holiday;
+        }
+      }
+
+      // For specific branch, check class branch
+      if (holiday.applyType === 'specific_branch' && classId) {
+        const classInfo = allClasses.find(c => c.id === classId);
+        if (classInfo?.branch === holiday.branch) {
+          return holiday;
+        }
+      }
+    }
+
+    return null;
+  };
   const { 
     attendanceRecords: allRecords, 
     loading, 
@@ -182,6 +225,45 @@ export const AttendanceHistory: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filterClass, filterTeacher, filterStudent, filterStatus, filterFromDate, filterToDate]);
+
+  // Get holidays within filter date range (to show blocked dates that won't have records)
+  const holidaysInRange = useMemo(() => {
+    if (!holidays.length) return [];
+
+    // Only show if date filter is applied
+    if (!filterFromDate && !filterToDate) return [];
+
+    const fromDate = filterFromDate || '2000-01-01';
+    const toDate = filterToDate || '2100-12-31';
+
+    return holidays.filter(holiday => {
+      if (holiday.status !== 'Đã áp dụng') return false;
+
+      // Check if holiday overlaps with filter range
+      const holidayStart = holiday.startDate;
+      const holidayEnd = holiday.endDate || holiday.startDate;
+
+      // Holiday overlaps if: holidayStart <= toDate AND holidayEnd >= fromDate
+      if (holidayStart > toDate || holidayEnd < fromDate) return false;
+
+      // If filtering by class, only show holidays that affect that class
+      if (filterClass) {
+        if (holiday.applyType === 'all_classes' || holiday.applyType === 'all_branches') {
+          return true;
+        }
+        if (holiday.applyType === 'specific_classes') {
+          return holiday.classIds?.includes(filterClass);
+        }
+        if (holiday.applyType === 'specific_branch') {
+          const classInfo = allClasses.find(c => c.id === filterClass);
+          return classInfo?.branch === holiday.branch;
+        }
+        return false;
+      }
+
+      return true;
+    }).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [holidays, filterFromDate, filterToDate, filterClass, allClasses]);
 
   // Sorted students list: Đang học first, then Nghỉ học, sorted by name
   const sortedStudents = useMemo(() => {
@@ -979,6 +1061,37 @@ export const AttendanceHistory: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Holidays in date range notice */}
+        {holidaysInRange.length > 0 && (
+          <div className="mx-6 mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-orange-500 flex-shrink-0 mt-0.5" size={20} />
+              <div className="flex-1">
+                <p className="font-semibold text-orange-800 mb-2">
+                  Các ngày nghỉ trong khoảng thời gian lọc ({holidaysInRange.length})
+                </p>
+                <p className="text-sm text-orange-700 mb-2">
+                  Các ngày này không có điểm danh do đã được đăng ký là ngày nghỉ:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {holidaysInRange.map(holiday => (
+                    <span
+                      key={holiday.id}
+                      className="inline-flex items-center px-3 py-1.5 rounded-lg bg-orange-100 text-orange-800 text-sm"
+                      title={`${holiday.applyType === 'all_classes' ? 'Tất cả lớp' : holiday.applyType === 'specific_classes' ? `Lớp: ${holiday.classNames?.join(', ')}` : `Cơ sở: ${holiday.branch}`}`}
+                    >
+                      <span className="font-medium">{holiday.name}</span>
+                      <span className="mx-1.5 text-orange-400">•</span>
+                      <span>{holiday.startDate}{holiday.endDate !== holiday.startDate ? ` → ${holiday.endDate}` : ''}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <table className="w-full text-left text-sm text-gray-600">
           <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
             <tr>
@@ -1001,29 +1114,54 @@ export const AttendanceHistory: React.FC = () => {
               const present = record.present || (record as any).presentCount || 0;
               const absent = record.absent || (record as any).absentCount || 0;
               const status = record.status || (record as any).attendanceStatus || 'Chưa điểm danh';
-              
+
+              // Check if this is a holiday record (either auto-created or falls on holiday date)
+              const isHolidayRecord = status === 'LỊCH NGHỈ CHUNG';
+              const recordHoliday = record.date ? getHolidayForDate(record.date, record.classId) : null;
+              const showAsHoliday = isHolidayRecord || recordHoliday;
+              const holidayName = record.holidayName || recordHoliday?.name || '';
+
               return (
-              <tr key={record.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={record.id} className={`hover:bg-gray-50 transition-colors ${showAsHoliday ? 'bg-orange-50' : ''}`}>
                 <td className="px-6 py-4 font-medium text-gray-900">{className}</td>
-                <td className="px-6 py-4">{record.date || '-'}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    {record.date || '-'}
+                    {showAsHoliday && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700" title={holidayName}>
+                        LỊCH NGHỈ
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4">{totalStudents}</td>
                 <td className="px-6 py-4 text-green-600 font-medium">{present}</td>
                 <td className="px-6 py-4 text-red-600 font-medium">{absent}</td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
-                    ${status === 'Đã điểm danh' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}
-                  `}>
-                    {status}
-                  </span>
+                  {showAsHoliday ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
+                      LỊCH NGHỈ CHUNG
+                    </span>
+                  ) : (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium
+                      ${status === 'Đã điểm danh' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}
+                    `}>
+                      {status}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button 
-                    onClick={() => handleViewDetail(record)}
-                    className="text-gray-500 hover:text-indigo-600 font-medium text-xs flex items-center gap-1 ml-auto"
-                  >
-                    <Eye size={14} />
-                    Xem chi tiết
-                  </button>
+                  {!showAsHoliday ? (
+                    <button
+                      onClick={() => handleViewDetail(record)}
+                      className="text-gray-500 hover:text-indigo-600 font-medium text-xs flex items-center gap-1 ml-auto"
+                    >
+                      <Eye size={14} />
+                      Xem chi tiết
+                    </button>
+                  ) : (
+                    <span className="text-gray-400 text-xs">{holidayName}</span>
+                  )}
                 </td>
               </tr>
             );

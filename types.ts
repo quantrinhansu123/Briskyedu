@@ -206,7 +206,9 @@ export interface AttendanceRecord {
   absent: number;
   reserved: number;
   tutored: number;
-  status: 'Đã điểm danh' | 'Chưa điểm danh';
+  status: 'Đã điểm danh' | 'Chưa điểm danh' | 'LỊCH NGHỈ CHUNG';
+  holidayId?: string;  // Reference to holiday that created this record
+  holidayName?: string; // Holiday name for display
   createdBy?: string | null;
   createdAt?: string;
   updatedAt?: string;

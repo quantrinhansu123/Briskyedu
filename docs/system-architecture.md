@@ -4,7 +4,10 @@
 
 ## Overview
 
-EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 35 Firestore collections across 7 domains via 28 services, 29 hooks, and 37 pages (components).
+EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 35 Firestore collections across 7 domains via:
+- **28 Services**: Static class methods for CRUD operations
+- **27 Hooks**: Real-time listeners with onSnapshot pattern
+- **36 Pages**: Domain-organized UI components
 
 ## High-Level Architecture
 

@@ -105,10 +105,13 @@ export const TrainingReport: React.FC = () => {
       const activeClasses = classes.filter((c: any) => normalizeClassStatus(c.status) === 'Đang học').length;
       const activeStudents = students.filter((s: any) => normalizeStudentStatus(s.status) === 'Đang học').length;
       
+      // Filter out holiday records (status = "LỊCH NGHỈ CHUNG") - these should not be counted as actual attendance sessions
+      const actualAttendance = attendance.filter((a: any) => a.status !== 'LỊCH NGHỈ CHUNG');
+
       // Attendance rate calculation
       let totalPresent = 0;
       let totalRecords = 0;
-      attendance.forEach((a: any) => {
+      actualAttendance.forEach((a: any) => {
         if (a.records) {
           const records = Array.isArray(a.records) ? a.records : Object.values(a.records);
           records.forEach((r: any) => {
@@ -153,7 +156,7 @@ export const TrainingReport: React.FC = () => {
         activeClasses,
         totalStudents: students.length,
         activeStudents,
-        totalSessions: attendance.length,
+        totalSessions: actualAttendance.length, // Exclude holiday records
         attendanceRate,
         tutoringCount: tutoring.length,
         completedTutoring,
@@ -164,7 +167,8 @@ export const TrainingReport: React.FC = () => {
 
       // Class summaries with active rate calculation
       const classData: ClassSummary[] = classes.map((c: any) => {
-        const classAttendance = attendance.filter((a: any) => a.classId === c.id);
+        // Exclude holiday records from class attendance count
+        const classAttendance = actualAttendance.filter((a: any) => a.classId === c.id);
         const classTutoring = tutoring.filter((t: any) => t.classId === c.id);
         const classStudents = students.filter((s: any) => s.classId === c.id);
         

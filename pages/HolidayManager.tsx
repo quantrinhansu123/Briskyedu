@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, ToggleLeft, ToggleRight, Trash2, X, Building, Users, ChevronDown } from 'lucide-react';
+import { Calendar, Plus, ToggleLeft, ToggleRight, Trash2, X, Building, Users, ChevronDown, Loader2 } from 'lucide-react';
 import { useHolidays } from '../src/hooks/useHolidays';
 import { useClasses } from '../src/hooks/useClasses';
 import { HolidayApplyType } from '../types';
+import { applyHoliday, unapplyHoliday } from '../src/services/holidayService';
 
 export const HolidayManager: React.FC = () => {
   const { holidays, loading, createHoliday, updateHoliday, deleteHoliday } = useHolidays();
@@ -17,17 +18,37 @@ export const HolidayManager: React.FC = () => {
     classIds: [] as string[],
     branch: '',
   });
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Get unique branches from classes
   const branches = [...new Set(classes.map(c => c.branch).filter(Boolean))] as string[];
 
-  // Toggle status
+  // Toggle status - Apply/Unapply holiday with auto-create records
   const toggleStatus = async (id: string, currentStatus: string) => {
+    const holiday = holidays.find(h => h.id === id);
+    if (!holiday) return;
+
+    setTogglingId(id);
     try {
       const newStatus = currentStatus === 'Đã áp dụng' ? 'Chưa áp dụng' : 'Đã áp dụng';
+
+      if (newStatus === 'Đã áp dụng') {
+        // Apply: Create attendance records for all affected classes/dates
+        const result = await applyHoliday(holiday, classes);
+        console.log(`Holiday applied: Created ${result.created} records, skipped ${result.skipped}`);
+      } else {
+        // Unapply: Delete auto-created attendance records
+        const deleted = await unapplyHoliday(id);
+        console.log(`Holiday unapplied: Deleted ${deleted} records`);
+      }
+
+      // Update holiday status
       await updateHoliday(id, { status: newStatus });
     } catch (err) {
       console.error('Error updating holiday:', err);
+      alert('Có lỗi xảy ra khi cập nhật trạng thái');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -187,16 +208,22 @@ export const HolidayManager: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <button 
+                    <button
                       onClick={() => toggleStatus(holiday.id, holiday.status)}
+                      disabled={togglingId === holiday.id}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors
-                        ${holiday.status === 'Đã áp dụng' 
-                          ? 'bg-green-100 text-green-700' 
+                        ${holiday.status === 'Đã áp dụng'
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-500'}
+                        ${togglingId === holiday.id ? 'opacity-50 cursor-wait' : ''}
                       `}
                     >
-                      {holiday.status === 'Đã áp dụng' ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                      {holiday.status}
+                      {togglingId === holiday.id ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        holiday.status === 'Đã áp dụng' ? <ToggleRight size={18} /> : <ToggleLeft size={18} />
+                      )}
+                      {togglingId === holiday.id ? 'Đang xử lý...' : holiday.status}
                     </button>
                   </td>
                   <td className="px-6 py-4 text-right">

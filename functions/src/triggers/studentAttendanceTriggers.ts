@@ -117,7 +117,14 @@ export const onStudentAttendanceCreate = functions
     const data = snap.data() as StudentAttendanceData;
     
     console.log(`[onStudentAttendanceCreate] New attendance: ${docId}, student: ${data.studentName}, status: ${data.status}`);
-    
+
+    // Skip holiday records - they should not count as attended sessions
+    // Holiday records have status "LỊCH NGHỈ CHUNG" and are auto-created by the system
+    if (data.status === 'LỊCH NGHỈ CHUNG') {
+      console.log(`[onStudentAttendanceCreate] Holiday record detected, skipping session count`);
+      return null;
+    }
+
     // Only process if student was present
     if (!PRESENT_STATUSES.includes(data.status)) {
       console.log(`[onStudentAttendanceCreate] Status "${data.status}" is not present, skipping count update`);
@@ -200,9 +207,15 @@ export const onStudentAttendanceUpdate = functions
     const before = change.before.data() as StudentAttendanceData;
     const after = change.after.data() as StudentAttendanceData;
     
+    // Skip holiday records - they should not count as attended sessions
+    if (after.status === 'LỊCH NGHỈ CHUNG' || before.status === 'LỊCH NGHỈ CHUNG') {
+      console.log(`[onStudentAttendanceUpdate] Holiday record detected, skipping session count`);
+      return null;
+    }
+
     const wasPresentBefore = PRESENT_STATUSES.includes(before.status);
     const isPresentAfter = PRESENT_STATUSES.includes(after.status);
-    
+
     // If status didn't change between present/absent, nothing to update
     if (wasPresentBefore === isPresentAfter) {
       console.log(`[onStudentAttendanceUpdate] Status category unchanged for ${docId}, skipping`);
@@ -288,7 +301,13 @@ export const onStudentAttendanceDelete = functions
     const data = snap.data() as StudentAttendanceData;
     
     console.log(`[onStudentAttendanceDelete] Attendance deleted: ${docId}`);
-    
+
+    // Skip holiday records - they should not count as attended sessions
+    if (data.status === 'LỊCH NGHỈ CHUNG') {
+      console.log(`[onStudentAttendanceDelete] Holiday record detected, skipping session count`);
+      return null;
+    }
+
     // Only decrement if was present
     if (!PRESENT_STATUSES.includes(data.status)) {
       return null;

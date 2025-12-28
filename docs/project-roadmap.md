@@ -26,9 +26,18 @@ Build a comprehensive, efficient, and user-friendly education center management 
 **Active Plan**: `plans/251226-2134-codebase-review/plan.md`
 **Critical Items**: 4 P0 security issues identified, targeting v1.1
 
+### Codebase Metrics (Latest Audit)
+
+- **Services**: 28 static class methods in `src/services/`
+- **Hooks**: 27 real-time listeners in `src/hooks/`
+- **Pages**: 36 domain-organized components in `pages/`
+- **Collections**: 35 Firestore collections
+- **Cloud Functions**: 8 serverless triggers
+- **Test Coverage**: 155+ tests (unit, integration)
+
 ### Recent Work Summary
 
-- **Completed**: Full codebase audit across 28 services, 29 hooks, 37 pages
+- **Completed**: Full codebase audit across 28 services, 27 hooks, 36 pages
 - **In Progress**: Security issue remediation
 - **Next Priority**: Implement codebase review recommendations
 
@@ -85,23 +94,29 @@ Build a comprehensive, efficient, and user-friendly education center management 
 
 Per the active review plan (`plans/251226-2134-codebase-review/plan.md`), v1.1 prioritizes:
 
-**Phase 1: Security Fixes (P0)**
-- [ ] Firestore rules hardening (35 collections)
-- [ ] Permission checks in all operations
-- [ ] Input validation across services
-- [ ] Target: 9.0/10 quality score
+**Phase 1: Security Hardening (P0)**
 
-**Phase 2: Code Quality (P1)**
-- [ ] DRY violations (timestamp conversion, query building)
-- [ ] Hook consistency (onSnapshot vs getDocs)
-- [ ] Service layer refactoring
-- [ ] 95%+ test coverage
+Critical security issues from codebase audit (Dec 2025):
+- [ ] Firestore rules hardening - apply principle of least privilege across 35 collections
+- [ ] Permission checks - add explicit permission verification in all CRUD operations
+- [ ] Input validation - validate user inputs in forms and API submissions
+- [ ] Sensitive data handling - encrypt confidential information
+- [ ] Target Quality Score: 9.0/10
 
-**Phase 3: User Features**
-- [ ] Mobile responsive improvements
-- [ ] Enhanced error handling
-- [ ] Performance optimization
-- [ ] Better user feedback
+**Phase 2: Code Quality & Maintenance (P1)**
+
+Identified technical debt:
+- [ ] DRY violations - consolidate timestamp conversion utility, centralize Firestore query builders
+- [ ] Hook consistency - standardize onSnapshot vs getDocs usage across 27 hooks
+- [ ] Service layer refactoring - simplify complex methods in 28 services
+- [ ] Error boundary improvement - comprehensive error logging and user feedback
+- [ ] Test coverage - achieve 95%+ across all layers
+
+**Phase 3: User Experience Enhancements**
+- [ ] Mobile responsive improvements - ensure 36 pages render correctly on mobile
+- [ ] Enhanced error messages - clear, actionable feedback for users
+- [ ] Performance optimization - reduce Firestore query overhead
+- [ ] Real-time sync improvements - better handling of connection drops
 
 ### Secondary Features
 
@@ -169,11 +184,15 @@ Per the active review plan (`plans/251226-2134-codebase-review/plan.md`), v1.1 p
 
 ### External Dependencies
 
-| Dependency | Current | Target | Notes |
-|------------|---------|--------|-------|
-| React | 19.x | 19.x | Latest |
-| Firebase | 12.x | Latest | Keep updated |
-| Vite | 7.x | Latest | Keep updated |
+| Dependency | Current Version | Target | Notes |
+|------------|-----------------|--------|-------|
+| React | 19.2.0 | 19.x | Latest stable |
+| TypeScript | 5.9.3 | 5.x+ | Strict mode enabled |
+| Firebase | 12.6.0 | Latest | SDK with Blaze plan features |
+| Vite | 7.2.6 | 7.x+ | Fast build tooling |
+| react-router-dom | 7.10 | 7.x+ | HashRouter for SPA |
+| TailwindCSS | Latest | Latest | Utility-first styling |
+| Vitest | Latest | Latest | Unit testing |
 
 ### Infrastructure Dependencies
 

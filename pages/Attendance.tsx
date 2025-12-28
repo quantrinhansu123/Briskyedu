@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, Search, ChevronDown } from 'lucide-react';
+import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, ChevronDown } from 'lucide-react';
+import { SearchableClassDropdown } from '../src/features/attendance';
 import { AttendanceStatus, AttendanceRecord, StudentStatus } from '../types';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
@@ -120,6 +121,7 @@ export const Attendance: React.FC = () => {
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 320 });
   const sessionDropdownRef = useRef<HTMLDivElement>(null);
   const sessionButtonRef = useRef<HTMLButtonElement>(null);
+
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceData, setAttendanceData] = useState<StudentAttendanceState[]>([]);
   const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null);
@@ -736,20 +738,17 @@ export const Attendance: React.FC = () => {
                 <p className="text-sm text-gray-500">5 trạng thái: Đúng giờ, Trễ giờ, Vắng, Bảo lưu, Đã bồi</p>
               </div>
               <div className="flex flex-wrap gap-3 w-full md:w-auto">
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-[200px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={selectedClassId}
-                  onChange={(e) => {
-                    setSelectedClassId(e.target.value);
+                {/* Searchable class dropdown with branch filter */}
+                <SearchableClassDropdown
+                  classes={classes}
+                  selectedClassId={selectedClassId}
+                  onSelect={(classId) => {
+                    setSelectedClassId(classId);
                     setSelectedSession(null);
                   }}
                   disabled={classLoading}
-                >
-                  <option value="">-- Chọn lớp --</option>
-                  {classes.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                  placeholder="Tìm kiếm lớp..."
+                />
                 
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button
@@ -955,14 +954,22 @@ export const Attendance: React.FC = () => {
         </div>
       )}
 
-      {/* Holiday Warning */}
+      {/* Holiday Warning - BLOCKING */}
       {selectedDateHoliday && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2 text-red-800">
-          <AlertTriangle size={20} />
-          <span>
-            <strong>NGÀY NGHỈ:</strong> {selectedDateHoliday.name} ({selectedDateHoliday.startDate} - {selectedDateHoliday.endDate}).
-            Lớp học được nghỉ vào ngày này. Bạn vẫn có thể điểm danh nếu có buổi học bù.
-          </span>
+        <div className="bg-red-100 border-2 border-red-400 rounded-lg p-4 flex items-start gap-3 text-red-800">
+          <AlertTriangle size={24} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold text-lg">KHÔNG THỂ ĐIỂM DANH - NGÀY NGHỈ</p>
+            <p className="mt-1">
+              <strong>{selectedDateHoliday.name}</strong> ({selectedDateHoliday.startDate} - {selectedDateHoliday.endDate})
+            </p>
+            <p className="text-sm mt-2 text-red-600">
+              Đây là ngày nghỉ đã được đăng ký. Không thể lưu điểm danh cho ngày này.
+            </p>
+            <p className="text-sm mt-1 text-red-600">
+              Nếu có bản ghi cũ, lịch sử điểm danh sẽ hiển thị trạng thái "LỊCH NGHỈ CHUNG".
+            </p>
+          </div>
         </div>
       )}
 
@@ -1212,8 +1219,8 @@ export const Attendance: React.FC = () => {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || attendanceData.length === 0}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-sm flex items-center gap-2 disabled:opacity-50"
+                disabled={saving || attendanceData.length === 0 || !!selectedDateHoliday}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <>

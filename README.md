@@ -8,9 +8,9 @@ EduManager Pro is a comprehensive web-based application for Vietnamese language 
 
 | Metric | Value | Location |
 |--------|-------|----------|
-| **Pages** | 37 | 7 domains |
+| **Pages** | 36 | 7 domains |
 | **Services** | 28 | Static class methods |
-| **Hooks** | 29 | Real-time listeners |
+| **Hooks** | 27 | Real-time listeners |
 | **Collections** | 35 | Firestore |
 | **Cloud Functions** | 8 | Serverless triggers |
 | **Test Coverage** | 155+ tests | Unit, integration |
@@ -87,8 +87,8 @@ For production deployment guide, see `docs/deployment-guide.md`.
 EduManager Pro uses a strict **three-layer architecture**:
 
 1. **Services** (`src/services/` - 28 files): Firestore CRUD with static methods
-2. **Hooks** (`src/hooks/` - 29 files): Real-time listeners with `onSnapshot`
-3. **Pages** (`pages/` - 37 files): UI components consuming hooks
+2. **Hooks** (`src/hooks/` - 27 files): Real-time listeners with `onSnapshot`
+3. **Pages** (`pages/` - 36 files): UI components consuming hooks
 
 This pattern ensures clean separation of concerns and maintainable code.
 
@@ -96,10 +96,10 @@ For detailed architecture documentation, refer to `docs/system-architecture.md`.
 
 ## Recent Changes (December 28, 2025)
 
-- **Codebase Review**: Completed full audit of all 28 services, 29 hooks, 37 pages
+- **Codebase Review**: Completed full audit of all 28 services, 27 hooks, 36 pages
 - **Quality Assessment**: 6.5/10 score with identified security (P0) and code quality (P1) issues
 - **Active Plan**: Phase-based remediation plan in `plans/251226-2134-codebase-review/`
-- **Documentation**: Updated all core documentation files with latest statistics
+- **Documentation**: Updated all core documentation files with latest statistics and audit findings
 
 ## Development
 

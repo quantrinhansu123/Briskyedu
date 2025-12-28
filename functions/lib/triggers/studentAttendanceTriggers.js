@@ -99,6 +99,12 @@ exports.onStudentAttendanceCreate = functions
     const docId = context.params.docId;
     const data = snap.data();
     console.log(`[onStudentAttendanceCreate] New attendance: ${docId}, student: ${data.studentName}, status: ${data.status}`);
+    // Skip holiday records - they should not count as attended sessions
+    // Holiday records have status "LỊCH NGHỈ CHUNG" and are auto-created by the system
+    if (data.status === 'LỊCH NGHỈ CHUNG') {
+        console.log(`[onStudentAttendanceCreate] Holiday record detected, skipping session count`);
+        return null;
+    }
     // Only process if student was present
     if (!PRESENT_STATUSES.includes(data.status)) {
         console.log(`[onStudentAttendanceCreate] Status "${data.status}" is not present, skipping count update`);
@@ -164,6 +170,11 @@ exports.onStudentAttendanceUpdate = functions
     const docId = context.params.docId;
     const before = change.before.data();
     const after = change.after.data();
+    // Skip holiday records - they should not count as attended sessions
+    if (after.status === 'LỊCH NGHỈ CHUNG' || before.status === 'LỊCH NGHỈ CHUNG') {
+        console.log(`[onStudentAttendanceUpdate] Holiday record detected, skipping session count`);
+        return null;
+    }
     const wasPresentBefore = PRESENT_STATUSES.includes(before.status);
     const isPresentAfter = PRESENT_STATUSES.includes(after.status);
     // If status didn't change between present/absent, nothing to update
@@ -239,6 +250,11 @@ exports.onStudentAttendanceDelete = functions
     const docId = context.params.docId;
     const data = snap.data();
     console.log(`[onStudentAttendanceDelete] Attendance deleted: ${docId}`);
+    // Skip holiday records - they should not count as attended sessions
+    if (data.status === 'LỊCH NGHỈ CHUNG') {
+        console.log(`[onStudentAttendanceDelete] Holiday record detected, skipping session count`);
+        return null;
+    }
     // Only decrement if was present
     if (!PRESENT_STATUSES.includes(data.status)) {
         return null;

@@ -31,7 +31,8 @@ service cloud.firestore {
     
     // Staff collection
     match /staff/{staffId} {
-      allow read: if isStaff();
+      // Allow user to read their own staff doc (for auth check) + other staff can read all
+      allow read: if isAuthenticated() && (request.auth.uid == staffId || isStaff());
       allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -253,6 +254,18 @@ service cloud.firestore {
 
     // Settlement Invoices collection (hóa đơn tất toán nợ phí)
     match /settlementInvoices/{invoiceId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    // Leave Requests collection (đơn xin nghỉ)
+    match /leaveRequests/{requestId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    // Leave Balances collection (số dư ngày phép)
+    match /leaveBalances/{balanceId} {
       allow read: if isStaff();
       allow write: if isStaff();
     }

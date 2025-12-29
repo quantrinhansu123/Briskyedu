@@ -13,6 +13,109 @@ const db = admin.firestore();
 const auth = admin.auth();
 
 /**
+ * FK reference configurations for staff document migration
+ * Lists all collections and fields that reference staffId
+ */
+const STAFF_FK_REFERENCES = [
+  { collection: 'classes', field: 'teacherId' },
+  { collection: 'classes', field: 'assistantId' },
+  { collection: 'workSessions', field: 'staffId' },
+  { collection: 'leaveRequests', field: 'staffId' },
+  { collection: 'leaveRequests', field: 'approvedBy' },
+  { collection: 'leaveBalances', field: 'staffId' },
+  { collection: 'staffAttendance', field: 'staffId' },
+  { collection: 'staffSalaries', field: 'staffId' },
+  { collection: 'actualSalaries', field: 'staffId' },
+  { collection: 'homeworkRecords', field: 'assignedBy' },
+  { collection: 'monthlyComments', field: 'staffId' },
+];
+
+/**
+ * Update all FK references from oldId to newId
+ * Collects all updates and adds them to the batch
+ * @returns number of documents updated
+ */
+async function collectStaffReferenceUpdates(
+  batch: admin.firestore.WriteBatch,
+  oldId: string,
+  newId: string
+): Promise<number> {
+  let updateCount = 0;
+
+  for (const { collection, field } of STAFF_FK_REFERENCES) {
+    const snapshot = await db.collection(collection)
+      .where(field, '==', oldId)
+      .get();
+
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { [field]: newId });
+      updateCount++;
+    });
+  }
+
+  return updateCount;
+}
+
+/**
+ * Migrate staff document ID to new Auth UID
+ * Creates new doc with Auth UID, updates all FK references, deletes old doc
+ * All operations in single batch for atomicity
+ */
+async function migrateStaffDocId(
+  staffId: string,
+  newAuthUid: string,
+  staffData: admin.firestore.DocumentData,
+  email: string,
+  callerUid: string,
+  callerName: string
+): Promise<{ success: boolean; updatedRefs: number }> {
+  const batch = db.batch();
+
+  // 1. Create new staff doc with Auth UID as ID
+  const newStaffRef = db.collection('staff').doc(newAuthUid);
+  batch.set(newStaffRef, {
+    ...staffData,
+    uid: newAuthUid,
+    email: email,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // 2. Collect all FK reference updates
+  const updatedRefs = await collectStaffReferenceUpdates(batch, staffId, newAuthUid);
+
+  // Check batch limit (max 500 ops: 1 new doc + N refs + 1 delete + 1 audit)
+  const MAX_BATCH_OPS = 500;
+  const totalOps = 1 + updatedRefs + 1 + 1; // new + refs + delete + audit
+  if (totalOps > MAX_BATCH_OPS) {
+    throw new Error(
+      `Too many FK references (${updatedRefs}). Max allowed: ${MAX_BATCH_OPS - 3}. ` +
+      'Please contact admin to manually migrate this staff.'
+    );
+  }
+
+  // 3. Delete old staff doc
+  const oldStaffRef = db.collection('staff').doc(staffId);
+  batch.delete(oldStaffRef);
+
+  // 4. Add audit log
+  const auditRef = db.collection('auditLogs').doc();
+  batch.set(auditRef, {
+    action: 'STAFF_DOC_MIGRATED',
+    oldStaffId: staffId,
+    newStaffId: newAuthUid,
+    updatedReferences: updatedRefs,
+    performedBy: callerUid,
+    performedByName: callerName,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // 5. Commit all changes atomically
+  await batch.commit();
+
+  return { success: true, updatedRefs };
+}
+
+/**
  * Update staff password (callable by admin)
  * Required: caller must have admin/manager role
  */
@@ -137,6 +240,21 @@ export const createStaffAccount = functions.https.onCall(async (data, context) =
       throw new functions.https.HttpsError('already-exists', 'Nhân viên đã có tài khoản.');
     }
 
+    // Check if email is already used by another staff
+    const existingStaffWithEmail = await db.collection('staff')
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    if (!existingStaffWithEmail.empty) {
+      const existingDoc = existingStaffWithEmail.docs[0];
+      if (existingDoc.id !== staffId) {
+        throw new functions.https.HttpsError(
+          'already-exists',
+          'Email này đã được sử dụng bởi nhân viên khác.'
+        );
+      }
+    }
+
     // Create Firebase Auth user
     const userRecord = await auth.createUser({
       email: email,
@@ -144,24 +262,44 @@ export const createStaffAccount = functions.https.onCall(async (data, context) =
       displayName: staffData?.name || '',
     });
 
-    // Update staff document with UID
-    await db.collection('staff').doc(staffId).update({
-      uid: userRecord.uid,
-      email: email,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    try {
+      // Migrate staff doc ID to Auth UID (instead of just updating uid field)
+      // This ensures isStaff() rule works: exists(staff/{auth.uid})
+      const migrationResult = await migrateStaffDocId(
+        staffId,
+        userRecord.uid,
+        staffData!,
+        email,
+        context.auth!.uid,
+        callerData?.name || ''
+      );
 
-    // Log the action
-    await db.collection('auditLogs').add({
-      action: 'ACCOUNT_CREATED',
-      targetStaffId: staffId,
-      targetStaffName: staffData?.name || '',
-      performedBy: context.auth.uid,
-      performedByName: callerData?.name || '',
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      // Log the account creation action
+      await db.collection('auditLogs').add({
+        action: 'ACCOUNT_CREATED',
+        targetStaffId: userRecord.uid, // New ID after migration
+        oldStaffId: staffId,
+        targetStaffName: staffData?.name || '',
+        updatedReferences: migrationResult.updatedRefs,
+        performedBy: context.auth!.uid,
+        performedByName: callerData?.name || '',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    return { success: true, message: 'Đã tạo tài khoản thành công!', uid: userRecord.uid };
+      return {
+        success: true,
+        message: `Đã tạo tài khoản thành công! (${migrationResult.updatedRefs} references updated)`,
+        uid: userRecord.uid,
+      };
+    } catch (migrationError: any) {
+      // If migration fails, delete the created Auth user to avoid orphan
+      console.error('Migration failed, rolling back Auth user:', migrationError);
+      await auth.deleteUser(userRecord.uid);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Không thể migrate staff document. Vui lòng thử lại.'
+      );
+    }
   } catch (error: any) {
     console.error('Error creating account:', error);
 

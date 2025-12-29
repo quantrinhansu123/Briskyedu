@@ -1,46 +1,31 @@
 /**
  * Automated Test Script - Settlement Feature
  *
- * Tests Student Debt Settlement functionality on Firebase Emulator.
+ * Tests Student Debt Settlement functionality using Firebase Admin SDK.
  * Run: npx tsx scripts/test-settlement-feature.ts
  *
- * Prerequisites:
- * 1. Start emulator: firebase emulators:start --only firestore
- * 2. Run this script in another terminal
+ * Uses Admin SDK to bypass Firestore security rules for testing.
+ * All test data uses TEST_ prefix and is auto-cleaned after run.
  */
 
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  connectFirestoreEmulator,
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  deleteDoc,
-  addDoc,
-  Firestore,
-} from 'firebase/firestore';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// Initialize Firebase Admin (uses default credentials)
+let app: App;
+if (getApps().length === 0) {
+  app = initializeApp({
+    projectId: 'edumanager-pro-6180f',
+  });
+} else {
+  app = getApps()[0];
+}
 
-const firebaseConfig = {
-  apiKey: 'test-api-key',
-  authDomain: 'test.firebaseapp.com',
-  projectId: 'demo-edumanager-test',
-  storageBucket: 'test.appspot.com',
-  messagingSenderId: '123456789',
-  appId: '1:123456789:web:test',
-};
+const db = getFirestore(app);
 
 const TEST_PREFIX = 'TEST_';
-const EMULATOR_HOST = 'localhost';
-const EMULATOR_PORT = 8080;
 const PRICE_PER_SESSION = 150000;
 
 // ============================================================================
@@ -109,7 +94,7 @@ function logHeader(): void {
   console.log('\n' + '═'.repeat(60));
   log('         SETTLEMENT FEATURE - AUTOMATED TEST', 'cyan');
   console.log('═'.repeat(60));
-  log(`Environment: Firebase Emulator (${EMULATOR_HOST}:${EMULATOR_PORT})`, 'dim');
+  log('Environment: Production (Admin SDK + TEST_ prefix)', 'dim');
   console.log('═'.repeat(60) + '\n');
 }
 
@@ -178,23 +163,23 @@ function createTestInvoice(
 // CLEANUP
 // ============================================================================
 
-async function cleanup(db: Firestore): Promise<void> {
+async function cleanup(): Promise<void> {
   log('Cleaning up test data...', 'dim');
 
   // Delete test students
-  const studentsSnap = await getDocs(collection(db, 'students'));
+  const studentsSnap = await db.collection('students').get();
   for (const docSnap of studentsSnap.docs) {
     if (docSnap.id.startsWith(TEST_PREFIX)) {
-      await deleteDoc(docSnap.ref);
+      await docSnap.ref.delete();
     }
   }
 
   // Delete test invoices
-  const invoicesSnap = await getDocs(collection(db, 'settlementInvoices'));
+  const invoicesSnap = await db.collection('settlementInvoices').get();
   for (const docSnap of invoicesSnap.docs) {
     const data = docSnap.data();
     if (data.studentId?.startsWith(TEST_PREFIX)) {
-      await deleteDoc(docSnap.ref);
+      await docSnap.ref.delete();
     }
   }
 
@@ -229,7 +214,7 @@ async function runTest(
 // TEST CASES
 // ============================================================================
 
-async function testDebtCalculation(db: Firestore): Promise<void> {
+async function testDebtCalculation(): Promise<void> {
   // TC01: Verify debt calculation
   const student = createTestStudent({
     registeredSessions: 10,
@@ -243,12 +228,12 @@ async function testDebtCalculation(db: Firestore): Promise<void> {
   assert(totalAmount === 750000, `Expected totalAmount=750000, got ${totalAmount}`);
 }
 
-async function testSettlementPaid(db: Firestore): Promise<void> {
+async function testSettlementPaid(): Promise<void> {
   // TC02: Create invoice with "Đã thanh toán" status
   const student = createTestStudent();
 
   // Save student to Firestore
-  await setDoc(doc(db, 'students', student.id), student);
+  await db.collection('students').doc(student.id).set(student);
 
   // Create invoice
   const invoiceData = createTestInvoice(student, 'Đã thanh toán');
@@ -258,11 +243,11 @@ async function testSettlementPaid(db: Firestore): Promise<void> {
     createdAt: new Date().toISOString(),
   };
 
-  const invoiceRef = await addDoc(collection(db, 'settlementInvoices'), fullInvoice);
+  const invoiceRef = await db.collection('settlementInvoices').add(fullInvoice);
 
   // Verify invoice created
-  const savedInvoice = await getDoc(invoiceRef);
-  assert(savedInvoice.exists(), 'Invoice should exist');
+  const savedInvoice = await invoiceRef.get();
+  assert(savedInvoice.exists, 'Invoice should exist');
 
   const data = savedInvoice.data() as SettlementInvoice;
   assert(data.status === 'Đã thanh toán', `Expected status "Đã thanh toán", got "${data.status}"`);
@@ -270,14 +255,14 @@ async function testSettlementPaid(db: Firestore): Promise<void> {
   assert(data.remainingAmount === 0, 'remainingAmount should be 0');
 }
 
-async function testSettlementBadDebt(db: Firestore): Promise<void> {
+async function testSettlementBadDebt(): Promise<void> {
   // TC03: Create invoice with "Nợ xấu" status
   const student = createTestStudent({
     id: `${TEST_PREFIX}student_baddebt_${Date.now()}`,
   });
 
   // Save student to Firestore
-  await setDoc(doc(db, 'students', student.id), student);
+  await db.collection('students').doc(student.id).set(student);
 
   // Create invoice
   const invoiceData = createTestInvoice(student, 'Nợ xấu');
@@ -287,11 +272,11 @@ async function testSettlementBadDebt(db: Firestore): Promise<void> {
     createdAt: new Date().toISOString(),
   };
 
-  const invoiceRef = await addDoc(collection(db, 'settlementInvoices'), fullInvoice);
+  const invoiceRef = await db.collection('settlementInvoices').add(fullInvoice);
 
   // Verify invoice created
-  const savedInvoice = await getDoc(invoiceRef);
-  assert(savedInvoice.exists(), 'Invoice should exist');
+  const savedInvoice = await invoiceRef.get();
+  assert(savedInvoice.exists, 'Invoice should exist');
 
   const data = savedInvoice.data() as SettlementInvoice;
   assert(data.status === 'Nợ xấu', `Expected status "Nợ xấu", got "${data.status}"`);
@@ -419,21 +404,11 @@ function printSummary(results: TestResult[], totalTime: number): void {
 async function main(): Promise<void> {
   logHeader();
 
-  // Initialize Firebase with emulator
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Connect to emulator
-  try {
-    connectFirestoreEmulator(db, EMULATOR_HOST, EMULATOR_PORT);
-    log(`Connected to Firestore Emulator at ${EMULATOR_HOST}:${EMULATOR_PORT}`, 'cyan');
-  } catch (err) {
-    // May already be connected
-    log('Firestore connection established', 'dim');
-  }
+  log('Using Firebase Admin SDK with TEST_ prefix isolation', 'cyan');
+  log('All test data will be auto-cleaned after run', 'dim');
 
   // Cleanup before tests
-  await cleanup(db);
+  await cleanup();
 
   log('\nRunning tests...\n', 'cyan');
 
@@ -441,9 +416,9 @@ async function main(): Promise<void> {
   const results: TestResult[] = [];
 
   // Run all test cases
-  results.push(await runTest('TC01', 'Debt Calculation', () => testDebtCalculation(db)));
-  results.push(await runTest('TC02', 'Settlement - Paid', () => testSettlementPaid(db)));
-  results.push(await runTest('TC03', 'Settlement - Bad Debt', () => testSettlementBadDebt(db)));
+  results.push(await runTest('TC01', 'Debt Calculation', () => testDebtCalculation()));
+  results.push(await runTest('TC02', 'Settlement - Paid', () => testSettlementPaid()));
+  results.push(await runTest('TC03', 'Settlement - Bad Debt', () => testSettlementBadDebt()));
   results.push(await runTest('TC04', 'Debt Blocking Logic', () => testDebtBlockingLogic()));
   results.push(await runTest('TC05', 'Invoice Code Format', () => testInvoiceCodeFormat()));
 
@@ -475,7 +450,7 @@ async function main(): Promise<void> {
   }
 
   // Cleanup after tests
-  await cleanup(db);
+  await cleanup();
 
   // Exit with appropriate code
   process.exit(failed.length > 0 ? 1 : 0);

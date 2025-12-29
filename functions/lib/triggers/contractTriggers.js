@@ -158,8 +158,9 @@ exports.onContractUpdate = functions
         const enrollmentData = {
             studentId: after.studentId,
             studentName: after.studentName || '',
-            classId: ((_a = after.items[0]) === null || _a === void 0 ? void 0 : _a.id) || '',
-            className: ((_b = after.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
+            // Use contract.classId (from dropdown), fallback to items[0] for backward compatibility
+            classId: after.classId || ((_a = after.items[0]) === null || _a === void 0 ? void 0 : _a.id) || '',
+            className: after.className || ((_b = after.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
             sessions: paidSessions, // Use paidSessions, not totalSessions
             type: after.category || 'Hợp đồng mới',
             contractCode: actualContractCode,
@@ -265,8 +266,9 @@ exports.onContractCreate = functions
         const enrollmentData = {
             studentId: contract.studentId,
             studentName: contract.studentName || '',
-            classId: ((_a = contract.items[0]) === null || _a === void 0 ? void 0 : _a.id) || '',
-            className: ((_b = contract.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
+            // Use contract.classId (from dropdown), fallback to items[0] for backward compatibility
+            classId: contract.classId || ((_a = contract.items[0]) === null || _a === void 0 ? void 0 : _a.id) || '',
+            className: contract.className || ((_b = contract.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
             sessions: paidSessions,
             type: contract.category || 'Hợp đồng mới',
             contractCode: actualContractCode,

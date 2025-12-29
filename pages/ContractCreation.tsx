@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import {
   Contract, ContractType, ContractCategory, ContractItem, PaymentMethod,
-  Student, Course, Product, ContractStatus, Discount
+  Student, Course, Product, ContractStatus, Discount, ClassStatus
 } from '../types';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStudents } from '../src/hooks/useStudents';
@@ -281,6 +281,21 @@ export const ContractCreation: React.FC = () => {
     return () => unsubscribe();
   }, []);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
+
+  // Smart filtering: Filter classes by status and student's branch
+  const filteredClasses = useMemo(() => {
+    return classes.filter(c => {
+      // 1. Must be active (studying)
+      if (c.status !== ClassStatus.STUDYING) return false;
+
+      // 2. Filter by student's branch (if student selected and has branch)
+      if (selectedStudent?.branch && c.branch && c.branch !== selectedStudent.branch) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [classes, selectedStudent]);
 
   // Date format helpers (ISO <-> dd/mm/yyyy)
   const isoToVN = (isoDate: string) => {
@@ -792,12 +807,17 @@ export const ContractCreation: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">-- Chọn lớp (không bắt buộc) --</option>
-                  {classes.filter(c => c.status === 'Đang hoạt động').map(cls => (
+                  {filteredClasses.map(cls => (
                     <option key={cls.id} value={cls.id}>
-                      {cls.name} ({cls.code})
+                      {cls.name} ({cls.code}) - {cls.branch}
                     </option>
                   ))}
                 </select>
+                {filteredClasses.length === 0 && selectedStudent && (
+                  <p className="mt-1 text-sm text-yellow-600">
+                    Không có lớp phù hợp với chi nhánh {selectedStudent.branch || 'của học sinh'}
+                  </p>
+                )}
               </div>
             </div>
           </div>

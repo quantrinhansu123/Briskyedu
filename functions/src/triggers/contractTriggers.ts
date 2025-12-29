@@ -19,6 +19,8 @@ interface ContractData {
   category?: 'Hợp đồng mới' | 'Hợp đồng tái phí' | 'Hợp đồng liên kết';
   studentId?: string;
   studentName?: string;
+  classId?: string; // Class ID from dropdown (optional)
+  className?: string; // Class name from dropdown (optional)
   items: {
     type: 'course' | 'product';
     id: string;
@@ -160,8 +162,9 @@ export const onContractUpdate = functions
       const enrollmentData = {
         studentId: after.studentId,
         studentName: after.studentName || '',
-        classId: after.items[0]?.id || '',
-        className: after.items[0]?.name || '',
+        // Use contract.classId (from dropdown), fallback to items[0] for backward compatibility
+        classId: after.classId || after.items[0]?.id || '',
+        className: after.className || after.items[0]?.name || '',
         sessions: paidSessions, // Use paidSessions, not totalSessions
         type: after.category || 'Hợp đồng mới',
         contractCode: actualContractCode,
@@ -282,8 +285,9 @@ export const onContractCreate = functions
       const enrollmentData = {
         studentId: contract.studentId,
         studentName: contract.studentName || '',
-        classId: contract.items[0]?.id || '',
-        className: contract.items[0]?.name || '',
+        // Use contract.classId (from dropdown), fallback to items[0] for backward compatibility
+        classId: contract.classId || contract.items[0]?.id || '',
+        className: contract.className || contract.items[0]?.name || '',
         sessions: paidSessions,
         type: contract.category || 'Hợp đồng mới',
         contractCode: actualContractCode,

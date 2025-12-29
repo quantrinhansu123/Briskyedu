@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, User, Eye, EyeOff, AlertTriangle, X, Phone, Building2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Eye, EyeOff, AlertTriangle, X, Phone, Building2, Key } from 'lucide-react';
 import { Staff, StaffRole } from '../types';
 import { useStaff } from '../src/hooks/useStaff';
 import { ImportExportButtons } from '../components/ImportExportButtons';
 import { STAFF_FIELDS, STAFF_MAPPING, prepareStaffExport } from '../src/utils/excelUtils';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { AuthService } from '../src/services/authService';
 
 // Departments and positions based on Excel
 const DEPARTMENTS = ['Điều hành', 'Đào Tạo', 'Văn phòng'];
@@ -26,6 +27,13 @@ export const StaffManager: React.FC = () => {
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
+
+  // Account management state
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountStaff, setAccountStaff] = useState<Staff | null>(null);
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountEmail, setAccountEmail] = useState('');
+  const [savingAccount, setSavingAccount] = useState(false);
 
   const { staff, loading, createStaff, updateStaff, deleteStaff } = useStaff();
 
@@ -161,35 +169,119 @@ export const StaffManager: React.FC = () => {
     try {
       // Determine primary role from position or roles array
       const primaryRole = formData.roles.length > 0 ? formData.roles[0] :
-              formData.position.includes('Giáo Viên') ? 'Giáo viên' : 
-              formData.position === 'Trợ Giảng' ? 'Trợ giảng' : 
+              formData.position.includes('Giáo Viên') ? 'Giáo viên' :
+              formData.position === 'Trợ Giảng' ? 'Trợ giảng' :
               formData.position === 'Quản lý (Admin)' ? 'Quản lý' : 'Nhân viên';
-      
-      const staffData = {
-        name: formData.name,
-        code: editingStaff?.code || `NV${Date.now().toString().slice(-6)}`,
-        dob: formData.dob,
-        phone: formData.phone,
-        department: formData.department,
-        position: formData.position,
-        role: primaryRole,
-        roles: formData.roles.length > 0 ? formData.roles : [primaryRole],
-        startDate: formData.startDate,
-        status: formData.status,
-        branch: formData.branch,
-      };
+
+      const staffCode = editingStaff?.code || `NV${Date.now().toString().slice(-6)}`;
 
       if (editingStaff) {
+        // Update existing staff (Firestore only)
+        const staffData = {
+          name: formData.name,
+          dob: formData.dob,
+          phone: formData.phone,
+          department: formData.department,
+          position: formData.position,
+          role: primaryRole,
+          roles: formData.roles.length > 0 ? formData.roles : [primaryRole],
+          startDate: formData.startDate,
+          status: formData.status,
+          branch: formData.branch,
+        };
         await updateStaff(editingStaff.id, staffData);
-        alert('Đã cập nhật nhân viên!');
+        alert('Đã cập nhật thông tin nhân viên!');
       } else {
-        await createStaff(staffData as Omit<Staff, 'id'>);
-        alert('Đã thêm nhân viên mới!');
+        // Create new staff
+        if (formData.username && formData.password) {
+          // Create with Firebase Auth account
+          if (formData.password.length < 6) {
+            alert('Mật khẩu phải có ít nhất 6 ký tự!');
+            return;
+          }
+
+          // Convert username to email format if not already email
+          const email = formData.username.includes('@')
+            ? formData.username
+            : `${formData.username}@edumanager.local`;
+
+          await AuthService.registerStaff(email, formData.password, {
+            name: formData.name,
+            code: staffCode,
+            role: primaryRole,
+            department: formData.department,
+            position: formData.position,
+            phone: formData.phone,
+          });
+          alert('Đã tạo nhân viên với tài khoản đăng nhập!');
+        } else {
+          // Create without account (Firestore only)
+          const staffData = {
+            name: formData.name,
+            code: staffCode,
+            dob: formData.dob,
+            phone: formData.phone,
+            department: formData.department,
+            position: formData.position,
+            role: primaryRole,
+            roles: formData.roles.length > 0 ? formData.roles : [primaryRole],
+            startDate: formData.startDate,
+            status: formData.status,
+            branch: formData.branch,
+          };
+          await createStaff(staffData as Omit<Staff, 'id'>);
+          alert('Đã thêm nhân viên mới (chưa có tài khoản đăng nhập)!');
+        }
       }
       setShowModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving staff:', err);
-      alert('Có lỗi xảy ra. Vui lòng thử lại.');
+      alert('Có lỗi xảy ra: ' + (err.message || 'Vui lòng thử lại.'));
+    }
+  };
+
+  // Open account management modal
+  const handleManageAccount = (staffMember: Staff) => {
+    setAccountStaff(staffMember);
+    setAccountPassword('');
+    setAccountEmail((staffMember as any).email || '');
+    setShowAccountModal(true);
+  };
+
+  // Handle account save (create or update password)
+  const handleSaveAccount = async () => {
+    if (!accountStaff) return;
+
+    if (!accountPassword || accountPassword.length < 6) {
+      alert('Mật khẩu phải có ít nhất 6 ký tự!');
+      return;
+    }
+
+    setSavingAccount(true);
+    try {
+      const hasAccount = !!(accountStaff as any).uid || !!(accountStaff as any).email;
+
+      if (hasAccount) {
+        // Update password via Cloud Function
+        const result = await AuthService.updateStaffPassword(accountStaff.id, accountPassword);
+        alert(result.message);
+      } else {
+        // Create new account via Cloud Function
+        if (!accountEmail) {
+          alert('Vui lòng nhập email đăng nhập!');
+          setSavingAccount(false);
+          return;
+        }
+        const email = accountEmail.includes('@') ? accountEmail : `${accountEmail}@edumanager.local`;
+        const result = await AuthService.createStaffAccount(accountStaff.id, email, accountPassword);
+        alert(result.message);
+      }
+      setShowAccountModal(false);
+    } catch (err: any) {
+      console.error('Error managing account:', err);
+      alert('Có lỗi xảy ra: ' + (err.message || 'Vui lòng thử lại.'));
+    } finally {
+      setSavingAccount(false);
     }
   };
 
@@ -385,15 +477,22 @@ export const StaffManager: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button 
-                      onClick={() => handleEdit(s)} 
+                    <button
+                      onClick={() => handleManageAccount(s)}
+                      className={`p-2 transition-colors ${(s as any).uid || (s as any).email ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-amber-600'}`}
+                      title={(s as any).uid || (s as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                    >
+                      <Key size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(s)}
                       className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
                       title="Sửa"
                     >
                       <Edit size={16} />
                     </button>
-                    <button 
-                      onClick={() => handleDelete(s.id, s.name)} 
+                    <button
+                      onClick={() => handleDelete(s.id, s.name)}
                       className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                       title="Xóa"
                     >
@@ -629,6 +728,117 @@ export const StaffManager: React.FC = () => {
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 {editingStaff ? 'Cập nhật' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Management Modal */}
+      {showAccountModal && accountStaff && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {(accountStaff as any).uid || (accountStaff as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                </h3>
+                <p className="text-sm text-amber-600">{accountStaff.name}</p>
+              </div>
+              <button onClick={() => setShowAccountModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Email field - only show for new account */}
+              {!((accountStaff as any).uid || (accountStaff as any).email) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email đăng nhập *</label>
+                  <input
+                    type="text"
+                    value={accountEmail}
+                    onChange={(e) => setAccountEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    placeholder="username hoặc email@example.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nếu không có @, hệ thống sẽ thêm @edumanager.local
+                  </p>
+                </div>
+              )}
+
+              {/* Existing email display */}
+              {(accountStaff as any).email && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email đăng nhập</label>
+                  <p className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
+                    {(accountStaff as any).email}
+                  </p>
+                </div>
+              )}
+
+              {/* Password field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {(accountStaff as any).uid || (accountStaff as any).email ? 'Mật khẩu mới *' : 'Mật khẩu *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={accountPassword}
+                    onChange={(e) => setAccountPassword(e.target.value)}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 text-amber-800 text-xs p-3 rounded-lg">
+                <p className="font-medium mb-1">Lưu ý:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Mật khẩu phải có ít nhất 6 ký tự</li>
+                  <li>Không nên dùng thông tin cá nhân làm mật khẩu</li>
+                  {(accountStaff as any).uid || (accountStaff as any).email ? (
+                    <li>Nhân viên sẽ dùng mật khẩu mới để đăng nhập</li>
+                  ) : (
+                    <li>Sau khi tạo, nhân viên có thể đăng nhập vào hệ thống</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+              <button
+                onClick={() => setShowAccountModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+                disabled={savingAccount}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSaveAccount}
+                disabled={savingAccount || accountPassword.length < 6}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {savingAccount ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <Key size={16} />
+                    {(accountStaff as any).uid || (accountStaff as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                  </>
+                )}
               </button>
             </div>
           </div>

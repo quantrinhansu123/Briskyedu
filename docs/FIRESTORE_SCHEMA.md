@@ -128,7 +128,7 @@
 }
 ```
 
-### 5. **tutoringSessions** (Collection)
+### 5. **tutoring** (Collection) - Lịch Bồi Bài
 ```typescript
 {
   id: string (auto-generated)
@@ -136,17 +136,50 @@
   studentName: string
   classId: string (reference to classes)
   className: string
-  date: Timestamp (indexed)
-  time: string
-  teacherId: string
-  teacherName: string
-  content: string
-  status: 'Đã hẹn' | 'Hoàn thành' | 'Hủy'
-  createdAt: Timestamp
-  updatedAt: Timestamp
-  createdBy: string
+  type: 'Nghỉ học' | 'Học yếu'
+  status: 'Chưa bồi' | 'Đã hẹn' | 'Đã bồi' | 'Nghỉ tính phí' | 'Nghỉ bảo lưu' | 'Hủy'
+
+  // Link to original absence
+  absentDate?: string (YYYY-MM-DD format)
+  studentAttendanceId?: string (reference to studentAttendance)
+
+  // Scheduling
+  scheduledDate?: string (YYYY-MM-DD format)
+  scheduledTime?: string (HH:mm format)
+  tutor?: string (staffId)
+  tutorName?: string
+
+  // Completion
+  completedAt?: string (ISO timestamp)
+  completedBy?: string (staffId who completed)
+
+  // Charged absence reason (required for 'Nghỉ tính phí')
+  chargedReason?: string
+
+  // Soft delete
+  deletedAt?: string | null (ISO timestamp, null = not deleted)
+  deletedBy?: string | null (staffId)
+
+  // Audit trail
+  statusHistory?: Array<{
+    status: TutoringStatus
+    changedAt: string (ISO timestamp)
+    changedBy: string (staffId or 'system')
+    reason?: string
+  }>
+
+  note?: string
+  createdAt: string (ISO timestamp)
+  updatedAt: string (ISO timestamp)
 }
 ```
+
+**Status Transitions:**
+- `Chưa bồi` → `Đã hẹn` (schedule)
+- `Đã hẹn` → `Đã bồi` (complete, updates studentAttendance)
+- `Đã hẹn` → `Nghỉ tính phí` (requires reason, no attendance update)
+- `Đã hẹn` → `Nghỉ bảo lưu` (updates studentAttendance, extends course)
+- Terminal states → `Đã hẹn` (undo, Admin/Manager only)
 
 ### 6. **holidays** (Collection)
 ```typescript
@@ -359,10 +392,11 @@
 2. **students**: `currentClassName` (asc) + `status` (asc)
 3. **classes**: `status` (asc) + `startDate` (desc)
 4. **attendance**: `classId` (asc) + `date` (desc)
-5. **tutoringessions**: `studentId` (asc) + `date` (desc)
-6. **contracts**: `studentId` (asc) + `createdAt` (desc)
-7. **workSessions**: `staffId` (asc) + `date` (desc)
-8. **feedback**: `studentId` (asc) + `date` (desc)
+5. **tutoring**: `status` (asc) + `createdAt` (desc)
+6. **studentAttendance**: `studentId` (asc) + `classId` (asc) + `date` (asc)
+7. **contracts**: `studentId` (asc) + `createdAt` (desc)
+8. **workSessions**: `staffId` (asc) + `date` (desc)
+9. **feedback**: `studentId` (asc) + `date` (desc)
 
 ## Security Rules (firestore.rules)
 

@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-// Mock Firebase
+// Mock Firebase app
 vi.mock('../config/firebase', () => ({
   db: {},
   auth: {},
+  default: {}, // Mock default export (app)
 }));
 
 // Mock Firestore functions
@@ -22,6 +23,12 @@ vi.mock('firebase/firestore', () => ({
     delete: vi.fn(),
     commit: vi.fn(),
   })),
+}));
+
+// Mock Firebase Functions
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(() => ({})),
+  httpsCallable: vi.fn(() => vi.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 // Mock window.alert

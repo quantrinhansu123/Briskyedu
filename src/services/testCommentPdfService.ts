@@ -83,8 +83,7 @@ function generateBriskyPDFHTML(data: TestComment): string {
   return `
     <div id="brisky-pdf" style="
       width: 210mm;
-      min-height: 297mm;
-      padding: 15mm 20mm;
+      padding: 12mm 18mm;
       font-family: 'Times New Roman', Times, serif;
       font-size: 12pt;
       line-height: 1.4;
@@ -93,8 +92,8 @@ function generateBriskyPDFHTML(data: TestComment): string {
       box-sizing: border-box;
     ">
       <!-- Header with Logo -->
-      <div style="display: flex; align-items: flex-start; margin-bottom: 20px;">
-        <div style="flex-shrink: 0; margin-right: 20px;">
+      <div style="display: flex; align-items: flex-start; margin-bottom: 15px;">
+        <div style="flex-shrink: 0; margin-right: 15px;">
           <img src="/logo.jpg" alt="Brisky Logo" style="width: 100px; height: auto;" crossorigin="anonymous" />
         </div>
         <div style="flex: 1;">
@@ -107,15 +106,15 @@ function generateBriskyPDFHTML(data: TestComment): string {
       </div>
 
       <!-- Title -->
-      <div style="text-align: center; margin: 25px 0;">
+      <div style="text-align: center; margin: 15px 0;">
         <div style="font-weight: bold; font-size: 16pt; text-decoration: underline;">ĐÁNH GIÁ KẾT QUẢ BÀI TEST</div>
-        <div style="font-weight: bold; font-size: 14pt; margin-top: 8px;">${escapeHtml(data.testName)}</div>
-        ${data.unit ? `<div style="font-size: 12pt; margin-top: 4px;">(${escapeHtml(data.unit)})</div>` : ''}
-        ${data.book ? `<div style="font-size: 12pt; margin-top: 4px;">Book: ${escapeHtml(data.book)}</div>` : ''}
+        <div style="font-weight: bold; font-size: 14pt; margin-top: 6px;">${escapeHtml(data.testName)}</div>
+        ${data.unit ? `<div style="font-size: 12pt; margin-top: 3px;">(${escapeHtml(data.unit)})</div>` : ''}
+        ${data.book ? `<div style="font-size: 12pt; margin-top: 3px;">Book: ${escapeHtml(data.book)}</div>` : ''}
       </div>
 
       <!-- Student Info -->
-      <div style="margin: 20px 0;">
+      <div style="margin: 15px 0;">
         <div style="margin-bottom: 8px;"><strong>Student's name:</strong> ${escapeHtml(data.studentName)}</div>
         ${data.videoLink ? `
           <div>
@@ -126,7 +125,7 @@ function generateBriskyPDFHTML(data: TestComment): string {
       </div>
 
       <!-- Score Table -->
-      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid ${COLORS.border};">
+      <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid ${COLORS.border};">
         <thead>
           <tr>
             <th style="border: 1px solid ${COLORS.border}; padding: 8px; width: 15%; background: ${COLORS.headerBg}; color: ${COLORS.headerText};"></th>
@@ -231,20 +230,20 @@ function generateBriskyPDFHTML(data: TestComment): string {
       </table>
 
       <!-- Referral Program -->
-      <div style="margin: 30px 0; text-align: justify; font-size: 11pt;">
-        <div style="font-weight: bold; margin-bottom: 10px;">
+      <div style="margin: 20px 0 15px 0; text-align: justify; font-size: 11pt;">
+        <div style="font-weight: bold; margin-bottom: 8px;">
           Chương trình "GỬI LỜI YÊU THƯƠNG" tới bố mẹ có con theo học tại BRISKY!
         </div>
-        <p style="margin: 0 0 10px 0;">
+        <p style="margin: 0 0 8px 0;">
           Brisky rất cảm ơn bố mẹ khi đã tin tưởng gửi gắm con và giới thiệu thêm bạn bè, con cháu tham gia lớp học. Thay lời cảm ơn và tri ân tới bố mẹ, khi giới thiệu một học sinh thành công, Brisky xin gửi tặng 200k/1 bạn giới thiệu thành công (Trừ vào khóa học tới của con hoặc tiền mặt).
         </p>
         <p style="margin: 0;">Brisky xin cảm ơn bố mẹ thật nhiều ạ!</p>
       </div>
 
       <!-- Teacher Signature -->
-      <div style="text-align: right; margin-top: 40px;">
+      <div style="text-align: right; margin-top: 25px;">
         <div style="font-weight: bold;">Giáo viên chủ nhiệm</div>
-        <div style="margin-top: 30px; font-style: italic; font-size: 14pt;">
+        <div style="margin-top: 20px; font-style: italic; font-size: 14pt;">
           ${escapeHtml(data.teacherName) || 'Ms./Mr. ___________'}
         </div>
       </div>

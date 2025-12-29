@@ -1,6 +1,6 @@
 # EduManager Pro Codebase Summary
 
-**Last Updated**: December 28, 2025
+**Last Updated**: December 29, 2025
 
 ## 🎯 Project Overview
 
@@ -17,13 +17,13 @@ EduManager Pro is a comprehensive education center management system designed fo
 | Component | Count | Location |
 |-----------|-------|----------|
 | **Pages** | 36 | `/pages/` (7 domains) |
-| **Services** | 28 | `/src/services/` (static class methods) |
-| **Hooks** | 27 | `/src/hooks/` (real-time listeners) |
+| **Services** | 29 | `/src/services/` (static class methods) |
+| **Hooks** | 28 | `/src/hooks/` (real-time listeners) |
 | **Utilities** | 12 | `/src/utils/` |
 | **Shared Components** | 5 | `/components/` |
 | **Cloud Functions** | 8 | `/functions/src/triggers/` |
-| **Firestore Collections** | 35 | Multiple domains |
-| **TypeScript Interfaces** | 27 | `types.ts` (single source of truth) |
+| **Firestore Collections** | 36 | Multiple domains |
+| **TypeScript Interfaces** | 28 | `types.ts` (single source of truth) |
 | **TypeScript Enums** | 9 | `types.ts` |
 | **Test Files** | 155+ | Unit, integration, utilities |
 | **Maintenance Scripts** | 18 | `/scripts/` (data seeding, consistency checks) |
@@ -99,9 +99,9 @@ Serverless functions in `/functions/src/triggers/` for automation and backend op
      - Inconsistent hook patterns (mix of onSnapshot vs getDocs approaches)
      - Missing explicit permission checks in some operations
 
-## 🗄️ Firestore Collections (35 Total)
+## 🗄️ Firestore Collections (36 Total)
 
-The system utilizes 35 Firestore collections across multiple domains:
+The system utilizes 36 Firestore collections across multiple domains:
 
 **Core Collections**:
 - `students` - Student records with enrollment history
@@ -113,6 +113,7 @@ The system utilizes 35 Firestore collections across multiple domains:
 - `contracts`, `enrollments` - Payment contracts and enrollment details
 - `workSessions` - Teacher work sessions for salary calculation
 - `invoices` - Financial invoicing records
+- `settlementInvoices` - Debt settlement invoices for students with fee debt (NEW)
 
 **Business Collections**:
 - `leads`, `campaigns` - CRM and marketing data
@@ -122,4 +123,4 @@ The system utilizes 35 Firestore collections across multiple domains:
 - `products`, `rooms`, `curriculum` - Center configuration
 - `salaryConfigs`, `centerSettings` - System settings
 
-For a detailed schema with all 35 collections, refer to `docs/FIRESTORE_SCHEMA.md`.
+For a detailed schema with all 36 collections, refer to `docs/FIRESTORE_SCHEMA.md`.

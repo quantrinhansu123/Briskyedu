@@ -2,32 +2,23 @@
  * TestCommentTab Component
  *
  * Displays test results with scores and comments for each student.
+ * Supports Brisky PDF format with multi-skill scores and detailed comments.
+ *
  * Features:
- * - Add new test
+ * - Add new test with book/unit info
+ * - Edit detailed test comment per student (scores, content, strengths, improvements, attitude)
+ * - Export PDF report in Brisky format
  * - Delete test (with confirmation)
- * - Score and comment input per student
  * - Auto-save on blur
  */
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Award, X, Save, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, X, AlertTriangle, Edit2, Settings } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { Student } from '../../../../types';
-
-// Local interface for test comments (matches HomeworkManager)
-interface TestComment {
-  id?: string;
-  classId: string;
-  studentId: string;
-  studentName: string;
-  testName: string;
-  testDate: string;
-  comment: string;
-  score: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Student, TestComment, TestTemplate } from '../../../../types';
+import { TestCommentTemplateModal } from './test-comment-template-modal';
+import { TestCommentEditModal } from './test-comment-edit-modal';
 
 export interface TestCommentTabProps {
   students: Student[];
@@ -52,11 +43,21 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
   const [showAddTestModal, setShowAddTestModal] = useState(false);
   const [newTestName, setNewTestName] = useState('');
   const [newTestDate, setNewTestDate] = useState('');
+  const [newTestUnit, setNewTestUnit] = useState('');
+  const [newTestBook, setNewTestBook] = useState('');
   const [addingTest, setAddingTest] = useState(false);
 
   // Delete Confirmation Modal
   const [testToDelete, setTestToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Detailed Edit Modal - comment being edited
+  const [editingComment, setEditingComment] = useState<TestComment | null>(null);
+
+  // Template management
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [currentTestForTemplate, setCurrentTestForTemplate] = useState<string>('');
+  const [testTemplates, setTestTemplates] = useState<Record<string, TestTemplate>>({});
 
   // Load existing test comments with real-time listener
   useEffect(() => {
@@ -84,11 +85,35 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
     return () => unsubscribe();
   }, [classId]);
 
+  // Load templates for all tests in this class
+  useEffect(() => {
+    if (!classId) {
+      setTestTemplates({});
+      return;
+    }
+
+    const q = query(
+      collection(db, 'testTemplates'),
+      where('classId', '==', classId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const templates: Record<string, TestTemplate> = {};
+      snapshot.docs.forEach(d => {
+        const data = d.data() as TestTemplate;
+        templates[data.testName] = { ...data, id: d.id };
+      });
+      setTestTemplates(templates);
+    });
+
+    return () => unsubscribe();
+  }, [classId]);
+
   // Get unique test names
   const testNames: string[] = Array.from(new Set(testComments.map(t => t.testName)));
 
-  // Save comment/score
-  const handleSaveTestComment = async (
+  // Save quick comment/score (legacy support)
+  const handleSaveQuickComment = async (
     testName: string,
     studentId: string,
     studentName: string,
@@ -102,7 +127,7 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
       );
 
       if (existing) {
-        await updateDoc(doc(db, 'testComments', existing.id), {
+        await updateDoc(doc(db, 'testComments', existing.id!), {
           comment,
           score,
           updatedAt: new Date().toISOString()
@@ -144,6 +169,8 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
           studentName: student.fullName,
           testName: newTestName,
           testDate: newTestDate,
+          unit: newTestUnit,
+          book: newTestBook,
           comment: '',
           score: null,
           createdAt: new Date().toISOString(),
@@ -154,6 +181,8 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
       setShowAddTestModal(false);
       setNewTestName('');
       setNewTestDate('');
+      setNewTestUnit('');
+      setNewTestBook('');
     } catch (error) {
       console.error('Error adding test:', error);
       alert('Có lỗi xảy ra khi thêm bài test!');
@@ -186,6 +215,55 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
     } finally {
       setDeleting(false);
     }
+  };
+
+  // Open template modal
+  const handleOpenTemplateModal = (testName: string) => {
+    setCurrentTestForTemplate(testName);
+    setShowTemplateModal(true);
+  };
+
+  // Open detailed edit modal with auto-fill from template
+  const openDetailedEdit = (testComment: TestComment) => {
+    const template = testTemplates[testComment.testName];
+
+    // Create pre-filled comment with template data for empty fields
+    const prefilledComment: TestComment = {
+      ...testComment,
+      listeningScore: testComment.listeningScore || { score: 0, maxScore: 13 },
+      readingWritingScore: testComment.readingWritingScore || { score: 0, maxScore: 35 },
+      speakingScore: testComment.speakingScore || { score: 0, maxScore: 10 },
+      videoLink: testComment.videoLink || '',
+      teacherName: testComment.teacherName || ''
+    };
+
+    // Auto-fill from template if student fields are empty
+    if (template) {
+      if (!testComment.content?.listening && !testComment.content?.readingWriting && !testComment.content?.speaking) {
+        prefilledComment.content = template.content;
+      }
+      if (!testComment.strengths?.listening && !testComment.strengths?.readingWriting && !testComment.strengths?.speaking) {
+        prefilledComment.strengths = template.strengths;
+      }
+      if (!testComment.improvements?.listening && !testComment.improvements?.readingWriting && !testComment.improvements?.speaking) {
+        prefilledComment.improvements = template.improvements;
+      }
+      if (!testComment.learningAttitude && template.learningAttitude) {
+        prefilledComment.learningAttitude = template.learningAttitude;
+      }
+      if (!testComment.parentMessage && template.parentMessage) {
+        prefilledComment.parentMessage = template.parentMessage;
+      }
+    }
+
+    setEditingComment(prefilledComment);
+  };
+
+  // Check if a test comment has detailed data (for showing PDF button)
+  const hasDetailedData = (tc: TestComment): boolean => {
+    return !!(tc.listeningScore || tc.readingWritingScore || tc.speakingScore ||
+              tc.content?.listening || tc.strengths?.listening || tc.improvements?.listening ||
+              tc.learningAttitude || tc.parentMessage);
   };
 
   if (loading) {
@@ -225,6 +303,8 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
           {testNames.map(testName => {
             const testItems = testComments.filter(t => t.testName === testName);
             const testDate = testItems[0]?.testDate;
+            const testUnit = testItems[0]?.unit;
+            const testBook = testItems[0]?.book;
 
             return (
               <div key={testName} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
@@ -232,28 +312,47 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                 <div className="bg-purple-50 px-4 py-3 flex items-center justify-between border-b border-purple-100">
                   <div>
                     <h4 className="font-semibold text-purple-800">{testName}</h4>
-                    {testDate && (
-                      <p className="text-xs text-purple-600">Ngày: {testDate}</p>
-                    )}
+                    <div className="flex gap-3 text-xs text-purple-600">
+                      {testDate && <span>Ngày: {testDate}</span>}
+                      {testUnit && <span>Unit: {testUnit}</span>}
+                      {testBook && <span>Book: {testBook}</span>}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setTestToDelete(testName)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Xóa bài test"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Template button */}
+                    <button
+                      onClick={() => handleOpenTemplateModal(testName)}
+                      className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-colors ${
+                        testTemplates[testName]
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title={testTemplates[testName] ? 'Sửa template' : 'Tạo template'}
+                    >
+                      <Settings size={14} />
+                      {testTemplates[testName] ? 'Template ✓' : 'Tạo Template'}
+                    </button>
+                    {/* Delete button */}
+                    <button
+                      onClick={() => setTestToDelete(testName)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Xóa bài test"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Student scores/comments */}
                 <div className="divide-y divide-gray-100">
                   {students.map((student, index) => {
                     const existing = testItems.find(t => t.studentId === student.id);
-                    const isSaving = saving === `${testName}-${student.id}`;
+                    const isSaving = saving === `${testName}-${student.id}` || saving === existing?.id;
+                    const hasDetail = existing ? hasDetailedData(existing) : false;
 
                     return (
                       <div key={student.id} className="p-4 flex items-start gap-4">
-                        <div className="w-40 flex-shrink-0">
+                        <div className="w-36 flex-shrink-0">
                           <div className="flex items-center gap-2">
                             <span className="w-5 h-5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs">
                               {index + 1}
@@ -264,8 +363,8 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                           </div>
                         </div>
 
-                        {/* Score input */}
-                        <div className="w-20 flex-shrink-0">
+                        {/* Quick score input */}
+                        <div className="w-16 flex-shrink-0">
                           <input
                             type="number"
                             defaultValue={existing?.score ?? ''}
@@ -273,7 +372,7 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                             min={0}
                             max={10}
                             step={0.5}
-                            onBlur={(e) => handleSaveTestComment(
+                            onBlur={(e) => handleSaveQuickComment(
                               testName,
                               student.id,
                               student.fullName,
@@ -284,13 +383,13 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                           />
                         </div>
 
-                        {/* Comment input */}
+                        {/* Quick comment input */}
                         <div className="flex-1">
                           <textarea
                             defaultValue={existing?.comment || ''}
-                            placeholder="Nhận xét..."
+                            placeholder="Nhận xét nhanh..."
                             rows={2}
-                            onBlur={(e) => handleSaveTestComment(
+                            onBlur={(e) => handleSaveQuickComment(
                               testName,
                               student.id,
                               student.fullName,
@@ -301,12 +400,31 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                           />
                         </div>
 
-                        {/* Saving indicator */}
-                        {isSaving && (
-                          <div className="flex-shrink-0 self-center">
+                        {/* Action buttons */}
+                        <div className="flex-shrink-0 flex items-center gap-2">
+                          {/* Edit detail button */}
+                          {existing && (
+                            <button
+                              onClick={() => openDetailedEdit(existing)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Nhận xét chi tiết"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                          )}
+
+                          {/* Detail indicator - PDF export is in edit modal */}
+                          {existing && hasDetail && (
+                            <span className="text-xs text-green-600 px-2 py-1 bg-green-50 rounded" title="Có dữ liệu chi tiết">
+                              Chi tiết ✓
+                            </span>
+                          )}
+
+                          {/* Saving indicator */}
+                          {isSaving && (
                             <div className="animate-spin rounded-full h-4 w-4 border border-purple-600 border-t-transparent"></div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -340,9 +458,35 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
                   type="text"
                   value={newTestName}
                   onChange={(e) => setNewTestName(e.target.value)}
-                  placeholder="VD: Test giữa kỳ 1..."
+                  placeholder="VD: PROGRESS TEST"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Unit
+                  </label>
+                  <input
+                    type="text"
+                    value={newTestUnit}
+                    onChange={(e) => setNewTestUnit(e.target.value)}
+                    placeholder="VD: UNIT 1,2,3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Book
+                  </label>
+                  <input
+                    type="text"
+                    value={newTestBook}
+                    onChange={(e) => setNewTestBook(e.target.value)}
+                    placeholder="VD: Academy stars 1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -437,6 +581,26 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Detailed Edit Modal */}
+      {editingComment && (
+        <TestCommentEditModal
+          comment={editingComment}
+          onClose={() => setEditingComment(null)}
+          onSaved={() => setEditingComment(null)}
+        />
+      )}
+
+      {/* Template Modal */}
+      <TestCommentTemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        testName={currentTestForTemplate}
+        className={className}
+        classId={classId}
+        existingTemplate={testTemplates[currentTestForTemplate]}
+        onSaved={() => {}}
+      />
     </div>
   );
 };

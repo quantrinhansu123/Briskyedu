@@ -276,6 +276,85 @@ export interface MonthlyReportStats {
   totalBonusPoints: number;     // Tổng điểm thưởng
 }
 
+// Nhận xét bài test (Brisky PDF format)
+export interface SkillScore {
+  score: number;
+  maxScore: number;
+}
+
+export interface SkillContent {
+  listening?: string;           // Nội dung phần Nghe
+  readingWriting?: string;      // Nội dung phần Đọc và Viết
+  speaking?: string;            // Nội dung phần Nói
+}
+
+export interface TestComment {
+  id?: string;
+  classId: string;
+  studentId: string;
+  studentName: string;
+
+  // Test info
+  testName: string;             // e.g., "PROGRESS TEST"
+  testDate: string;
+  unit?: string;                // e.g., "UNIT 1,2,3"
+  book?: string;                // e.g., "Academy stars 1"
+  videoLink?: string;           // YouTube link
+
+  // Scores by skill (điểm theo kỹ năng)
+  listeningScore?: SkillScore;  // e.g., { score: 12, maxScore: 13 }
+  readingWritingScore?: SkillScore; // e.g., { score: 28, maxScore: 35 }
+  speakingScore?: SkillScore;   // e.g., { score: 8.5, maxScore: 10 }
+
+  // Content descriptions (Nội dung)
+  content?: SkillContent;
+
+  // Strengths (Nội dung con làm tốt)
+  strengths?: SkillContent;
+
+  // Improvements needed (Nội dung con cần cải thiện)
+  improvements?: SkillContent;
+
+  // Learning attitude (Thái độ học tập)
+  learningAttitude?: string;
+
+  // Parent message (Lời nhắn nhủ phụ huynh)
+  parentMessage?: string;
+
+  // Teacher info
+  teacherId?: string;
+  teacherName?: string;
+
+  // Legacy fields (backward compatible)
+  comment?: string;             // Simple comment (legacy)
+  score?: number | null;        // Single score (legacy)
+
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Template for class-level test comments
+ * Used to pre-fill common content for all students in a class
+ */
+export interface TestTemplate {
+  id?: string;
+  testName: string;              // Links to TestComment.testName
+  classId: string;               // Links to TestComment.classId
+
+  // Content templates (same structure as TestComment)
+  content?: SkillContent;        // Nội dung
+  strengths?: SkillContent;      // Làm tốt
+  improvements?: SkillContent;   // Cần cải thiện
+  learningAttitude?: string;     // Thái độ học tập
+  parentMessage?: string;        // Lời nhắn phụ huynh
+
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -588,5 +667,51 @@ export interface BirthdayGift {
   givenAt?: string;
   preparedBy?: string;
   givenBy?: string;
+  note?: string;
+}
+
+// Settlement Invoice Types
+export type SettlementStatus = 'Đã thanh toán' | 'Nợ xấu';
+
+export interface SettlementInvoice {
+  id?: string;
+  invoiceCode: string;      // STL-YYYYMMDD-XXX
+  invoiceDate: string;
+
+  // Student Info
+  studentId: string;
+  studentCode: string;
+  studentName: string;
+  studentPhone?: string;
+  studentDob?: string;
+  parentName: string;
+
+  // Course Details
+  courseName: string;       // Curriculum/product name
+  className: string;
+  totalSessions: number;    // registeredSessions
+  attendedSessions: number;
+  debtSessions: number;     // attended - registered
+  startDate?: string;
+  endDate?: string;
+
+  // Financials
+  pricePerSession: number;  // 150,000 VND
+  totalAmount: number;      // debtSessions × 150,000
+  discount?: number;
+  paidAmount: number;
+  remainingAmount: number;
+
+  // Status & Payment
+  status: SettlementStatus;
+  paymentMethod?: 'Tiền mặt' | 'Chuyển khoản';
+
+  // Staff
+  collectedBy?: string;     // Staff ID who collected
+  collectedByName?: string; // Staff name (denormalized)
+
+  // Meta
+  createdAt: string;
+  updatedAt?: string;
   note?: string;
 }

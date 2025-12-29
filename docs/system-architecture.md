@@ -344,3 +344,64 @@ types.ts (Single Source of Truth)
 4. **Single types.ts file**: All interfaces in one place for easier maintenance
 5. **HashRouter**: Works better with Firebase Hosting static deployment
 6. **Vietnamese UI text**: All statuses and enums in Vietnamese for end users
+
+## Tutoring System (Lịch Bồi Bài)
+
+### Status Flow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    TUTORING STATUS TRANSITIONS                    │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  [Vắng in attendance] ──► auto-create ──► Chưa bồi               │
+│                                              │                    │
+│                                              ▼                    │
+│                                           Đã hẹn ◄─── Undo       │
+│                                         (scheduled)   (Admin)     │
+│                                              │                    │
+│                     ┌────────────────────────┼────────────────┐  │
+│                     │                        │                │  │
+│                     ▼                        ▼                ▼  │
+│                 Đã bồi               Nghỉ tính phí      Nghỉ bảo lưu
+│              (completed)           (charged absence)  (reserved)  │
+│                     │                        │                │  │
+│                     ▼                        │                ▼  │
+│         studentAttendance           No attendance      studentAttendance
+│         status = "Đã bồi"             change          status = "Bảo lưu"
+│                     │                        │                │  │
+│                     ▼                        │                ▼  │
+│         Cloud Function:                      │         Extend course
+│         attendedSessions++                   │         expectedEndDate
+│                                              │                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Data Link
+
+```
+tutoring.studentAttendanceId ──► studentAttendance.id
+                                        │
+                                        ▼
+                              Cloud Function triggers
+                              on status change
+```
+
+### TutoringStatus Values
+
+| Status | Description | Effect |
+|--------|-------------|--------|
+| `Chưa bồi` | Not scheduled | Initial state |
+| `Đã hẹn` | Scheduled | Date/time/tutor set |
+| `Đã bồi` | Completed | Updates studentAttendance → triggers CF → attendedSessions++ |
+| `Nghỉ tính phí` | Charged absence | Requires reason, no attendance update, session counts as used |
+| `Nghỉ bảo lưu` | Reserved absence | Updates studentAttendance to "Bảo lưu", extends course end date |
+| `Hủy` | Cancelled | No side effects |
+
+### Key Service Functions
+
+- `completeTutoring(id, userId)` - Updates both tutoring and studentAttendance
+- `markChargedAbsence(id, userId, reason)` - Requires reason, no attendance update
+- `markReservedAbsence(id, userId)` - Updates attendance, extends course
+- `undoTutoring(id, userId)` - Reverts to "Đã hẹn" (Admin/Manager only)
+- `softDeleteTutoring(id, userId)` - 30-day retention before permanent delete

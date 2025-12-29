@@ -239,12 +239,24 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isStaff();
     }
-    
+
     match /homeworkStatuses/{statusId} {
       allow read: if isStaff();
       allow write: if isStaff();
     }
-    
+
+    // Test Templates collection (mẫu nhận xét theo lớp)
+    match /testTemplates/{templateId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    // Settlement Invoices collection (hóa đơn tất toán nợ phí)
+    match /settlementInvoices/{invoiceId} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
     // Default: deny all other collections
     match /{document=**} {
       allow read, write: if false;

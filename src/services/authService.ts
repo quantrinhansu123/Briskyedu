@@ -7,9 +7,13 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../config/firebase';
+import app from '../config/firebase';
 import { Staff } from '../../types';
 import { sanitizeFirebaseError } from '../utils/errorUtils';
+
+const functions = getFunctions(app, 'asia-southeast1');
 
 export interface AuthUser extends FirebaseUser {
   role?: string;
@@ -62,35 +66,51 @@ export class AuthService {
       department: string;
       position: string;
       phone: string;
+      dob?: string;
+      startDate?: string;
+      branch?: string;
+      roles?: string[];
     }
   ): Promise<string> {
     try {
       // Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
+
       // Update display name
       await updateProfile(user, {
         displayName: staffData.name
       });
-      
-      // Create staff document in Firestore
+
+      // Determine permissions based on role
+      const isAdmin = staffData.role === 'Quản trị viên' || staffData.role === 'Quản lý';
+
+      // Create staff document in Firestore with UID as document ID
       await setDoc(doc(db, 'staff', user.uid), {
         uid: user.uid,
         email: email,
-        ...staffData,
+        name: staffData.name,
+        code: staffData.code,
+        role: staffData.role,
+        roles: staffData.roles || [staffData.role],
+        department: staffData.department,
+        position: staffData.position,
+        phone: staffData.phone,
+        dob: staffData.dob || '',
+        startDate: staffData.startDate || new Date().toISOString().split('T')[0],
+        branch: staffData.branch || '',
         status: 'Active',
         permissions: {
-          canManageStudents: staffData.role === 'Quản trị viên',
-          canManageClasses: staffData.role === 'Quản trị viên',
-          canManageStaff: staffData.role === 'Quản trị viên',
-          canManageFinance: staffData.role === 'Quản trị viên',
+          canManageStudents: isAdmin,
+          canManageClasses: isAdmin,
+          canManageStaff: isAdmin,
+          canManageFinance: isAdmin,
           canViewReports: true
         },
         createdAt: new Date(),
         updatedAt: new Date()
       });
-      
+
       return user.uid;
     } catch (error) {
       console.error('Register error:', error);
@@ -122,5 +142,41 @@ export class AuthService {
         callback(null);
       }
     });
+  }
+
+  // Update staff password (admin only - uses Cloud Function)
+  static async updateStaffPassword(staffId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const updatePasswordFn = httpsCallable<
+        { staffId: string; newPassword: string },
+        { success: boolean; message: string }
+      >(functions, 'updateStaffPassword');
+
+      const result = await updatePasswordFn({ staffId, newPassword });
+      return result.data;
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      throw new Error(error.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
+    }
+  }
+
+  // Create account for existing staff (admin only - uses Cloud Function)
+  static async createStaffAccount(
+    staffId: string,
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; message: string; uid?: string }> {
+    try {
+      const createAccountFn = httpsCallable<
+        { staffId: string; email: string; password: string },
+        { success: boolean; message: string; uid?: string }
+      >(functions, 'createStaffAccount');
+
+      const result = await createAccountFn({ staffId, email, password });
+      return result.data;
+    } catch (error: any) {
+      console.error('Error creating account:', error);
+      throw new Error(error.message || 'Có lỗi xảy ra khi tạo tài khoản.');
+    }
   }
 }

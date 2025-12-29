@@ -278,7 +278,58 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
 };
 
 /**
+ * Find studentAttendance record by student, class, and date
+ * Used to link tutoring records with original attendance
+ */
+export const findStudentAttendanceRecord = async (
+  studentId: string,
+  classId: string,
+  date: string
+): Promise<{ id: string; status: AttendanceStatus } | null> => {
+  try {
+    const q = query(
+      collection(db, STUDENT_ATTENDANCE_COLLECTION),
+      where('studentId', '==', studentId),
+      where('classId', '==', classId),
+      where('date', '==', date)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    const docData = snapshot.docs[0];
+    return {
+      id: docData.id,
+      status: docData.data().status as AttendanceStatus
+    };
+  } catch (error) {
+    console.error('Error finding student attendance:', error);
+    return null;
+  }
+};
+
+/**
+ * Update a single studentAttendance record status
+ */
+export const updateStudentAttendanceStatus = async (
+  id: string,
+  status: AttendanceStatus
+): Promise<void> => {
+  try {
+    const docRef = doc(db, STUDENT_ATTENDANCE_COLLECTION, id);
+    await updateDoc(docRef, {
+      status,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating student attendance status:', error);
+    throw new Error('Không thể cập nhật trạng thái điểm danh');
+  }
+};
+
+/**
  * Create tutoring record for absent student (auto-create khi vắng)
+ * Now includes studentAttendanceId link and statusHistory for audit trail
  */
 export const createTutoringFromAbsent = async (data: {
   studentId: string;
@@ -287,18 +338,45 @@ export const createTutoringFromAbsent = async (data: {
   className: string;
   absentDate: string;
   type: 'Nghỉ học' | 'Học yếu';
+  studentAttendanceId?: string;  // Optional: pass if already known
 }): Promise<string> => {
   try {
+    const now = new Date().toISOString();
+
+    // Find the studentAttendance record to link (if not provided)
+    let attendanceId = data.studentAttendanceId;
+    if (!attendanceId) {
+      const studentAttendance = await findStudentAttendanceRecord(
+        data.studentId,
+        data.classId,
+        data.absentDate
+      );
+      attendanceId = studentAttendance?.id || undefined;
+    }
+
     const tutoringData = {
-      ...data,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      classId: data.classId,
+      className: data.className,
+      absentDate: data.absentDate,
+      type: data.type,
       status: 'Chưa bồi',
       scheduledDate: null,
       tutor: null,
+      studentAttendanceId: attendanceId || null,  // Link to studentAttendance
+      deletedAt: null,
+      statusHistory: [{  // Initial status for audit trail
+        status: 'Chưa bồi',
+        changedAt: now,
+        changedBy: 'system',
+        reason: 'Auto-created from attendance'
+      }],
       note: `Vắng buổi học ngày ${new Date(data.absentDate).toLocaleDateString('vi-VN')}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-    
+
     const docRef = await addDoc(collection(db, TUTORING_COLLECTION), tutoringData);
     return docRef.id;
   } catch (error) {

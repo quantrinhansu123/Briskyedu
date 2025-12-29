@@ -12,7 +12,7 @@ import {
   doc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Holiday, ClassModel, AttendanceRecord } from '../../types';
+import { Holiday, ClassModel, AttendanceRecord, ClassStatus } from '../../types';
 
 const ATTENDANCE_COLLECTION = 'attendance';
 
@@ -42,14 +42,14 @@ function getAffectedClasses(
   switch (holiday.applyType) {
     case 'all_classes':
     case 'all_branches':
-      return allClasses.filter(c => c.status === 'Đang hoạt động');
+      return allClasses.filter(c => c.status === ClassStatus.STUDYING);
 
     case 'specific_classes':
       return allClasses.filter(c => holiday.classIds?.includes(c.id));
 
     case 'specific_branch':
       return allClasses.filter(c =>
-        c.branch === holiday.branch && c.status === 'Đang hoạt động'
+        c.branch === holiday.branch && c.status === ClassStatus.STUDYING
       );
 
     default:
@@ -58,19 +58,36 @@ function getAffectedClasses(
 }
 
 /**
- * Check if attendance record already exists for a class on a date
+ * Get all existing attendance records for given classes and date range
+ * Returns a Set of "classId|date" keys for O(1) lookup
+ *
+ * Uses date-only query to avoid composite index requirement
  */
-async function checkExistingRecord(
-  classId: string,
-  date: string
-): Promise<boolean> {
+async function getExistingRecords(
+  classIds: string[],
+  startDate: string,
+  endDate: string
+): Promise<Set<string>> {
+  const existingKeys = new Set<string>();
+  const classIdSet = new Set(classIds);
+
+  // Query by date range only, filter classId in JS (avoids composite index)
   const q = query(
     collection(db, ATTENDANCE_COLLECTION),
-    where('classId', '==', classId),
-    where('date', '==', date)
+    where('date', '>=', startDate),
+    where('date', '<=', endDate)
   );
   const snapshot = await getDocs(q);
-  return !snapshot.empty;
+
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    // Only include records for our target classes
+    if (classIdSet.has(data.classId)) {
+      existingKeys.add(`${data.classId}|${data.date}`);
+    }
+  });
+
+  return existingKeys;
 }
 
 /**
@@ -80,6 +97,8 @@ async function checkExistingRecord(
  * - totalStudents, present, absent = 0 (no student attendance data)
  * - Do NOT create studentAttendance records (prevents session counting)
  * - Cloud Functions skip records with this status (see studentAttendanceTriggers.ts)
+ *
+ * OPTIMIZED: Batch queries and writes for better performance
  *
  * @param holiday - The holiday to apply
  * @param allClasses - All classes in the system
@@ -92,23 +111,39 @@ export async function applyHoliday(
   const dates = getDateRange(holiday.startDate, holiday.endDate);
   const affectedClasses = getAffectedClasses(holiday, allClasses);
 
-  let created = 0;
+  if (affectedClasses.length === 0 || dates.length === 0) {
+    return { created: 0, skipped: 0 };
+  }
+
+  // Batch check existing records (1 query per 30 classes instead of N queries)
+  const classIds = affectedClasses.map(c => c.id);
+  const existingKeys = await getExistingRecords(classIds, holiday.startDate, holiday.endDate);
+
+  // Prepare all records to create
+  const recordsToCreate: Array<{ cls: ClassModel; date: string }> = [];
   let skipped = 0;
 
-  // Process each class/date combination
   for (const cls of affectedClasses) {
     for (const date of dates) {
-      // Check if record already exists - don't overwrite
-      const exists = await checkExistingRecord(cls.id, date);
-      if (exists) {
+      const key = `${cls.id}|${date}`;
+      if (existingKeys.has(key)) {
         skipped++;
-        continue;
+      } else {
+        recordsToCreate.push({ cls, date });
       }
+    }
+  }
 
-      // Create batch for this record
-      const batch = writeBatch(db);
+  // Batch write (max 450 per batch for safety)
+  const batchSize = 450;
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < recordsToCreate.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const chunk = recordsToCreate.slice(i, i + batchSize);
+
+    for (const { cls, date } of chunk) {
       const recordRef = doc(collection(db, ATTENDANCE_COLLECTION));
-
       const recordData: Omit<AttendanceRecord, 'id'> = {
         classId: cls.id,
         className: cls.name,
@@ -122,17 +157,16 @@ export async function applyHoliday(
         reserved: 0,
         tutored: 0,
         createdBy: 'system',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       };
-
       batch.set(recordRef, recordData);
-      await batch.commit();
-      created++;
     }
+
+    await batch.commit();
   }
 
-  return { created, skipped };
+  return { created: recordsToCreate.length, skipped };
 }
 
 /**

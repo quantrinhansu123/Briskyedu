@@ -259,7 +259,7 @@ export const StaffManager: React.FC = () => {
 
     setSavingAccount(true);
     try {
-      const hasAccount = !!(accountStaff as any).uid || !!(accountStaff as any).email;
+      const hasAccount = !!(accountStaff as any).uid;
 
       if (hasAccount) {
         // Update password via Cloud Function
@@ -479,8 +479,8 @@ export const StaffManager: React.FC = () => {
                   <div className="flex items-center justify-end gap-2">
                     <button
                       onClick={() => handleManageAccount(s)}
-                      className={`p-2 transition-colors ${(s as any).uid || (s as any).email ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-amber-600'}`}
-                      title={(s as any).uid || (s as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                      className={`p-2 transition-colors ${(s as any).uid ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-amber-600'}`}
+                      title={(s as any).uid ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
                     >
                       <Key size={16} />
                     </button>
@@ -741,7 +741,7 @@ export const StaffManager: React.FC = () => {
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
-                  {(accountStaff as any).uid || (accountStaff as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                  {(accountStaff as any).uid ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
                 </h3>
                 <p className="text-sm text-amber-600">{accountStaff.name}</p>
               </div>
@@ -752,7 +752,7 @@ export const StaffManager: React.FC = () => {
 
             <div className="p-5 space-y-4">
               {/* Email field - only show for new account */}
-              {!((accountStaff as any).uid || (accountStaff as any).email) && (
+              {!(accountStaff as any).uid && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email đăng nhập *</label>
                   <input
@@ -781,7 +781,7 @@ export const StaffManager: React.FC = () => {
               {/* Password field */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {(accountStaff as any).uid || (accountStaff as any).email ? 'Mật khẩu mới *' : 'Mật khẩu *'}
+                  {(accountStaff as any).uid ? 'Mật khẩu mới *' : 'Mật khẩu *'}
                 </label>
                 <div className="relative">
                   <input
@@ -806,7 +806,7 @@ export const StaffManager: React.FC = () => {
                 <ul className="list-disc list-inside space-y-1">
                   <li>Mật khẩu phải có ít nhất 6 ký tự</li>
                   <li>Không nên dùng thông tin cá nhân làm mật khẩu</li>
-                  {(accountStaff as any).uid || (accountStaff as any).email ? (
+                  {(accountStaff as any).uid ? (
                     <li>Nhân viên sẽ dùng mật khẩu mới để đăng nhập</li>
                   ) : (
                     <li>Sau khi tạo, nhân viên có thể đăng nhập vào hệ thống</li>
@@ -836,7 +836,7 @@ export const StaffManager: React.FC = () => {
                 ) : (
                   <>
                     <Key size={16} />
-                    {(accountStaff as any).uid || (accountStaff as any).email ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
+                    {(accountStaff as any).uid ? 'Đổi mật khẩu' : 'Tạo tài khoản'}
                   </>
                 )}
               </button>

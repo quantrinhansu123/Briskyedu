@@ -663,7 +663,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </td>
                     <td className="px-4 py-3 text-center">
                        {(() => {
-                         const remaining = student.remainingSessions ?? ((student.registeredSessions || 0) - (student.attendedSessions || 0));
+                         const remaining = (student.registeredSessions || 0) - (student.attendedSessions || 0);
                          return (
                            <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
                              {remaining}

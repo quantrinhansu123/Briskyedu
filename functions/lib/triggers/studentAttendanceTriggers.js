@@ -138,6 +138,7 @@ exports.onStudentAttendanceCreate = functions
     // Prepare update data
     const updateData = {
         attendedSessions: newAttended,
+        remainingSessions: remaining,
         expectedEndDate: expectedEndDate,
         lastAttendanceDate: data.date || new Date().toISOString().split('T')[0]
     };
@@ -220,6 +221,7 @@ exports.onStudentAttendanceUpdate = functions
     // Prepare update
     const updateData = {
         attendedSessions: newAttended,
+        remainingSessions: remaining,
         expectedEndDate: expectedEndDate
     };
     // Check debt status

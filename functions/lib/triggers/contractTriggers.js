@@ -121,8 +121,10 @@ exports.onContractUpdate = functions
         }
     }
     // Update student
+    const attendedSessions = (studentData === null || studentData === void 0 ? void 0 : studentData.attendedSessions) || 0;
     const updateData = {
         registeredSessions: newSessions,
+        remainingSessions: newSessions - attendedSessions,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
     // Update student status based on contract status
@@ -143,12 +145,16 @@ exports.onContractUpdate = functions
     await studentRef.update(updateData);
     console.log(`[onContractUpdate] Updated student ${after.studentId} with ${newSessions} sessions`);
     // Check if enrollment already exists for this contract (avoid duplicate)
+    // Use studentId + contractId for duplicate check (matches client-side logic)
     const existingEnrollment = await db.collection('enrollments')
-        .where('contractCode', '==', contractId)
+        .where('studentId', '==', after.studentId)
+        .where('contractId', '==', contractId)
         .limit(1)
         .get();
     if (existingEnrollment.empty) {
         // Create enrollment record with PAID sessions (not total)
+        // Use actual contract code if available, fallback to document ID
+        const actualContractCode = after.code || contractId;
         const enrollmentData = {
             studentId: after.studentId,
             studentName: after.studentName || '',
@@ -156,7 +162,7 @@ exports.onContractUpdate = functions
             className: ((_b = after.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
             sessions: paidSessions, // Use paidSessions, not totalSessions
             type: after.category || 'Hợp đồng mới',
-            contractCode: contractId,
+            contractCode: actualContractCode,
             contractId: contractId,
             originalAmount: after.totalAmount,
             finalAmount: after.paidAmount || after.totalAmount,
@@ -225,8 +231,10 @@ exports.onContractCreate = functions
     else {
         newSessions = currentSessions === 0 ? paidSessions : currentSessions + paidSessions;
     }
+    const attendedSessions = (studentData === null || studentData === void 0 ? void 0 : studentData.attendedSessions) || 0;
     const updateData = {
         registeredSessions: newSessions,
+        remainingSessions: newSessions - attendedSessions,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
     // Update student status based on contract status
@@ -244,12 +252,16 @@ exports.onContractCreate = functions
     await studentRef.update(updateData);
     console.log(`[onContractCreate] Updated student ${contract.studentId} with ${newSessions} sessions`);
     // Check if enrollment already exists (avoid duplicate)
+    // Use studentId + contractId for duplicate check (matches client-side logic)
     const existingEnrollment = await db.collection('enrollments')
-        .where('contractCode', '==', contractId)
+        .where('studentId', '==', contract.studentId)
+        .where('contractId', '==', contractId)
         .limit(1)
         .get();
     if (existingEnrollment.empty) {
         // Create enrollment record with PAID sessions
+        // Use actual contract code if available, fallback to document ID
+        const actualContractCode = contract.code || contractId;
         const enrollmentData = {
             studentId: contract.studentId,
             studentName: contract.studentName || '',
@@ -257,7 +269,7 @@ exports.onContractCreate = functions
             className: ((_b = contract.items[0]) === null || _b === void 0 ? void 0 : _b.name) || '',
             sessions: paidSessions,
             type: contract.category || 'Hợp đồng mới',
-            contractCode: contractId,
+            contractCode: actualContractCode,
             contractId: contractId,
             originalAmount: contract.totalAmount,
             finalAmount: contract.paidAmount || contract.totalAmount,

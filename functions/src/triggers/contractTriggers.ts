@@ -120,8 +120,10 @@ export const onContractUpdate = functions
     }
 
     // Update student
+    const attendedSessions = studentData?.attendedSessions || 0;
     const updateData: any = {
       registeredSessions: newSessions,
+      remainingSessions: newSessions - attendedSessions,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
@@ -243,8 +245,10 @@ export const onContractCreate = functions
       newSessions = currentSessions === 0 ? paidSessions : currentSessions + paidSessions;
     }
 
+    const attendedSessions = studentData?.attendedSessions || 0;
     const updateData: any = {
       registeredSessions: newSessions,
+      remainingSessions: newSessions - attendedSessions,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 

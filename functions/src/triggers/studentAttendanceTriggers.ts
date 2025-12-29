@@ -169,6 +169,7 @@ export const onStudentAttendanceCreate = functions
     // Prepare update data
     const updateData: Record<string, any> = {
       attendedSessions: newAttended,
+      remainingSessions: remaining,
       expectedEndDate: expectedEndDate,
       lastAttendanceDate: data.date || new Date().toISOString().split('T')[0]
     };
@@ -267,6 +268,7 @@ export const onStudentAttendanceUpdate = functions
     // Prepare update
     const updateData: Record<string, any> = {
       attendedSessions: newAttended,
+      remainingSessions: remaining,
       expectedEndDate: expectedEndDate
     };
     

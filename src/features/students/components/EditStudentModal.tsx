@@ -26,7 +26,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
     branch: student.branch || '',
     // Note: 'class' field is intentionally excluded - use "Chuyển lớp" feature instead
     registeredSessions: student.registeredSessions || 0,
-    remainingSessions: student.remainingSessions ?? ((student.registeredSessions || 0) - (student.attendedSessions || 0)),
+    remainingSessions: (student.registeredSessions || 0) - (student.attendedSessions || 0),
     attendedSessions: student.attendedSessions || 0,
     startDate: student.startDate ? new Date(student.startDate).toISOString().split('T')[0] : '',
   });

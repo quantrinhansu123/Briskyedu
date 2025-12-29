@@ -58,12 +58,17 @@ export const usePermissions = (): UsePermissionsReturn => {
 
   // Determine role from staff position
   const role = useMemo<UserRole>(() => {
-    if (!staffData?.position) {
-      console.warn(`[SECURITY] Staff ${staffData?.id || 'unknown'} missing position, restricting access`);
-      return 'tro_giang'; // Most restrictive role for staff without position
+    // During loading, return restrictive role silently
+    if (!staffData) {
+      return 'tro_giang';
+    }
+    // Staff exists but missing position - warn
+    if (!staffData.position) {
+      console.warn(`[SECURITY] Staff ${staffData.id || 'unknown'} missing position, restricting access`);
+      return 'tro_giang';
     }
     return getRoleFromPosition(staffData.position);
-  }, [staffData?.position, staffData?.id]);
+  }, [staffData]);
 
   const staffId = staffData?.id || user?.uid || null;
 

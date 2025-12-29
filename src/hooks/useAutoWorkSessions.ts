@@ -366,11 +366,11 @@ export const useAutoWorkSessions = (weekStartDate: Date) => {
         updatedAt: new Date().toISOString(),
       };
       delete sessionData.id;
-      
-      await addDoc(collection(db, 'workSessions'), sessionData);
-      
-      // Update local state
-      setConfirmedSessions(prev => [...prev, { ...sessionData, status: 'Đã xác nhận' } as WorkSession]);
+
+      const docRef = await addDoc(collection(db, 'workSessions'), sessionData);
+
+      // Update local state with the new document ID
+      setConfirmedSessions(prev => [...prev, { ...sessionData, id: docRef.id, status: 'Đã xác nhận' } as WorkSession]);
     } catch (err: any) {
       console.error('Error confirming session:', err);
       throw new Error('Không thể xác nhận công');

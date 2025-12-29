@@ -20,6 +20,37 @@ import { EnrollmentRecord } from '../../types';
 
 const COLLECTION_NAME = 'enrollments';
 
+/**
+ * Check if enrollment already exists for student + contract combination
+ * Returns existing enrollment if found, null otherwise
+ */
+export const checkDuplicateEnrollment = async (
+  studentId: string | undefined,
+  contractId: string | undefined
+): Promise<EnrollmentRecord | null> => {
+  // Skip check if no contractId (manual enrollments allowed to be multiple)
+  if (!studentId || !contractId) return null;
+
+  try {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('studentId', '==', studentId),
+      where('contractId', '==', contractId)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+
+    return {
+      id: snapshot.docs[0].id,
+      ...snapshot.docs[0].data()
+    } as EnrollmentRecord;
+  } catch (error) {
+    console.error('Error checking duplicate enrollment:', error);
+    return null; // Fail-safe: allow creation if check fails
+  }
+};
+
 export const getEnrollments = async (filters?: {
   type?: string;
   month?: number;
@@ -55,6 +86,16 @@ export const getEnrollments = async (filters?: {
 
 export const createEnrollment = async (data: Omit<EnrollmentRecord, 'id'>): Promise<string> => {
   try {
+    // Check for duplicate enrollment (by studentId + contractId)
+    const existing = await checkDuplicateEnrollment(data.studentId, data.contractId);
+    if (existing) {
+      console.warn(
+        `Enrollment already exists for student ${data.studentId} + contract ${data.contractId}. ` +
+        `Skipping creation. Existing ID: ${existing.id}`
+      );
+      return existing.id;
+    }
+
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...data,
       createdAt: Timestamp.now()

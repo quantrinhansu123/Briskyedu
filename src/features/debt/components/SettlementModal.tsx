@@ -69,7 +69,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
     setLoading(true);
     try {
       // Use transaction for atomic operations
-      await runTransaction(db, async (transaction) => {
+      const createdInvoice = await runTransaction(db, async (transaction) => {
         // 1. Get current student state
         const studentRef = doc(db, 'students', student.id);
         const studentSnap = await transaction.get(studentRef);

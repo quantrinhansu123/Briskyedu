@@ -6,6 +6,8 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
+import { useSettlementInvoices } from '../src/hooks/useSettlementInvoices';
+import { SettlementHistoryTable } from '../src/features/debt/components';
 import { useFeedback } from '../src/hooks/useFeedback';
 import { useTutoring } from '../src/hooks/useTutoring';
 import { formatSchedule } from '../src/utils/scheduleUtils';
@@ -51,6 +53,7 @@ export const StudentDetail: React.FC = () => {
   
   // Get feedback data for this student from Firebase
   const { callFeedbacks, formFeedbacks, loading: feedbackLoading } = useFeedback({ studentId: id });
+  const { invoices: settlementInvoices, loading: settlementLoading } = useSettlementInvoices({ studentId: id });
 
   // Get tutoring history for this student
   const { tutoringList, loading: tutoringLoading } = useTutoring({});
@@ -861,6 +864,21 @@ export const StudentDetail: React.FC = () => {
                            </div>
                         </div>
                      )}
+
+                     {/* Settlement History Section */}
+                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="p-4 border-b bg-gray-50">
+                           <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                              <FileText size={18} className="text-indigo-600" />
+                              Lịch sử tất toán
+                           </h3>
+                        </div>
+                        <SettlementHistoryTable
+                           invoices={settlementInvoices}
+                           loading={settlementLoading}
+                           showStudentName={false}
+                        />
+                     </div>
                   </>
                )}
             </div>

@@ -8,14 +8,15 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Clock, CreditCard, Phone, Calendar, ChevronDown, ChevronUp, User, BookOpen, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Clock, CreditCard, Phone, Calendar, ChevronDown, ChevronUp, User, BookOpen, RefreshCw, History } from 'lucide-react';
 import { useStudents } from '../src/hooks/useStudents';
 import { useClasses } from '../src/hooks/useClasses';
+import { useSettlementInvoices } from '../src/hooks/useSettlementInvoices';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { doc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { Student } from '../types';
-import { SettlementModal } from '../src/features/debt/components';
+import { SettlementModal, SettlementHistoryTable } from '../src/features/debt/components';
 
 const SESSIONS_WARNING_THRESHOLD = 6; // Cảnh báo khi còn <= 6 buổi
 
@@ -35,6 +36,10 @@ export const DebtManagement: React.FC = () => {
   const [paymentDateValue, setPaymentDateValue] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [settlementStudent, setSettlementStudent] = useState<Student | null>(null);
+  const [activeTab, setActiveTab] = useState<'debt' | 'history'>('debt');
+
+  // Settlement history data
+  const { invoices: settlementInvoices, loading: settlementLoading } = useSettlementInvoices();
 
   // Sync contract debt from contracts collection to students
   const syncContractDebt = async () => {
@@ -262,6 +267,42 @@ export const DebtManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-6">
+          <button
+            onClick={() => setActiveTab('debt')}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'debt'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <CreditCard size={16} className="inline mr-2" />
+            Quản lý công nợ
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'history'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <History size={16} className="inline mr-2" />
+            Lịch sử tất toán
+            {settlementInvoices.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full text-xs">
+                {settlementInvoices.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content: Debt Management */}
+      {activeTab === 'debt' && (
+      <>
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
@@ -669,6 +710,28 @@ export const DebtManagement: React.FC = () => {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {/* Tab Content: Settlement History */}
+      {activeTab === 'history' && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 border-b bg-gray-50">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <History size={18} className="text-indigo-600" />
+              Lịch sử tất toán
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Danh sách các phiếu tất toán đã tạo
+            </p>
+          </div>
+          <SettlementHistoryTable
+            invoices={settlementInvoices}
+            loading={settlementLoading}
+            showStudentName={true}
+          />
+        </div>
+      )}
 
       {/* Settlement Modal */}
       {settlementStudent && (

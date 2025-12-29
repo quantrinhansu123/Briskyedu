@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Gift, History, User, Phone, MoreHorizontal, Calendar, ArrowRight, Cake, Plus, Edit, Trash2, UserPlus, Shuffle, AlertTriangle, PlusCircle, MinusCircle, RefreshCw, Pause, UserMinus, ChevronDown, ChevronUp, X, DollarSign, BookOpen } from 'lucide-react';
-import { Student, StudentStatus, Parent } from '../types';
+import { Student, StudentStatus, Parent, Contract } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useStudents } from '../src/hooks/useStudents';
 import { useParents } from '../src/hooks/useParents';
 import { useClasses } from '../src/hooks/useClasses';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
+import { useContracts } from '../src/hooks/useContracts';
 import { getFeedbacks, FeedbackRecord } from '../src/services/feedbackService';
 import { ClassModel } from '../types';
 import { createEnrollment } from '../src/services/enrollmentService';
@@ -90,6 +91,9 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   
   // Fetch classes for dropdown
   const { classes } = useClasses({});
+
+  // Fetch all contracts for "Hợp đồng gần nhất" column
+  const { contracts } = useContracts();
 
   // Fetch centers for branch filter
   useEffect(() => {
@@ -192,6 +196,21 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       return matchesStatus && matchesSearch && matchesBirthday && matchesClass && matchesBranch;
     });
   }, [students, filterStatus, searchTerm, birthdayMonth, filterClass, filterBranch, classes]);
+
+  // Map studentId → latest contract (by contractDate descending)
+  const studentLatestContract = useMemo(() => {
+    const map: Record<string, Contract> = {};
+    // Sort contracts by contractDate descending to get latest first
+    const sorted = [...contracts].sort((a, b) =>
+      new Date(b.contractDate || '').getTime() - new Date(a.contractDate || '').getTime()
+    );
+    for (const contract of sorted) {
+      if (contract.studentId && !map[contract.studentId]) {
+        map[contract.studentId] = contract;
+      }
+    }
+    return map;
+  }, [contracts]);
 
   // Find students without class assigned
   const studentsWithoutClass = useMemo(() => {
@@ -591,6 +610,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     <th className="px-4 py-3 bg-gray-50 text-center">Còn lại</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày BĐ</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày KT</th>
+                    <th className="px-4 py-3 bg-gray-50">HĐ gần nhất</th>
                     <th className="px-4 py-3 bg-gray-50">Trạng thái</th>
                     <th className="px-4 py-3 bg-gray-50"></th>
                 </tr>
@@ -598,7 +618,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                 <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-10 text-gray-500">
+                    <td colSpan={12} className="text-center py-10 text-gray-500">
                       <div className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
                         Đang tải dữ liệu...
@@ -607,7 +627,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={11} className="text-center py-10 text-red-500">
+                    <td colSpan={12} className="text-center py-10 text-red-500">
                       Lỗi: {error}
                     </td>
                   </tr>
@@ -657,6 +677,22 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600">
                        {student.expectedEndDate ? new Date(student.expectedEndDate).toLocaleDateString('vi-VN') : '---'}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                       {studentLatestContract[student.id] ? (
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             navigate(`/finance/contracts?view=${studentLatestContract[student.id].id}`);
+                           }}
+                           className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                           title={`Xem hợp đồng ${studentLatestContract[student.id].code}`}
+                         >
+                           {studentLatestContract[student.id].code}
+                         </button>
+                       ) : (
+                         <span className="text-gray-400">---</span>
+                       )}
                     </td>
                     <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white ${
@@ -799,7 +835,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </tr>
                 )) : (
                     <tr>
-                        <td colSpan={11} className="text-center py-10 text-gray-500">
+                        <td colSpan={12} className="text-center py-10 text-gray-500">
                             Không tìm thấy học viên nào.
                         </td>
                     </tr>

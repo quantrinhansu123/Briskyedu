@@ -14,6 +14,8 @@ import { useClasses } from '../src/hooks/useClasses';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { doc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { Student } from '../types';
+import { SettlementModal } from '../src/features/debt/components';
 
 const SESSIONS_WARNING_THRESHOLD = 6; // Cảnh báo khi còn <= 6 buổi
 
@@ -32,6 +34,7 @@ export const DebtManagement: React.FC = () => {
   const [editingPaymentDate, setEditingPaymentDate] = useState<string | null>(null);
   const [paymentDateValue, setPaymentDateValue] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [settlementStudent, setSettlementStudent] = useState<Student | null>(null);
 
   // Sync contract debt from contracts collection to students
   const syncContractDebt = async () => {
@@ -433,12 +436,20 @@ export const DebtManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => navigate(`/customers/student-detail/${student.id}?tab=finance`)}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                        >
-                          Xem chi tiết
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setSettlementStudent(student)}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+                          >
+                            Tất toán
+                          </button>
+                          <button
+                            onClick={() => navigate(`/customers/student-detail/${student.id}?tab=finance`)}
+                            className="text-indigo-600 hover:text-indigo-800 text-sm"
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -658,6 +669,16 @@ export const DebtManagement: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Settlement Modal */}
+      {settlementStudent && (
+        <SettlementModal
+          student={settlementStudent}
+          className={getClassName(settlementStudent.classId)}
+          onClose={() => setSettlementStudent(null)}
+          onSuccess={() => setSettlementStudent(null)}
+        />
+      )}
     </div>
   );
 };

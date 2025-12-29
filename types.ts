@@ -378,6 +378,15 @@ export interface InventoryTransfer {
   createdAt: string;
 }
 
+export interface Discount {
+  id?: string;
+  name: string;
+  type: 'percent' | 'fixed';
+  value: number;
+  status: 'Kích hoạt' | 'Tạm dừng';
+  createdAt?: string;
+}
+
 export interface Room {
   id: string;
   name: string;

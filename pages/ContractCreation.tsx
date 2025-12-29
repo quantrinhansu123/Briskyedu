@@ -9,9 +9,9 @@ import {
   FileText, Plus, X, Calculator, DollarSign, 
   User, Calendar, Save, FileCheck, Printer 
 } from 'lucide-react';
-import { 
+import {
   Contract, ContractType, ContractCategory, ContractItem, PaymentMethod,
-  Student, Course, Product, ContractStatus
+  Student, Course, Product, ContractStatus, Discount
 } from '../types';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStudents } from '../src/hooks/useStudents';
@@ -25,7 +25,7 @@ import {
   calculateDiscount 
 } from '../src/utils/currencyUtils';
 import { db } from '../src/config/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 
 // Contract Preview Component
 interface ContractPreviewProps {
@@ -264,6 +264,22 @@ export const ContractCreation: React.FC = () => {
   const [partialPaymentDate, setPartialPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [nextPaymentDate, setNextPaymentDate] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Discounts from configuration
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
+
+  // Fetch active discounts
+  useEffect(() => {
+    const q = query(collection(db, 'discounts'), where('status', '==', 'Kích hoạt'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Discount));
+      setDiscounts(data);
+    });
+    return () => unsubscribe();
+  }, []);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
 
   // Date format helpers (ISO <-> dd/mm/yyyy)
@@ -883,15 +899,33 @@ export const ContractCreation: React.FC = () => {
                       {formatCurrency(item.subtotal)}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
+                      <select
                         value={item.discount * 100}
-                        onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) / 100 || 0)}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-center"
-                      />
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          updateItem(index, 'discount', value / 100);
+                        }}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="0">Không ưu đãi</option>
+                        {discounts.map(d => (
+                          <option key={d.id} value={d.type === 'percent' ? d.value : 0}>
+                            {d.name} {d.type === 'percent' ? `(${d.value}%)` : `(-${formatCurrency(d.value)})`}
+                          </option>
+                        ))}
+                        <option value="custom">Tùy chỉnh...</option>
+                      </select>
+                      {item.discount > 0 && !discounts.some(d => d.value === item.discount * 100) && (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={item.discount * 100}
+                          onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) / 100 || 0)}
+                          className="w-16 px-2 py-1 border border-gray-300 rounded text-center mt-1"
+                          placeholder="%"
+                        />
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-indigo-600">
                       {formatCurrency(item.finalPrice)}

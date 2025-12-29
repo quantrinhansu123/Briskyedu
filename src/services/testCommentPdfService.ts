@@ -305,7 +305,7 @@ export async function generateTestCommentPDF(data: TestComment): Promise<Blob> {
     heightLeft -= pdfHeight;
 
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
+      position = position - pdfHeight;  // Shift image UP by page height for next page
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;

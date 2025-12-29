@@ -5,9 +5,10 @@
  */
 
 import React, { useState } from 'react';
-import { X, CreditCard, AlertTriangle, DollarSign } from 'lucide-react';
+import { X, CreditCard, AlertTriangle, DollarSign, FileText, CheckCircle } from 'lucide-react';
 import { Student, SettlementInvoice, SettlementStatus } from '../../../../types';
 import { SettlementInvoiceService } from '../../../services/settlementInvoiceService';
+import { downloadSettlementInvoicePDF } from '../../../services/settlementInvoicePdfService';
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { formatCurrency } from '../../../utils/currencyUtils';
@@ -42,6 +43,10 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'Tiền mặt' | 'Chuyển khoản'>('Tiền mặt');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Success state with created invoice
+  const [successInvoice, setSuccessInvoice] = useState<SettlementInvoice | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,10 +103,18 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           note: sanitizedNote || undefined,
         };
 
-        // 3. Create invoice (outside transaction, but acceptable for this use case)
-        await SettlementInvoiceService.create(invoiceData);
+        // 3. Create invoice and get ID
+        const invoiceId = await SettlementInvoiceService.create(invoiceData);
 
-        // 4. Prepare student update
+        // 4. Build full invoice for success state (for PDF export)
+        const fullInvoice: SettlementInvoice = {
+          ...invoiceData,
+          id: invoiceId,
+          invoiceCode: `STL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${invoiceId.slice(-3).toUpperCase()}`,
+          createdAt: new Date().toISOString(),
+        };
+
+        // 5. Prepare student update
         const studentUpdate: Record<string, unknown> = {
           status: 'Nghỉ học',
           classId: null,
@@ -118,17 +131,16 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           studentUpdate.badDebtNote = sanitizedNote || `Nợ ${debtSessions} buổi - Tất toán`;
         }
 
-        // 5. Update student atomically
+        // 6. Update student atomically
         transaction.update(studentRef, studentUpdate);
+
+        // 7. Return invoice for success state
+        return fullInvoice;
       });
 
-      alert(settlementType === 'Đã thanh toán'
-        ? 'Đã tất toán thành công! Học viên chuyển sang trạng thái Nghỉ học.'
-        : 'Đã ghi nhận nợ xấu! Học viên chuyển sang trạng thái Nghỉ học.'
-      );
-
+      // Set success state with created invoice
+      setSuccessInvoice(createdInvoice);
       onSuccess?.();
-      onClose();
     } catch (err) {
       console.error('Settlement error:', err);
       alert('Có lỗi xảy ra. Vui lòng thử lại.');
@@ -136,6 +148,85 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    if (!successInvoice) return;
+
+    setPdfLoading(true);
+    try {
+      await downloadSettlementInvoicePDF(successInvoice);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      alert('Có lỗi khi tạo PDF. Vui lòng thử lại.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Success View - after settlement completed
+  if (successInvoice) {
+    const isPaid = successInvoice.status === 'Đã thanh toán';
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          {/* Success Header */}
+          <div className={`p-6 rounded-t-xl text-center ${isPaid ? 'bg-green-500' : 'bg-amber-500'}`}>
+            <CheckCircle size={48} className="mx-auto text-white mb-3" />
+            <h3 className="text-xl font-bold text-white">
+              {isPaid ? 'Tất toán thành công!' : 'Đã ghi nợ xấu!'}
+            </h3>
+            <p className="text-white/90 text-sm mt-1">
+              Học viên đã chuyển sang trạng thái Nghỉ học
+            </p>
+          </div>
+
+          {/* Invoice Summary */}
+          <div className="p-4 space-y-3">
+            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-500">Mã phiếu:</span>
+                <span className="font-mono font-medium">{successInvoice.invoiceCode}</span>
+              </div>
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-500">Học viên:</span>
+                <span className="font-medium">{successInvoice.studentName}</span>
+              </div>
+              <div className="flex justify-between mb-2">
+                <span className="text-gray-500">Số buổi nợ:</span>
+                <span className="font-medium text-red-600">+{successInvoice.debtSessions} buổi</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 mt-2">
+                <span className="font-semibold">Tổng tiền:</span>
+                <span className={`font-bold ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(successInvoice.totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={pdfLoading}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <FileText size={18} />
+                {pdfLoading ? 'Đang tạo...' : 'Tải PDF'}
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

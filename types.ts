@@ -164,6 +164,7 @@ export interface Staff {
   dob?: string;
   startDate?: string;
   branch?: string; // Cơ sở làm việc
+  leaveQuota?: number; // Override global default leave quota
 }
 
 export type HolidayApplyType = 'all_classes' | 'specific_classes' | 'specific_branch' | 'all_branches';
@@ -192,6 +193,47 @@ export interface TutoringSession {
   teacher: string;
   content: string;
   status: 'Đã hẹn' | 'Hoàn thành' | 'Hủy';
+}
+
+// Leave Request Types
+export type LeaveRequestStatus = 'Chờ phê duyệt' | 'Đã phê duyệt' | 'Từ chối';
+export type LeaveType = 'Nghỉ phép' | 'Nghỉ ốm' | 'Nghỉ việc riêng' | 'Nghỉ không lương';
+
+export interface LeaveRequest {
+  id: string;
+  // Staff info
+  staffId: string;
+  staffName: string;
+  staffCode?: string;
+  position?: string;
+  branch?: string;
+  // Leave details
+  startDate: string;         // YYYY-MM-DD
+  endDate: string;           // YYYY-MM-DD
+  leaveType: LeaveType;
+  reason: string;            // Lý do xin nghỉ
+  // Status tracking
+  status: LeaveRequestStatus;
+  approvedBy?: string;       // Admin/Manager ID
+  approvedByName?: string;
+  approvalDate?: string;
+  rejectionReason?: string;  // Lý do từ chối
+  // Metadata
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Leave Balance tracking per staff per year
+export interface LeaveBalance {
+  id: string;
+  staffId: string;
+  staffName: string;
+  year: number;              // e.g., 2025
+  quota: number;             // Total quota for the year
+  used: number;              // Approved leaves used
+  pending: number;           // Pending approval
+  remaining: number;         // = quota - used - pending
+  lastUpdated: string;
 }
 
 export interface AttendanceRecord {

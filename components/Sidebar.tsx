@@ -122,6 +122,7 @@ const menuItems: MenuItem[] = [
       { id: 'salary', label: 'Cấu hình lương', path: '/hr/salary', icon: ChevronRight },
       { id: 'rewards', label: 'Thưởng / Phạt', path: '/hr/rewards', icon: ChevronRight },
       { id: 'work-confirm', label: 'Xác nhận công', path: '/hr/work-confirmation', icon: ChevronRight },
+      { id: 'leave-requests', label: 'Xin nghỉ phép', path: '/hr/leave-requests', icon: ChevronRight },
       { id: 'report-teacher', label: 'Báo cáo lương GV/TG', path: '/hr/salary-teacher', icon: ChevronRight },
       { id: 'report-staff', label: 'Báo cáo lương NV', path: '/hr/salary-staff', icon: ChevronRight },
     ]

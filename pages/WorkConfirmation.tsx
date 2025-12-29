@@ -12,11 +12,12 @@ import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStaff } from '../src/hooks/useStaff';
 import { useClasses } from '../src/hooks/useClasses';
-import { 
-  SubstituteReason, 
-  updateWorkSessionWithAudit, 
-  deleteWorkSessionWithAudit 
+import {
+  SubstituteReason,
+  updateWorkSessionWithAudit,
+  deleteWorkSessionWithAudit
 } from '../src/services/workSessionService';
+import { useLeaveRequests } from '../src/hooks/useLeaveRequests';
 
 export const WorkConfirmation: React.FC = () => {
   // Permissions - Teachers only see their own work
@@ -55,6 +56,18 @@ export const WorkConfirmation: React.FC = () => {
   
   // Classes list for substitute class selection
   const { classes: classList } = useClasses();
+
+  // Approved leaves for badge display
+  const { requests: approvedLeaves } = useLeaveRequests({ status: 'Đã phê duyệt' });
+
+  // Check if staff is on approved leave for a specific date
+  const isOnLeave = (staffIdOrName: string, date: string): boolean => {
+    return approvedLeaves.some(leave =>
+      (leave.staffId === staffIdOrName || leave.staffName === staffIdOrName) &&
+      date >= leave.startDate &&
+      date <= leave.endDate
+    );
+  };
 
   // Manual form state
   const [manualForm, setManualForm] = useState({
@@ -479,15 +492,21 @@ export const WorkConfirmation: React.FC = () => {
                     const isSubstituted = (session as any).isSubstituted;
                     const substitutedBy = (session as any).substitutedBy;
                     const substitutedReason = (session as any).substitutedReason;
-                    
+                    const onLeave = isOnLeave(session.staffId || session.staffName, session.date);
+
                     return (
-                      <tr 
-                        key={session.id || `${session.staffName}-${session.date}-${idx}`} 
-                        className={isSubstituted ? 'bg-red-50 opacity-60' : 'hover:bg-gray-50'}
+                      <tr
+                        key={session.id || `${session.staffName}-${session.date}-${idx}`}
+                        className={isSubstituted ? 'bg-red-50 opacity-60' : onLeave ? 'bg-purple-50' : 'hover:bg-gray-50'}
                       >
                         <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
                         <td className="px-4 py-4 font-medium text-gray-900">
                           {session.staffName}
+                          {onLeave && !isSubstituted && (
+                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                              Nghỉ phép
+                            </span>
+                          )}
                           {isSubstituted && (
                             <div className="text-xs text-red-500 mt-1">
                               <XCircle size={12} className="inline mr-1" />
@@ -533,6 +552,10 @@ export const WorkConfirmation: React.FC = () => {
                           {isSubstituted ? (
                             <span className="px-4 py-1.5 rounded text-xs font-bold bg-gray-200 text-gray-500 cursor-not-allowed">
                               Không tính công
+                            </span>
+                          ) : onLeave ? (
+                            <span className="px-4 py-1.5 rounded text-xs font-bold bg-purple-200 text-purple-700 cursor-not-allowed">
+                              Nghỉ phép
                             </span>
                           ) : (
                             <button

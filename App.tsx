@@ -27,6 +27,7 @@ const ParentManager = lazy(() => import('./pages/ParentManager').then(m => ({ de
 const SalaryConfig = lazy(() => import('./pages/SalaryConfig').then(m => ({ default: m.SalaryConfig })));
 const StaffRewardPenalty = lazy(() => import('./pages/StaffRewardPenalty').then(m => ({ default: m.StaffRewardPenalty })));
 const WorkConfirmation = lazy(() => import('./pages/WorkConfirmation').then(m => ({ default: m.WorkConfirmation })));
+const LeaveRequestManager = lazy(() => import('./pages/LeaveRequestManager').then(m => ({ default: m.LeaveRequestManager })));
 const SalaryReportTeacher = lazy(() => import('./pages/SalaryReportTeacher').then(m => ({ default: m.SalaryReportTeacher })));
 const SalaryReportStaff = lazy(() => import('./pages/SalaryReportStaff').then(m => ({ default: m.SalaryReportStaff })));
 const ContractCreation = lazy(() => import('./pages/ContractCreation').then(m => ({ default: m.ContractCreation })));
@@ -145,6 +146,7 @@ const App: React.FC = () => {
                 <Route path="/hr/salary" element={<SalaryConfig />} />
                 <Route path="/hr/rewards" element={<StaffRewardPenalty />} />
                 <Route path="/hr/work-confirmation" element={<WorkConfirmation />} />
+                <Route path="/hr/leave-requests" element={<LeaveRequestManager />} />
                 <Route path="/hr/salary-teacher" element={<SalaryReportTeacher />} />
                 <Route path="/hr/salary-staff" element={<SalaryReportStaff />} />
 

@@ -14,6 +14,7 @@ const REGION = 'asia-southeast1';
 
 interface ContractData {
   id?: string;
+  code?: string; // Contract code like "Brisky001"
   type: 'Học viên' | 'Học liệu';
   category?: 'Hợp đồng mới' | 'Hợp đồng tái phí' | 'Hợp đồng liên kết';
   studentId?: string;
@@ -143,13 +144,17 @@ export const onContractUpdate = functions
     console.log(`[onContractUpdate] Updated student ${after.studentId} with ${newSessions} sessions`);
 
     // Check if enrollment already exists for this contract (avoid duplicate)
+    // Use studentId + contractId for duplicate check (matches client-side logic)
     const existingEnrollment = await db.collection('enrollments')
-      .where('contractCode', '==', contractId)
+      .where('studentId', '==', after.studentId)
+      .where('contractId', '==', contractId)
       .limit(1)
       .get();
     
     if (existingEnrollment.empty) {
       // Create enrollment record with PAID sessions (not total)
+      // Use actual contract code if available, fallback to document ID
+      const actualContractCode = after.code || contractId;
       const enrollmentData = {
         studentId: after.studentId,
         studentName: after.studentName || '',
@@ -157,7 +162,7 @@ export const onContractUpdate = functions
         className: after.items[0]?.name || '',
         sessions: paidSessions, // Use paidSessions, not totalSessions
         type: after.category || 'Hợp đồng mới',
-        contractCode: contractId,
+        contractCode: actualContractCode,
         contractId: contractId,
         originalAmount: after.totalAmount,
         finalAmount: after.paidAmount || after.totalAmount,
@@ -259,13 +264,17 @@ export const onContractCreate = functions
     console.log(`[onContractCreate] Updated student ${contract.studentId} with ${newSessions} sessions`);
 
     // Check if enrollment already exists (avoid duplicate)
+    // Use studentId + contractId for duplicate check (matches client-side logic)
     const existingEnrollment = await db.collection('enrollments')
-      .where('contractCode', '==', contractId)
+      .where('studentId', '==', contract.studentId)
+      .where('contractId', '==', contractId)
       .limit(1)
       .get();
     
     if (existingEnrollment.empty) {
       // Create enrollment record with PAID sessions
+      // Use actual contract code if available, fallback to document ID
+      const actualContractCode = contract.code || contractId;
       const enrollmentData = {
         studentId: contract.studentId,
         studentName: contract.studentName || '',
@@ -273,7 +282,7 @@ export const onContractCreate = functions
         className: contract.items[0]?.name || '',
         sessions: paidSessions,
         type: contract.category || 'Hợp đồng mới',
-        contractCode: contractId,
+        contractCode: actualContractCode,
         contractId: contractId,
         originalAmount: contract.totalAmount,
         finalAmount: contract.paidAmount || contract.totalAmount,

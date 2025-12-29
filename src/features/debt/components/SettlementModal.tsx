@@ -84,9 +84,9 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           studentId: student.id,
           studentCode: student.code || '',
           studentName: student.fullName,
-          studentPhone: student.phone,
-          studentDob: student.dob,
-          parentName: student.parentName || '',
+          ...(student.phone && { studentPhone: student.phone }),
+          ...(student.dob && { studentDob: student.dob }),
+          ...(student.parentName && { parentName: student.parentName }),
           courseName: courseName || 'Khóa học tiếng Anh',
           className: className,
           totalSessions: registeredSessions,
@@ -98,9 +98,9 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           paidAmount: settlementType === 'Đã thanh toán' ? totalAmount : 0,
           remainingAmount: settlementType === 'Đã thanh toán' ? 0 : totalAmount,
           status: settlementType,
-          paymentMethod: settlementType === 'Đã thanh toán' ? paymentMethod : undefined,
-          collectedByName: staffName,
-          note: sanitizedNote || undefined,
+          ...(settlementType === 'Đã thanh toán' && { paymentMethod }),
+          ...(staffName && { collectedByName: staffName }),
+          ...(sanitizedNote && { note: sanitizedNote }),
         };
 
         // 3. Create invoice and get ID

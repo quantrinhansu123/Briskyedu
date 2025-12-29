@@ -5,10 +5,10 @@
  */
 
 import React, { useState } from 'react';
-import { X, CreditCard, AlertTriangle, DollarSign, FileText, CheckCircle } from 'lucide-react';
+import { X, CreditCard, AlertTriangle, DollarSign, FileText, CheckCircle, Eye } from 'lucide-react';
 import { Student, SettlementInvoice, SettlementStatus } from '../../../../types';
 import { SettlementInvoiceService } from '../../../services/settlementInvoiceService';
-import { downloadSettlementInvoicePDF } from '../../../services/settlementInvoicePdfService';
+import { downloadSettlementInvoicePDF, previewSettlementInvoice } from '../../../services/settlementInvoicePdfService';
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { formatCurrency } from '../../../utils/currencyUtils';
@@ -206,18 +206,25 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => previewSettlementInvoice(successInvoice)}
+                className="flex-1 px-3 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
+              >
+                <Eye size={18} />
+                Xem trước
+              </button>
               <button
                 onClick={handleDownloadPDF}
                 disabled={pdfLoading}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <FileText size={18} />
                 {pdfLoading ? 'Đang tạo...' : 'Tải PDF'}
               </button>
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Đóng
               </button>

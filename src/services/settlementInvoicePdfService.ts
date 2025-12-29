@@ -253,3 +253,84 @@ export async function downloadSettlementInvoicePDF(data: SettlementInvoice): Pro
   const filename = `TatToan_${data.studentName}_${data.invoiceCode}.pdf`;
   downloadBlob(blob, filename);
 }
+
+/**
+ * Preview settlement invoice in a new browser window
+ * Opens a print-ready preview that user can print or save as PDF
+ */
+export function previewSettlementInvoice(data: SettlementInvoice): void {
+  const html = generateSettlementInvoiceHTML(data);
+
+  // Create full HTML document with print styles
+  const fullHtml = `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+      <meta charset="UTF-8">
+      <title>HÓA ĐƠN THU TIỀN - ${data.invoiceCode}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          background: #f0f0f0;
+          padding: 20px;
+          display: flex;
+          justify-content: center;
+        }
+        .page {
+          background: #fff;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .toolbar {
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          display: flex;
+          gap: 10px;
+          z-index: 1000;
+        }
+        .toolbar button {
+          padding: 10px 20px;
+          font-size: 14px;
+          cursor: pointer;
+          border: none;
+          border-radius: 6px;
+          font-weight: 500;
+        }
+        .btn-print {
+          background: #2563eb;
+          color: white;
+        }
+        .btn-print:hover { background: #1d4ed8; }
+        .btn-close {
+          background: #6b7280;
+          color: white;
+        }
+        .btn-close:hover { background: #4b5563; }
+        @media print {
+          body { background: #fff; padding: 0; }
+          .toolbar { display: none; }
+          .page { box-shadow: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="toolbar">
+        <button class="btn-print" onclick="window.print()">🖨️ In</button>
+        <button class="btn-close" onclick="window.close()">✕ Đóng</button>
+      </div>
+      <div class="page">
+        ${html}
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Open in new window
+  const previewWindow = window.open('', '_blank', 'width=900,height=700');
+  if (previewWindow) {
+    previewWindow.document.write(fullHtml);
+    previewWindow.document.close();
+  } else {
+    alert('Không thể mở cửa sổ xem trước. Vui lòng tắt chặn popup và thử lại.');
+  }
+}

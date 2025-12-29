@@ -92,7 +92,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           totalSessions: registeredSessions,
           attendedSessions: attendedSessions,
           debtSessions: debtSessions,
-          startDate: student.startDate,
+          ...(student.startDate && { startDate: student.startDate }),
           pricePerSession: PRICE_PER_SESSION,
           totalAmount: totalAmount,
           paidAmount: settlementType === 'Đã thanh toán' ? totalAmount : 0,
@@ -237,7 +237,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-red-500 to-red-600 rounded-t-xl">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -249,7 +249,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-3 space-y-3 overflow-y-auto flex-1">
           {/* Student Info */}
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -273,7 +273,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           </div>
 
           {/* Debt Calculation */}
-          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+          <div className="bg-red-50 rounded-lg p-3 border border-red-200">
             <h4 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
               <AlertTriangle size={16} />
               Chi tiết nợ phí
@@ -309,7 +309,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             </label>
 
             {/* Option 1: Pay */}
-            <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+            <label className={`flex items-start gap-3 p-2.5 rounded-lg border-2 cursor-pointer transition-colors ${
               settlementType === 'Đã thanh toán'
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-200 hover:border-gray-300'
@@ -343,7 +343,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             </label>
 
             {/* Option 2: Bad Debt */}
-            <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+            <label className={`flex items-start gap-3 p-2.5 rounded-lg border-2 cursor-pointer transition-colors ${
               settlementType === 'Nợ xấu'
                 ? 'border-red-500 bg-red-50'
                 : 'border-gray-200 hover:border-gray-300'

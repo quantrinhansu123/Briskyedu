@@ -11,6 +11,7 @@ import * as admin from 'firebase-admin';
 
 const db = admin.firestore();
 const auth = admin.auth();
+const REGION = 'asia-southeast1';
 
 /**
  * FK reference configurations for staff document migration
@@ -119,7 +120,7 @@ async function migrateStaffDocId(
  * Update staff password (callable by admin)
  * Required: caller must have admin/manager role
  */
-export const updateStaffPassword = functions.https.onCall(async (data, context) => {
+export const updateStaffPassword = functions.region(REGION).https.onCall(async (data, context) => {
   // Check authentication
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Bạn cần đăng nhập để thực hiện thao tác này.');
@@ -191,7 +192,7 @@ export const updateStaffPassword = functions.https.onCall(async (data, context) 
  * Create staff account for existing staff document (callable by admin)
  * Use when staff was created without account
  */
-export const createStaffAccount = functions.https.onCall(async (data, context) => {
+export const createStaffAccount = functions.region(REGION).https.onCall(async (data, context) => {
   // Check authentication
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Bạn cần đăng nhập để thực hiện thao tác này.');

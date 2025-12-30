@@ -146,7 +146,44 @@ export interface ClassModel {
   trainingHistory?: TrainingHistoryEntry[]; // Lịch sử đào tạo
 }
 
-export type StaffRole = 'Giáo viên' | 'Trợ giảng' | 'Nhân viên' | 'Sale' | 'Văn phòng' | 'Quản lý' | 'Quản trị viên';
+export type StaffRole =
+  // Điều Hành
+  | 'Quản lý'
+  | 'Quản trị viên'
+  | 'Quản lý (Admin)'
+  // Đào Tạo - Giáo viên
+  | 'Giáo viên'
+  | 'Giáo Viên Việt'
+  | 'Giáo viên Việt'
+  | 'GV Việt'
+  | 'Giáo Viên Nước Ngoài'
+  | 'Giáo viên nước ngoài'
+  | 'GV NN'
+  // Đào Tạo - Trợ giảng
+  | 'Trợ giảng'
+  | 'Trợ Giảng'
+  // Văn Phòng - CSKH
+  | 'Trưởng Nhóm CSKH'
+  | 'NV CSKH'
+  | 'Tư vấn viên'
+  | 'Lễ tân'
+  | 'CSKH'
+  | 'Nhân viên'
+  // Văn Phòng - CM (Chuyên Môn)
+  | 'Trưởng Nhóm CM'
+  | 'Trưởng Nhóm Học Thuật'
+  | 'Trưởng Nhóm Chuyên Môn'
+  | 'NV CM'
+  | 'NV Chuyên Môn'
+  // Văn Phòng - Sale
+  | 'Trưởng Nhóm Sale'
+  | 'NV Sale'
+  | 'Sale'
+  // Văn Phòng - Kế Toán
+  | 'Kế toán'
+  | 'Kế Toán'
+  // Legacy
+  | 'Văn phòng';
 
 export interface Staff {
   id: string;

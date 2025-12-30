@@ -68,7 +68,9 @@ describe('usePermissions Hook', () => {
 
     it('should check hideParentPhone', () => {
       const { result } = renderHook(() => usePermissions());
-      expect(result.current.shouldHideParentPhone('students')).toBe(true);
+      // Gap #1: students module is now hidden for GV, so no hideParentPhone needed
+      expect(result.current.shouldHideParentPhone('students')).toBe(false);
+      // classes still has hideParentPhone
       expect(result.current.shouldHideParentPhone('classes')).toBe(true);
     });
 
@@ -141,14 +143,14 @@ describe('usePermissions Hook', () => {
     });
   });
 
-  describe('with CSKH Role', () => {
+  describe('with CSKH Staff Role', () => {
     beforeEach(() => {
       vi.mocked(useAuthModule.useAuth).mockReturnValue({
         user: { uid: 'cskh-user-id' } as any,
         staffData: {
           id: 'cskh-123',
           name: 'CSKH User',
-          position: 'Tư vấn viên',
+          position: 'Tư vấn viên', // Maps to cskh_staff
         },
         loading: false,
         error: null,
@@ -160,16 +162,18 @@ describe('usePermissions Hook', () => {
       });
     });
 
-    it('should have cskh role', () => {
+    it('should have cskh_staff role', () => {
       const { result } = renderHook(() => usePermissions());
-      expect(result.current.role).toBe('cskh');
+      expect(result.current.role).toBe('cskh_staff');
       expect(result.current.isOfficeStaff).toBe(true);
     });
 
-    it('should not see salary modules', () => {
+    it('should not see salary_config but CAN see salary_teacher (own data)', () => {
+      // Gap #2 fix: cskh_staff can now view salary_teacher (own data only)
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canView('salary_config')).toBe(false);
-      expect(result.current.canView('salary_teacher')).toBe(false);
+      expect(result.current.canView('salary_teacher')).toBe(true);
+      // Note: shouldShowOnlyOwnData will be added in Phase B
     });
 
     it('should require approval for invoice delete', () => {
@@ -177,9 +181,124 @@ describe('usePermissions Hook', () => {
       expect(result.current.requiresApproval('invoices')).toBe(true);
     });
 
-    it('should be able to approve work confirmation', () => {
+    it('should NOT approve work confirmation (staff level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canApprove('work_confirmation')).toBe(false);
+    });
+
+    it('should NOT see revenue (staff level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canSeeRevenue).toBe(false);
+    });
+  });
+
+  describe('with CSKH Lead Role', () => {
+    beforeEach(() => {
+      vi.mocked(useAuthModule.useAuth).mockReturnValue({
+        user: { uid: 'cskh-lead-id' } as any,
+        staffData: {
+          id: 'cskh-lead-123',
+          name: 'CSKH Lead',
+          position: 'Trưởng Nhóm CSKH', // Maps to cskh_lead
+        },
+        loading: false,
+        error: null,
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        register: vi.fn(),
+        isAuthenticated: true,
+        isAdmin: false,
+      });
+    });
+
+    it('should have cskh_lead role', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.role).toBe('cskh_lead');
+      expect(result.current.isOfficeStaff).toBe(true);
+      expect(result.current.isTeamLead).toBe(true);
+    });
+
+    it('should CAN approve work confirmation (lead level)', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canApprove('work_confirmation')).toBe(true);
+    });
+
+    it('should CAN see revenue (lead level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canSeeRevenue).toBe(true);
+    });
+  });
+
+  describe('with Sale Lead Role', () => {
+    beforeEach(() => {
+      vi.mocked(useAuthModule.useAuth).mockReturnValue({
+        user: { uid: 'sale-lead-id' } as any,
+        staffData: {
+          id: 'sale-lead-123',
+          name: 'Sale Lead',
+          position: 'Trưởng Nhóm Sale',
+        },
+        loading: false,
+        error: null,
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        register: vi.fn(),
+        isAuthenticated: true,
+        isAdmin: false,
+      });
+    });
+
+    it('should have sale_lead role', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.role).toBe('sale_lead');
+      expect(result.current.isOfficeStaff).toBe(true);
+      expect(result.current.isTeamLead).toBe(true);
+    });
+
+    it('should CAN approve work confirmation (lead level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canApprove('work_confirmation')).toBe(true);
+    });
+
+    it('should CAN see revenue (lead level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canSeeRevenue).toBe(true);
+    });
+  });
+
+  describe('with Sale Staff Role', () => {
+    beforeEach(() => {
+      vi.mocked(useAuthModule.useAuth).mockReturnValue({
+        user: { uid: 'sale-staff-id' } as any,
+        staffData: {
+          id: 'sale-staff-123',
+          name: 'Sale Staff',
+          position: 'NV Sale',
+        },
+        loading: false,
+        error: null,
+        signIn: vi.fn(),
+        signOut: vi.fn(),
+        register: vi.fn(),
+        isAuthenticated: true,
+        isAdmin: false,
+      });
+    });
+
+    it('should have sale_staff role', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.role).toBe('sale_staff');
+      expect(result.current.isOfficeStaff).toBe(true);
+    });
+
+    it('should NOT approve work confirmation (staff level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canApprove('work_confirmation')).toBe(false);
+    });
+
+    it('should NOT see revenue (staff level)', () => {
+      const { result } = renderHook(() => usePermissions());
+      expect(result.current.canSeeRevenue).toBe(false);
     });
   });
 
@@ -249,8 +368,11 @@ describe('usePermissions Hook', () => {
     it('should have same restrictions as teacher', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.shouldShowOnlyOwnClasses('classes')).toBe(true);
-      expect(result.current.shouldHideParentPhone('students')).toBe(true);
+      // Gap #1: students module is now hidden for GV/TG
+      expect(result.current.shouldHideParentPhone('students')).toBe(false);
       expect(result.current.canView('contracts')).toBe(false);
+      // Gap #5: work_confirmation hidden
+      expect(result.current.canView('work_confirmation')).toBe(false);
     });
   });
 

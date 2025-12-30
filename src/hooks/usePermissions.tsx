@@ -23,6 +23,11 @@ import {
   shouldHideParentPhone,
   requiresApproval,
   getVisibleMenuItems,
+  // New helper functions
+  isTeamLead as isTeamLeadCheck,
+  canSeeRevenue as canSeeRevenueCheck,
+  isTeacher as isTeacherCheck,
+  isOfficeStaff as isOfficeStaffCheck,
 } from '../services/permissionService';
 
 interface UsePermissionsReturn {
@@ -51,6 +56,8 @@ interface UsePermissionsReturn {
   isAdmin: boolean;
   isTeacher: boolean;
   isOfficeStaff: boolean;
+  isTeamLead: boolean;      // NEW: Trưởng nhóm (admin, cskh_lead, cm_lead)
+  canSeeRevenue: boolean;   // NEW: Có thể xem doanh thu
 }
 
 export const usePermissions = (): UsePermissionsReturn => {
@@ -100,11 +107,13 @@ export const usePermissions = (): UsePermissionsReturn => {
     isMenuVisible: (module: ModuleKey) => canView(role, module),
   }), [role]);
 
-  // Role type checks
+  // Role type checks - use helpers from permissionService
   const roleChecks = useMemo(() => ({
     isAdmin: role === 'admin',
-    isTeacher: ['gv_viet', 'gv_nuocngoai', 'tro_giang'].includes(role),
-    isOfficeStaff: ['cskh', 'ketoan'].includes(role),
+    isTeacher: isTeacherCheck(role),
+    isOfficeStaff: isOfficeStaffCheck(role),
+    isTeamLead: isTeamLeadCheck(role),
+    canSeeRevenue: canSeeRevenueCheck(role),
   }), [role]);
 
   return {

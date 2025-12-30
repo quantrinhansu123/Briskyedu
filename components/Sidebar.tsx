@@ -1,19 +1,23 @@
 
-import React, { useState, useMemo } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Users, 
-  Briefcase, 
-  UserCog, 
-  DollarSign, 
-  BarChart3, 
-  Settings, 
-  ChevronDown, 
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  BookOpen,
+  Users,
+  Briefcase,
+  UserCog,
+  DollarSign,
+  BarChart3,
+  Settings,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Menu,
-  X
+  X,
+  User,
+  Key,
+  LogOut
 } from 'lucide-react';
 import { MenuItem } from '../types';
 import { usePermissions } from '../src/hooks/usePermissions';
@@ -56,6 +60,8 @@ const subItemToModule: Record<string, ModuleKey> = {
   'settings-products': 'settings',
   'settings-inventory': 'settings',
   'settings-rooms': 'settings',
+  'rewards': 'reward_penalty',          // Gap #6: Thưởng/Phạt
+  'leave-requests': 'leave_request',    // Nghỉ phép
 };
 
 // Map parent menu to required modules (at least one must be visible)
@@ -63,7 +69,7 @@ const parentMenuModules: Record<string, ModuleKey[]> = {
   'training': ['classes', 'schedule', 'holidays', 'attendance', 'tutoring', 'homework', 'attendance_history', 'enrollment_history'],
   'customers': ['students', 'parents', 'students_dropped', 'students_reserved', 'feedback', 'students_trial'],
   'business': ['leads', 'campaigns'],
-  'hr': ['staff', 'salary_config', 'work_confirmation', 'salary_teacher', 'salary_staff'],
+  'hr': ['staff', 'salary_config', 'work_confirmation', 'leave_request', 'salary_teacher', 'salary_staff', 'reward_penalty'],
   'finance': ['contracts', 'invoices', 'debt', 'revenue'],
   'reports': ['reports_training', 'reports_finance'],
   'settings': ['settings'],
@@ -167,9 +173,23 @@ const menuItems: MenuItem[] = [
 export const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['training', 'customers', 'settings']);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const { canView, role, isAdmin } = usePermissions();
-  const { user, staffData } = useAuth();
+  const { user, staffData, signOut } = useAuth();
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Filter menu items based on permissions
   const filteredMenuItems = useMemo(() => {
@@ -205,6 +225,18 @@ export const Sidebar: React.FC = () => {
   };
 
   const toggleMobileSidebar = () => setIsOpen(!isOpen);
+
+  // Profile menu handlers
+  const handleChangePassword = () => {
+    setShowProfileMenu(false);
+    navigate('/settings/change-password');
+  };
+
+  const handleLogout = async () => {
+    setShowProfileMenu(false);
+    await signOut();
+    navigate('/login');
+  };
 
   // Get user display info
   const userName = staffData?.name || user?.displayName || 'User';
@@ -299,17 +331,50 @@ export const Sidebar: React.FC = () => {
             ))}
           </nav>
 
-          {/* User Profile Snippet */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center gap-3">
+          {/* User Profile Snippet with Dropdown - Gap #7 */}
+          <div className="p-4 border-t border-gray-200 relative" ref={profileMenuRef}>
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="flex items-center gap-3 w-full hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+            >
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
                 {userInitials}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 text-left">
                 <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
                 <p className="text-xs text-gray-500 truncate">{userPosition}</p>
               </div>
-            </div>
+              <ChevronUp className={`w-4 h-4 text-gray-400 transition-transform ${showProfileMenu ? '' : 'rotate-180'}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showProfileMenu && (
+              <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <Link
+                  to="/settings/profile"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  <User className="w-4 h-4" />
+                  Thông tin cá nhân
+                </Link>
+                <button
+                  onClick={handleChangePassword}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                >
+                  <Key className="w-4 h-4" />
+                  Đổi mật khẩu
+                </button>
+                <hr className="my-1" />
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Đăng xuất
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

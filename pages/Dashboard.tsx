@@ -49,6 +49,7 @@ import { getRevenueSummary, RevenueByCategory } from '../src/services/financialR
 import { seedAllData, clearAllData } from '../scripts/seedAllData';
 import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { useProducts } from '../src/hooks/useProducts';
+import { usePermissions } from '../src/hooks/usePermissions';
 
 // Warm Education Color Palette - Teal & Coral Theme
 const COLORS = {
@@ -105,6 +106,9 @@ interface DashboardStats {
 }
 
 export const Dashboard: React.FC = () => {
+  // Permission check for revenue visibility
+  const { canSeeRevenue, isTeacher } = usePermissions();
+
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     totalClasses: 0,
@@ -763,8 +767,8 @@ export const Dashboard: React.FC = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-12 gap-6">
-          {/* Left Column */}
-          <div className="col-span-12 lg:col-span-7 space-y-6">
+          {/* Left Column - Full width when revenue hidden */}
+          <div className={`col-span-12 ${canSeeRevenue ? 'lg:col-span-7' : ''} space-y-6`}>
             {/* Student Stats Bar Chart */}
             <div className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-teal-100/30 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
@@ -820,7 +824,8 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Revenue Comparison */}
+            {/* Revenue Comparison - Only for revenue-allowed roles */}
+            {canSeeRevenue && (
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-3">
@@ -883,9 +888,11 @@ export const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </div>
 
-          {/* Right Column - Pie Charts */}
+          {/* Right Column - Pie Charts - Only for revenue-allowed roles */}
+          {canSeeRevenue && (
           <div className="col-span-12 lg:col-span-5 space-y-6">
             {/* Revenue Pie Chart */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-[#FF6B5A]/10 transition-all duration-300">
@@ -994,11 +1001,13 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+          )}
         </div>
 
-        {/* Bottom Section - 2 columns */}
+        {/* Revenue-only Section - Lead/Admin/Ketoan can see salary & health metrics */}
+        {canSeeRevenue && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Left Column */}
+          {/* Left Column - Salary & Health */}
           <div className="space-y-6">
             {/* Dự báo lương */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
@@ -1077,69 +1086,9 @@ export const Dashboard: React.FC = () => {
                 </table>
               </div>
             </div>
-
-            {/* Vật phẩm còn lại trong kho */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-600 p-4 text-center">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl">
-                    <Box className="text-white" size={20} />
-                  </div>
-                  <h3 className="font-bold text-white">VẬT PHẨM CÒN LẠI TRONG KHO</h3>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center gap-2 text-sm mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <span className="text-gray-600">Hiển thị</span>
-                  <select
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value as any)}
-                    className="text-amber-600 font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
-                  >
-                    <option value="low">Sắp hết hàng</option>
-                    <option value="all">Tất cả</option>
-                  </select>
-                </div>
-                <table className="w-full text-sm">
-                  <thead className="bg-amber-50/50 border-b-2 border-amber-100">
-                    <tr>
-                      <th className="text-left py-2.5 px-3 font-medium text-gray-600">Tên sản phẩm</th>
-                      <th className="text-right py-2.5 px-3 font-medium text-gray-600">Số lượng</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const filteredProducts = stockFilter === 'low' 
-                        ? allProducts.filter(p => p.stock < (p.minStock || 10))
-                        : allProducts;
-                      
-                      return filteredProducts.length > 0 ? (
-                        filteredProducts.map((item, idx) => (
-                          <tr key={idx} className="border-b border-gray-100 hover:bg-amber-50/30 transition-colors">
-                            <td className="py-2.5 px-3 text-gray-700">{item.name}</td>
-                            <td className={`py-2.5 px-3 text-right font-bold ${item.stock < 5 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              <span className={`px-2 py-1 rounded-full ${item.stock < 5 ? 'bg-rose-100' : 'bg-emerald-100'}`}>
-                                {item.stock}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={2} className="py-8 text-center text-gray-400">
-                            <Box size={32} className="mx-auto mb-2 opacity-30" />
-                            {stockFilter === 'low' ? 'Không có sản phẩm sắp hết hàng' : 'Chưa có dữ liệu sản phẩm trong kho'}
-                          </td>
-                        </tr>
-                      );
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
 
-          {/* Right Column */}
+          {/* Right Column - Stats only */}
           <div className="space-y-6">
             {/* THỐNG KÊ */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-teal-100/30 transition-all duration-300">
@@ -1298,7 +1247,78 @@ export const Dashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+        )}
 
+        {/* Common Widgets Section - All office staff can see (not teachers) */}
+        {!isTeacher && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Left Column - Products */}
+          <div className="space-y-6">
+            {/* Vật phẩm còn lại trong kho */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
+              <div className="bg-gradient-to-r from-orange-500 to-amber-600 p-4 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl">
+                    <Box className="text-white" size={20} />
+                  </div>
+                  <h3 className="font-bold text-white">VẬT PHẨM CÒN LẠI TRONG KHO</h3>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="flex items-center gap-2 text-sm mb-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <span className="text-gray-600">Hiển thị</span>
+                  <select
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value as any)}
+                    className="text-amber-600 font-semibold bg-transparent border-none cursor-pointer focus:outline-none"
+                  >
+                    <option value="low">Sắp hết hàng</option>
+                    <option value="all">Tất cả</option>
+                  </select>
+                </div>
+                <table className="w-full text-sm">
+                  <thead className="bg-amber-50/50 border-b-2 border-amber-100">
+                    <tr>
+                      <th className="text-left py-2.5 px-3 font-medium text-gray-600">Tên sản phẩm</th>
+                      <th className="text-right py-2.5 px-3 font-medium text-gray-600">Số lượng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const filteredProducts = stockFilter === 'low'
+                        ? allProducts.filter(p => p.stock < (p.minStock || 10))
+                        : allProducts;
+
+                      return filteredProducts.length > 0 ? (
+                        filteredProducts.map((item, idx) => (
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-amber-50/30 transition-colors">
+                            <td className="py-2.5 px-3 text-gray-700">{item.name}</td>
+                            <td className={`py-2.5 px-3 text-right font-bold ${item.stock < 5 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              <span className={`px-2 py-1 rounded-full ${item.stock < 5 ? 'bg-rose-100' : 'bg-emerald-100'}`}>
+                                {item.stock}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={2} className="py-8 text-center text-gray-400">
+                            <Box size={32} className="mx-auto mb-2 opacity-30" />
+                            {stockFilter === 'low' ? 'Không có sản phẩm sắp hết hàng' : 'Chưa có dữ liệu sản phẩm trong kho'}
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Birthdays */}
+          <div className="space-y-6">
             {/* SINH NHẬT */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-[#FF6B5A]/10 transition-all duration-300">
               <div className="bg-gradient-to-r from-[#FF6B5A] to-[#FF8F7A] p-4 text-center">
@@ -1312,8 +1332,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setBirthdayType('staff')}
                     className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-all ${
-                      birthdayType === 'staff' 
-                        ? 'bg-white text-[#FF6B5A] shadow-md' 
+                      birthdayType === 'staff'
+                        ? 'bg-white text-[#FF6B5A] shadow-md'
                         : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
                   >
@@ -1322,8 +1342,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setBirthdayType('student')}
                     className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-all ${
-                      birthdayType === 'student' 
-                        ? 'bg-white text-[#FF6B5A] shadow-md' 
+                      birthdayType === 'student'
+                        ? 'bg-white text-[#FF6B5A] shadow-md'
                         : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
                   >
@@ -1379,7 +1399,7 @@ export const Dashboard: React.FC = () => {
                       const today = now.getDate();
                       const thisMonth = now.getMonth();
                       const thisYear = now.getFullYear();
-                      
+
                       const birthdayData = birthdayType === 'staff' ? stats.upcomingBirthdays : stats.studentBirthdays;
 
                       const filteredBirthdays = birthdayData.filter((item: any) => {
@@ -1400,7 +1420,7 @@ export const Dashboard: React.FC = () => {
                           return month === thisMonth + 1;
                         }
                       });
-                      
+
                       return filteredBirthdays.length > 0 ? (
                         filteredBirthdays.map((item: any, idx: number) => (
                           <tr key={idx} className="border-b border-gray-100 hover:bg-orange-50/30 transition-colors">
@@ -1453,6 +1473,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Dev Tools - Hidden (uncomment for development)

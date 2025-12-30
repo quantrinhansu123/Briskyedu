@@ -59,14 +59,24 @@ export const usePermission = (): UsePermissionReturn => {
         'admin': 'admin',
         'Quản lý': 'admin',
         'Quản trị viên': 'admin',
-        'cskh': 'cskh',
+        // CSKH roles
+        'cskh_lead': 'cskh_lead',
+        'cskh_staff': 'cskh_staff',
+        // CM roles
+        'cm_lead': 'cm_lead',
+        'cm_staff': 'cm_staff',
+        // Sale roles
+        'sale_lead': 'sale_lead',
+        'sale_staff': 'sale_staff',
+        // Kế toán
         'ketoan': 'ketoan',
+        // Đào tạo
         'gv_viet': 'gv_viet',
         'gv_nuocngoai': 'gv_nuocngoai',
         'tro_giang': 'tro_giang',
         'Giáo viên': 'gv_viet',
         'Trợ giảng': 'tro_giang',
-        'Nhân viên': 'cskh',
+        'Nhân viên': 'cskh_staff', // Default to cskh_staff
       };
       if (roleMap[userRole]) return roleMap[userRole];
     }
@@ -79,7 +89,7 @@ export const usePermission = (): UsePermissionReturn => {
 
   const isAdmin = role === 'admin';
   const isTeacher = ['gv_viet', 'gv_nuocngoai', 'tro_giang'].includes(role);
-  const isStaff = ['cskh', 'ketoan'].includes(role);
+  const isStaff = ['cskh_lead', 'cskh_staff', 'cm_lead', 'cm_staff', 'sale_lead', 'sale_staff', 'ketoan'].includes(role);
 
   return {
     role,

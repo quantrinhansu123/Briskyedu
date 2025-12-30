@@ -1,6 +1,6 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2025-12-28 19:10
+**Last Updated:** 2025-12-30 10:15
 
 ---
 
@@ -24,7 +24,7 @@
 | **Branch** | main |
 | **Quality Score** | 6.5/10 (security fixes pending) |
 | **Progress** | Mature codebase, actively maintained |
-| **Last Commit** | `a7e8a95` docs: Remove project management details and update project memory |
+| **Last Commit** | `cf21e61` feat(hr): add leave request management system |
 | **Active Plan** | `plans/251226-2134-codebase-review/plan.md` |
 | **Next Priority** | Phase 1: Security Fixes (P0) |
 
@@ -37,19 +37,20 @@
 /                    # Root level (source at root, NOT in src/)
 ├── App.tsx          # Main app with HashRouter (38 routes)
 ├── index.tsx        # React entry point
-├── types.ts         # ALL TypeScript interfaces/enums (27 + 9)
-├── pages/           # 36 page components (7 domains)
-├── components/      # 5 shared UI components
+├── types.ts         # ALL TypeScript interfaces/enums (28+ interfaces, 9 enums)
+├── pages/           # 38 page components (8 domains)
+├── components/      # 6 shared UI components
 ├── docs/            # 31 documentation files + 8 ADRs
 ├── plans/           # 40+ plan files + reports
 ├── src/
 │   ├── config/firebase.ts
-│   ├── services/    # 28 Firestore CRUD services (static class)
-│   ├── hooks/       # 27 React hooks (real-time listeners)
-│   └── utils/       # 12 utility files
-├── functions/       # 8 Cloud Function triggers
+│   ├── services/    # 37 Firestore CRUD services (static class)
+│   ├── hooks/       # 30 React hooks (real-time listeners)
+│   ├── utils/       # 12 utility files
+│   └── features/    # 7 feature modules (encapsulated domain logic)
+├── functions/       # 13 Cloud Functions (11 triggers + 2 callables + 1 scheduler)
 ├── scripts/         # 18 maintenance scripts
-└── firestore.rules  # 35 collection rules
+└── firestore.rules  # 36+ collection rules
 ```
 
 ### Three-Layer Pattern
@@ -136,16 +137,16 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Last Session (2025-12-28 19:10)
+### Last Session (2025-12-30 10:15)
 - Full documentation update completed (`/docs:update`)
-- Scout reports: src structure, pages/components, project overview
-- Docs updated: project-roadmap, codebase-summary, system-architecture, README
-- Working tree clean
+- Scout reports: pages (38), components (6), src (37 services, 30 hooks), functions (13)
+- Docs updated: codebase-summary.md, system-architecture.md, README.md
+- Recent features: Leave Request Management, Staff Reward/Penalty, Work Sessions with leave awareness
 - Firebase connected: edumanager-pro-6180f
 
-### Previous Session (2025-12-28 16:13)
-- Context restoration complete
-- Documentation sync performed
+### Previous Session (2025-12-28 19:10)
+- Documentation update and codebase review
+- Working tree clean
 
 ### Next Priority
 - Phase 1: Security Fixes (P0)
@@ -163,8 +164,8 @@ firebase deploy          # Deploy to Firebase
 
 | File | Updated |
 |------|---------|
-| `docs/codebase-summary.md` | 2025-12-28 |
-| `docs/system-architecture.md` | 2025-12-28 |
+| `docs/codebase-summary.md` | 2025-12-30 |
+| `docs/system-architecture.md` | 2025-12-30 |
 | `docs/code-standards.md` | 2025-12-28 |
 | `docs/project-roadmap.md` | 2025-12-28 |
 | `README.md` | 2025-12-28 |

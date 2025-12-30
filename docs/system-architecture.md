@@ -4,10 +4,11 @@
 
 ## Overview
 
-EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 35 Firestore collections across 7 domains via:
-- **28 Services**: Static class methods for CRUD operations
-- **27 Hooks**: Real-time listeners with onSnapshot pattern
-- **36 Pages**: Domain-organized UI components
+EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 36+ Firestore collections across 8 domains via:
+- **37 Services**: Static class methods for CRUD operations
+- **35 Hooks**: Real-time listeners with onSnapshot pattern
+- **37 Pages**: Domain-organized UI components
+- **7 Feature Modules**: Encapsulated domain-specific logic
 
 ## High-Level Architecture
 
@@ -240,9 +241,9 @@ service cloud.firestore {
 }
 ```
 
-## Firestore Collections (35 Total)
+## Firestore Collections (36+ Total)
 
-The system utilizes 35 Firestore collections organized across multiple domains:
+The system utilizes 36+ Firestore collections organized across multiple domains:
 
 | Category | Collections | Purpose |
 |----------|-------------|---------|
@@ -253,33 +254,45 @@ The system utilizes 35 Firestore collections organized across multiple domains:
 | **Finance** | invoices, contracts, revenue, debt | Financial management |
 | **Reporting** | reports, analytics | Business intelligence |
 
-For a comprehensive and up-to-date schema with all 35 collections, refer to `docs/FIRESTORE_SCHEMA.md`.
+For a comprehensive and up-to-date schema with all 36+ collections, refer to `docs/FIRESTORE_SCHEMA.md`.
 
-## Cloud Functions Architecture (8 Triggers)
+## Cloud Functions Architecture (11 Total)
 
 Serverless functions in `/functions/src/triggers/` provide backend automation:
 
 ```
 ┌─────────────────────────────────────────┐
-│     Cloud Functions (8 Triggers)        │
+│    Cloud Functions (11 Total)           │
 ├─────────────────────────────────────────┤
-│  ├─ Scheduled Tasks                     │
-│  │  └─ Data synchronization, cleanup    │
-│  ├─ Event Triggers                      │
-│  │  └─ Student enrollment, attendance   │
-│  ├─ Webhook Processors                  │
-│  │  └─ External integrations            │
-│  ├─ Batch Operations                    │
-│  │  └─ Bulk updates, exports            │
-│  └─ Background Processing               │
-│     └─ Reports, notifications           │
+│  ├─ Database Triggers (9)               │
+│  │  ├─ onClassCreate/Update/Delete      │
+│  │  ├─ onStudentCreate/Update/Delete    │
+│  │  ├─ onContractCreate/Update          │
+│  │  ├─ onAttendanceWrite                │
+│  │  ├─ onSessionComplete                │
+│  │  ├─ onHolidayUpdate                  │
+│  │  ├─ homeworkTriggers                 │
+│  │  └─ staffTriggers                    │
+│  └─ Utilities (2)                       │
+│     ├─ Batch operations                 │
+│     └─ Schedule parsers                 │
 └─────────────────────────────────────────┘
 ```
 
+**Key Functions**:
+- **Class Triggers**: Real-time updates when classes are created, modified, or deleted
+- **Student Triggers**: Sync student records and maintain enrollment history
+- **Contract Triggers**: Auto-create enrollments and track payment contracts
+- **Attendance Triggers**: Real-time attendance synchronization
+- **Session Triggers**: Calculate salary and work hours on session completion
+- **Holiday Triggers**: Manage holiday periods and class cancellations
+- **Staff Triggers**: Account creation and permission management
+
 **Benefits**:
 - Offload heavy computation from client
-- Automate recurring tasks
+- Automate recurring tasks (attendance sync, salary calculations)
 - Enforce business logic at backend
+- Maintain data consistency across collections
 - Decouple frontend from backend operations
 
 ## Route Structure

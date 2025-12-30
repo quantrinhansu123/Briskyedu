@@ -19,11 +19,12 @@ import { useContracts } from '../src/hooks/useContracts';
 import { useCurriculums } from '../src/hooks/useCurriculums';
 import { useProducts } from '../src/hooks/useProducts';
 import { useClasses } from '../src/hooks/useClasses';
-import { 
-  formatCurrency, 
-  numberToWords, 
-  calculateDiscount 
+import {
+  formatCurrency,
+  numberToWords,
+  calculateDiscount
 } from '../src/utils/currencyUtils';
+import { SearchableSelect, SelectOption } from '../components/SearchableSelect';
 import { db } from '../src/config/firebase';
 import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 
@@ -296,6 +297,15 @@ export const ContractCreation: React.FC = () => {
       return true;
     });
   }, [classes, selectedStudent]);
+
+  // Convert filtered classes to SelectOption format for SearchableSelect
+  const classOptions: SelectOption[] = useMemo(() => {
+    return filteredClasses.map(cls => ({
+      value: cls.id,
+      label: cls.code ? `${cls.name} (${cls.code})` : cls.name,
+      sublabel: cls.branch || undefined,
+    }));
+  }, [filteredClasses]);
 
   // Date format helpers (ISO <-> dd/mm/yyyy)
   const isoToVN = (isoDate: string) => {
@@ -801,19 +811,14 @@ export const ContractCreation: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Thêm vào lớp
                 </label>
-                <select
+                <SearchableSelect
+                  options={classOptions}
                   value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">-- Chọn lớp (không bắt buộc) --</option>
-                  {filteredClasses.map(cls => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.name} ({cls.code}) - {cls.branch}
-                    </option>
-                  ))}
-                </select>
-                {filteredClasses.length === 0 && selectedStudent && (
+                  onChange={setSelectedClassId}
+                  placeholder="-- Chọn lớp (không bắt buộc) --"
+                  emptyMessage="Không tìm thấy lớp phù hợp"
+                />
+                {classOptions.length === 0 && selectedStudent && (
                   <p className="mt-1 text-sm text-yellow-600">
                     Không có lớp phù hợp với chi nhánh {selectedStudent.branch || 'của học sinh'}
                   </p>

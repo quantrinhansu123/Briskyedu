@@ -617,27 +617,38 @@ test: Add tests for StudentService
 
 ### Services Layer Pattern
 - **Location**: `/src/services/`
-- **File Count**: 28 services
+- **File Count**: 37 services
 - **Implementation**: Static class methods (no instantiation)
-- **Responsibility**: Firestore CRUD, business logic
+- **Responsibility**: Firestore CRUD, business logic, data transformations
 - **Return Type**: Promise<T> or void (no React hooks)
 - **Key Constraint**: No side effects, pure functions preferred
+- **Examples**: StudentService, ClassService, ContractService, LeaveRequestService, StaffService
 
 ### Hooks Layer Pattern
 - **Location**: `/src/hooks/`
-- **File Count**: 29 hooks
+- **File Count**: 35 hooks
 - **Implementation**: React custom hooks with useEffect
-- **Responsibility**: Real-time listeners, state management
+- **Responsibility**: Real-time listeners, state management, client-side filtering
 - **Return Pattern**: `{ data: T[], loading: boolean, error: string | null }`
 - **Key Constraint**: Must use onSnapshot for real-time updates
+- **Examples**: useStudents, useClasses, useLeaveRequests, useLeaveBalance, useContracts
 
 ### Pages Layer Pattern
 - **Location**: `/pages/`
-- **File Count**: 37 pages (7 domains)
+- **File Count**: 37 pages (8 domains)
 - **Implementation**: Functional React components
-- **Responsibility**: UI rendering, user interactions
+- **Responsibility**: UI rendering, user interactions, form handling
 - **Data Source**: Consume hooks exclusively
 - **Code Splitting**: All pages lazy-loaded with React.lazy()
+- **Domains**: Training, Customers, Business, HR, Finance, Reports, Settings, Core
+
+### Feature Modules Pattern
+- **Location**: `/src/features/`
+- **File Count**: 7 modules (classes, students, attendance, debt, reports)
+- **Implementation**: Encapsulated domain logic with hooks and components
+- **Responsibility**: Feature-specific state, complex UI, specialized operations
+- **Structure**: Each feature has hooks/, components/, index.ts
+- **Examples**: useClassManager, useStudentManager, ClassFormModal, EnrollmentModal
 
 ## Critical Pattern Violations to Avoid
 

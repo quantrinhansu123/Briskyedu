@@ -13,7 +13,7 @@ export type UserRole =
   | 'tro_giang';      // Trợ giảng - Đào tạo
 
 // Định nghĩa các Module
-export type ModuleKey = 
+export type ModuleKey =
   | 'dashboard'
   | 'classes'
   | 'schedule'
@@ -34,6 +34,7 @@ export type ModuleKey =
   | 'staff'
   | 'salary_config'
   | 'work_confirmation'
+  | 'leave_request'
   | 'salary_teacher'
   | 'salary_staff'
   | 'contracts'
@@ -86,6 +87,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     staff: { view: true, create: true, edit: true, delete: true },
     salary_config: { view: true, create: true, edit: true, delete: true },
     work_confirmation: { view: true, create: true, edit: true, delete: true, approve: true },
+    leave_request: { view: true, create: true, edit: true, delete: true, approve: true },
     salary_teacher: { view: true, create: true, edit: true, delete: true },
     salary_staff: { view: true, create: true, edit: true, delete: true },
     contracts: { view: true, create: true, edit: true, delete: true },
@@ -121,6 +123,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     staff: { view: true, create: false, edit: false, delete: false }, // Chỉ xem
     salary_config: { view: false, create: false, edit: false, delete: false }, // Ẩn
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true }, // Duyệt công GV
+    leave_request: { view: true, create: true, edit: true, delete: false, approve: true }, // Duyệt nghỉ phép
     salary_teacher: { view: false, create: false, edit: false, delete: false }, // Ẩn
     salary_staff: { view: false, create: false, edit: false, delete: false }, // Ẩn
     contracts: { view: true, create: true, edit: true, delete: false },
@@ -156,6 +159,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     staff: { view: true, create: false, edit: false, delete: false },
     salary_config: { view: true, create: true, edit: true, delete: false },
     work_confirmation: { view: true, create: false, edit: false, delete: false },
+    leave_request: { view: true, create: true, edit: false, delete: false }, // Xem tất cả, tạo riêng
     salary_teacher: { view: true, create: true, edit: true, delete: false },
     salary_staff: { view: true, create: true, edit: true, delete: false },
     contracts: { view: true, create: true, edit: true, delete: false },
@@ -191,6 +195,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     staff: { view: true, create: false, edit: false, delete: false }, // Chỉ xem
     salary_config: { view: false, create: false, edit: false, delete: false }, // Ẩn
     work_confirmation: { view: true, create: true, edit: false, delete: false }, // Xác nhận công của mình
+    leave_request: { view: true, create: true, edit: false, delete: false }, // Xem riêng, tạo nghỉ phép
     salary_teacher: { view: true, create: false, edit: false, delete: false }, // Chỉ xem lương của mình
     salary_staff: { view: false, create: false, edit: false, delete: false }, // Ẩn
     contracts: { view: false, create: false, edit: false, delete: false }, // Ẩn

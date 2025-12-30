@@ -8,12 +8,13 @@ EduManager Pro is a comprehensive web-based application for Vietnamese language 
 
 | Metric | Value | Location |
 |--------|-------|----------|
-| **Pages** | 36 | 7 domains |
-| **Services** | 28 | Static class methods |
-| **Hooks** | 27 | Real-time listeners |
-| **Collections** | 35 | Firestore |
-| **Cloud Functions** | 8 | Serverless triggers |
+| **Pages** | 37 | 8 domains |
+| **Services** | 37 | Static class methods |
+| **Hooks** | 35 | Real-time listeners |
+| **Collections** | 36+ | Firestore |
+| **Cloud Functions** | 11 | Serverless triggers + utilities |
 | **Test Coverage** | 155+ tests | Unit, integration |
+| **Feature Modules** | 7 | Encapsulated domain logic |
 
 ## Key Features
 
@@ -86,9 +87,10 @@ For production deployment guide, see `docs/deployment-guide.md`.
 
 EduManager Pro uses a strict **three-layer architecture**:
 
-1. **Services** (`src/services/` - 28 files): Firestore CRUD with static methods
-2. **Hooks** (`src/hooks/` - 27 files): Real-time listeners with `onSnapshot`
-3. **Pages** (`pages/` - 36 files): UI components consuming hooks
+1. **Services** (`src/services/` - 37 files): Firestore CRUD with static methods
+2. **Hooks** (`src/hooks/` - 35 files): Real-time listeners with `onSnapshot`
+3. **Pages** (`pages/` - 37 files): UI components consuming hooks
+4. **Features** (`src/features/` - 7 modules): Domain-specific encapsulated logic
 
 This pattern ensures clean separation of concerns and maintainable code.
 

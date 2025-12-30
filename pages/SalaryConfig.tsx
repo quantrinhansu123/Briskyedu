@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, X, DollarSign, Calendar, User, Building, Clock, Save } from 'lucide-react';
+import { Plus, Trash2, X, DollarSign, Calendar, User, Building, Clock, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { useSalaryConfig } from '../src/hooks/useSalaryConfig';
 import { 
   SalaryRule, 
@@ -91,6 +91,9 @@ export const SalaryConfig: React.FC = () => {
   // Modal state
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Grouped view state for saved configs
+  const [expandedStaff, setExpandedStaff] = useState<Set<string>>(new Set());
 
   // Normalize position for display
   const normalizePosition = (pos: string): string => {
@@ -275,6 +278,52 @@ export const SalaryConfig: React.FC = () => {
     const classTotal = classConfigs.reduce((sum, cfg) => sum + cfg.ratePerUnit, 0);
     return fixedSalary + allowance + classTotal;
   }, [classConfigs, fixedSalary, allowance]);
+
+  // Group salary rules by staffId for collapsed view
+  const groupedSalaryRules = useMemo(() => {
+    const groups: Record<string, {
+      staffId: string;
+      staffName: string;
+      position: string;
+      rules: typeof salaryRules;
+      totalClasses: number;
+    }> = {};
+
+    salaryRules.forEach(rule => {
+      const key = rule.staffId || rule.staffName; // Use staffId if available, else staffName
+      if (!groups[key]) {
+        groups[key] = {
+          staffId: rule.staffId || '',
+          staffName: rule.staffName || '',
+          position: rule.position || '',
+          rules: [],
+          totalClasses: 0,
+        };
+      }
+      groups[key].rules.push(rule);
+      if (rule.className) {
+        groups[key].totalClasses++;
+      }
+    });
+
+    // Sort by staff name
+    return Object.values(groups).sort((a, b) =>
+      a.staffName.localeCompare(b.staffName, 'vi')
+    );
+  }, [salaryRules]);
+
+  // Toggle expand/collapse for a staff group
+  const toggleStaffExpand = (staffId: string) => {
+    setExpandedStaff(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(staffId)) {
+        newSet.delete(staffId);
+      } else {
+        newSet.add(staffId);
+      }
+      return newSet;
+    });
+  };
 
   // Handle staff select
   const handleStaffSelect = (staffId: string) => {
@@ -691,86 +740,123 @@ export const SalaryConfig: React.FC = () => {
         </div>
       </div>
 
-      {/* Existing Configurations Table */}
+      {/* Existing Configurations Table - Grouped by Staff */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="bg-orange-100/50 px-4 py-3 font-bold text-gray-800 border-b border-gray-200">
-          Danh sách cấu hình lương đã lưu
+        <div className="bg-orange-100/50 px-4 py-3 font-bold text-gray-800 border-b border-gray-200 flex items-center justify-between">
+          <span>Danh sách cấu hình lương đã lưu</span>
+          <span className="text-sm font-normal text-gray-500">
+            {groupedSalaryRules.length} nhân viên • {salaryRules.length} cấu hình
+          </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500">
-              <tr>
-                <th className="px-4 py-3">No</th>
-                <th className="px-4 py-3">Tên Nhân Viên</th>
-                <th className="px-4 py-3">Vai Trò</th>
-                <th className="px-4 py-3">Lớp/Loại</th>
-                <th className="px-4 py-3 text-right">Mức Lương</th>
-                <th className="px-4 py-3">Đơn Vị</th>
-                <th className="px-4 py-3">Ngày Hiệu Lực</th>
-                <th className="px-4 py-3 text-center">Xóa</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rulesLoading ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
-                      Đang tải...
-                    </div>
-                  </td>
-                </tr>
-              ) : salaryRules.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-400">
-                    <DollarSign size={48} className="mx-auto mb-2 opacity-20" />
-                    Chưa có cấu hình lương nào
-                  </td>
-                </tr>
-              ) : salaryRules.map((rule, idx) => (
-                <tr key={rule.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">{idx + 1}</td>
-                  <td className="px-4 py-3 font-medium">{rule.staffName}</td>
-                  <td className="px-4 py-3">
+        <div className="divide-y divide-gray-100">
+          {rulesLoading ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                Đang tải...
+              </div>
+            </div>
+          ) : groupedSalaryRules.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <DollarSign size={48} className="mx-auto mb-2 opacity-20" />
+              Chưa có cấu hình lương nào
+            </div>
+          ) : (
+            groupedSalaryRules.map((group, idx) => {
+              const isExpanded = expandedStaff.has(group.staffId || group.staffName);
+              const groupKey = group.staffId || group.staffName;
+
+              return (
+                <div key={groupKey}>
+                  {/* Staff Header Row - Clickable to expand/collapse */}
+                  <button
+                    onClick={() => toggleStaffExpand(groupKey)}
+                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    {/* Expand/Collapse Icon */}
+                    <span className="text-gray-400">
+                      {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    </span>
+
+                    {/* Number */}
+                    <span className="text-gray-500 text-sm w-6">{idx + 1}</span>
+
+                    {/* Staff Name */}
+                    <span className="font-medium text-gray-900 min-w-[160px]">{group.staffName}</span>
+
+                    {/* Role Badge */}
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      rule.position === 'Giáo Viên Việt' ? 'bg-blue-100 text-blue-700' :
-                      rule.position === 'Giáo Viên Nước Ngoài' ? 'bg-purple-100 text-purple-700' :
-                      rule.position === 'Trợ Giảng' ? 'bg-green-100 text-green-700' :
-                      rule.position === 'Nhân viên' ? 'bg-amber-100 text-amber-700' :
-                      rule.position === 'Văn phòng' ? 'bg-slate-100 text-slate-700' :
-                      rule.position === 'Sale' ? 'bg-pink-100 text-pink-700' :
+                      group.position === 'Giáo Viên Việt' ? 'bg-blue-100 text-blue-700' :
+                      group.position === 'Giáo Viên Nước Ngoài' ? 'bg-purple-100 text-purple-700' :
+                      group.position === 'Trợ Giảng' ? 'bg-green-100 text-green-700' :
+                      group.position === 'Nhân viên' ? 'bg-amber-100 text-amber-700' :
+                      group.position === 'Văn phòng' ? 'bg-slate-100 text-slate-700' :
+                      group.position === 'Sale' ? 'bg-pink-100 text-pink-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
-                      {rule.position}
+                      {group.position}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {rule.className || (
-                      <span className="text-gray-400 italic">Lương cố định</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-indigo-600">
-                    {rule.ratePerSession > 0
-                      ? formatCurrency(rule.ratePerSession)
-                      : rule.baseRate > 0
-                        ? formatCurrency(rule.baseRate)
-                        : '-'
-                    }
-                  </td>
-                  <td className="px-4 py-3">{rule.className ? (rule.salaryMethod === 'Theo giờ' ? 'Giờ' : 'Ca') : 'Tháng'}</td>
-                  <td className="px-4 py-3">{rule.effectiveDate}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => rule.id && deleteRule(rule.id)}
-                      className="text-gray-400 hover:text-red-600"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+                    {/* Classes Count */}
+                    <span className="text-gray-500 text-sm ml-auto">
+                      {group.totalClasses > 0 ? `${group.totalClasses} lớp` : 'Lương cố định'}
+                    </span>
+                  </button>
+
+                  {/* Expanded Detail Table */}
+                  {isExpanded && (
+                    <div className="bg-gray-50 border-t border-gray-100">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 text-xs uppercase font-semibold text-gray-500">
+                          <tr>
+                            <th className="px-4 py-2 pl-12 text-left">Lớp/Loại</th>
+                            <th className="px-4 py-2 text-right">Mức Lương</th>
+                            <th className="px-4 py-2 text-center">Đơn Vị</th>
+                            <th className="px-4 py-2 text-left">Ngày Hiệu Lực</th>
+                            <th className="px-4 py-2 text-center">Xóa</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {group.rules.map((rule) => (
+                            <tr key={rule.id} className="hover:bg-white">
+                              <td className="px-4 py-2 pl-12">
+                                {rule.className || (
+                                  <span className="text-gray-400 italic">Lương cố định</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-right font-bold text-indigo-600">
+                                {rule.ratePerSession > 0
+                                  ? formatCurrency(rule.ratePerSession)
+                                  : rule.baseRate > 0
+                                    ? formatCurrency(rule.baseRate)
+                                    : '-'
+                                }
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                {rule.className ? (rule.salaryMethod === 'Theo giờ' ? 'Giờ' : 'Ca') : 'Tháng'}
+                              </td>
+                              <td className="px-4 py-2">{rule.effectiveDate}</td>
+                              <td className="px-4 py-2 text-center">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    rule.id && deleteRule(rule.id);
+                                  }}
+                                  className="text-gray-400 hover:text-red-600"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

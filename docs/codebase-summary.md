@@ -12,39 +12,40 @@ EduManager Pro is a comprehensive education center management system designed fo
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Functions, Storage, Hosting)
 -   **Routing**: react-router-dom 7 with HashRouter
 
-## 📊 Codebase Statistics (Latest Audit: Dec 28, 2025)
+## 📊 Codebase Statistics (Latest Audit: Dec 30, 2025)
 
 | Component | Count | Location |
 |-----------|-------|----------|
-| **Pages** | 36 | `/pages/` (7 domains) |
-| **Services** | 29 | `/src/services/` (static class methods) |
-| **Hooks** | 28 | `/src/hooks/` (real-time listeners) |
+| **Pages** | 37 | `/pages/` (8 domains) |
+| **Services** | 37 | `/src/services/` (static class methods) |
+| **Hooks** | 35 | `/src/hooks/` (real-time listeners) |
 | **Utilities** | 12 | `/src/utils/` |
-| **Shared Components** | 5 | `/components/` |
-| **Cloud Functions** | 8 | `/functions/src/triggers/` |
-| **Firestore Collections** | 36 | Multiple domains |
-| **TypeScript Interfaces** | 28 | `types.ts` (single source of truth) |
-| **TypeScript Enums** | 9 | `types.ts` |
+| **Shared Components** | 6 | `/components/` |
+| **Cloud Functions** | 11 | `/functions/src/triggers/` + utilities |
+| **Feature Modules** | 7 | `/src/features/` with specialized logic |
+| **Firestore Collections** | 36+ | Multiple domains |
+| **TypeScript Interfaces** | 28+ | `types.ts` (single source of truth) |
+| **TypeScript Enums** | 9+ | `types.ts` |
 | **Test Files** | 155+ | Unit, integration, utilities |
-| **Maintenance Scripts** | 18 | `/scripts/` (data seeding, consistency checks) |
+| **Maintenance Scripts** | 18+ | `/scripts/` (data seeding, consistency checks) |
 
 ## 🧩 Domain-Based Module Structure
 
-The application is organized into 7 functional domains with 36 pages distributed across them:
+The application is organized into 8 functional domains with 37 pages distributed across them:
 
 | Domain | Pages | Key Features |
 |--------|-------|--------------|
 | **Training** | 7 | Classes, Schedule, Attendance, Tutoring, Homework, Holidays, AttendanceHistory |
 | **Customers** | 7 | Students, StudentDetail, Parents, Feedback, Trial, Database, EnrollmentHistory |
-| **Business** | 2 | Campaigns, Leads (CRM) |
-| **HR** | 6 | Staff, SalaryConfig, WorkConfirmation, SalaryReports (Teacher/Staff), Rewards |
-| **Finance** | 6 | ContractList, ContractCreate, Invoices, Debt, Revenue, EnrollmentSync |
+| **Business** | 2 | Campaigns, CRM |
+| **HR** | 7 | Staff, SalaryConfig, WorkConfirmation, SalaryReports (Teacher/Staff), LeaveRequests, Rewards, Penalties |
+| **Finance** | 6 | ContractList, ContractCreate, Invoices, Debt, Revenue, Enrollment |
 | **Reports** | 2 | Training, Monthly |
-| **Settings** | 4 | Products, Rooms, Curriculum, Center |
+| **Settings** | 5 | Products, Rooms, Curriculum, Center, Inventory |
 | **Core** | 2 | Dashboard, Login |
-| **Total** | **36** | |
+| **Total** | **37** | |
 
-**Architecture Pattern**: Each domain has corresponding services in `/src/services/` (28 total) for CRUD operations and hooks in `/src/hooks/` (27 total) for real-time listeners.
+**Architecture Pattern**: Each domain has corresponding services in `/src/services/` (37 total) for CRUD operations and hooks in `/src/hooks/` (35 total) for real-time listeners. Complex features use `/src/features/` modules for encapsulated domain logic.
 
 ## 🏗️ Architectural Patterns
 
@@ -52,24 +53,26 @@ The application is organized into 7 functional domains with 36 pages distributed
 
 The application strictly follows a 3-layer pattern for clear separation of concerns:
 
-1. **Services Layer** (`src/services/` - 28 files)
+1. **Services Layer** (`src/services/` - 37 files)
    - Static class methods (no instantiation)
    - Firestore CRUD operations and complex business logic
    - Returns plain data or promises (no React hooks)
-   - Example: `StudentService.getStudents()`, `ClassService.updateClass()`
+   - Includes specialized services: StudentService, ClassService, StaffService, ContractService, PermissionService, LeaveRequestService, etc.
+   - Example: `StudentService.getStudents()`, `ClassService.updateClass()`, `LeaveRequestService.createRequest()`
 
-2. **Hooks Layer** (`src/hooks/` - 29 files)
+2. **Hooks Layer** (`src/hooks/` - 35 files)
    - React custom hooks wrapping services
    - Real-time listeners using `onSnapshot` for dynamic updates
    - Returns `{ data, loading, error }` pattern
    - Client-side filtering and state management
-   - Example: `useStudents()`, `useClasses()`
+   - Specialized hooks: useStudents, useClasses, useStaff, useContracts, useLeaveRequests, useLeaveBalance, etc.
+   - Example: `useStudents()`, `useClasses()`, `useLeaveRequests()`
 
 3. **Pages Layer** (`pages/` - 37 files)
    - UI components consuming hooks for data
    - User interactions and form handling
    - Lazy-loaded for performance optimization
-   - Domain-based organization (7 domains)
+   - Domain-based organization (8 domains)
 
 ### Complementary Patterns
 
@@ -79,14 +82,29 @@ The application strictly follows a 3-layer pattern for clear separation of conce
 -   **Lazy Loading**: All page components are lazy-loaded to optimize performance
 -   **Single Source of Truth**: All types in `types.ts` (27 interfaces, 9 enums)
 
-## ☁️ Cloud Functions (8 Triggers)
+## ☁️ Cloud Functions (11 Total)
 
-Serverless functions in `/functions/src/triggers/` for automation and backend operations:
-- Scheduled tasks for data synchronization
-- Webhook processors for external integrations
+Serverless functions in `/functions/src/triggers/` and utilities for automation and backend operations:
+
+**Triggers (9):**
+- `onClassCreate/Update/Delete` - Class management with real-time updates
+- `onStudentCreate/Update/Delete` - Student record synchronization
+- `onContractCreate/Update` - Contract enrollment tracking
+- `onAttendanceWrite` - Real-time attendance updates
+- `onSessionComplete` - Work session completion and salary calculation
+- `onHolidayUpdate` - Holiday period management
+- `homeworkTriggers` - Homework assignment tracking
+- `staffTriggers` - Staff account and permission management
+
+**Utilities (2):**
 - Batch operations (bulk updates, exports)
+- Schedule parsers for class timing
+
+**Features:**
 - Event-driven triggers (student enrollment, attendance changes)
 - Background processing for reports and notifications
+- Automatic data consistency maintenance
+- Real-time synchronization across collections
 
 ## ⚠️ Recent Changes & Quality Assessment
 

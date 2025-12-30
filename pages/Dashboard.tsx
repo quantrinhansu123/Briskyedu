@@ -6,9 +6,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  BookOpen, 
+import {
+  Users,
+  BookOpen,
   TrendingUp,
   Gift,
   Package,
@@ -27,7 +27,11 @@ import {
   Cake,
   Box,
   ChevronRight,
-  Activity
+  Activity,
+  CalendarCheck,
+  AlertTriangle,
+  CheckSquare,
+  Clock
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -50,6 +54,7 @@ import { seedAllData, clearAllData } from '../scripts/seedAllData';
 import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { useProducts } from '../src/hooks/useProducts';
 import { usePermissions } from '../src/hooks/usePermissions';
+import { useAuth } from '../src/hooks/useAuth';
 
 // Warm Education Color Palette - Teal & Coral Theme
 const COLORS = {
@@ -103,11 +108,16 @@ interface DashboardStats {
   upcomingBirthdays: { name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
   studentBirthdays: { id: string; name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
   classStats: { name: string; count: number }[];
+  // Phase 3: New widgets data
+  myWorkDays: number; // Số ngày công tháng này
+  studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number }[]; // DS sắp hết phí
+  studentsWithDebt: { id: string; fullName: string; className: string; status: string }[]; // DS nợ phí
 }
 
 export const Dashboard: React.FC = () => {
   // Permission check for revenue visibility
   const { canSeeRevenue, isTeacher } = usePermissions();
+  const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
@@ -127,7 +137,14 @@ export const Dashboard: React.FC = () => {
     upcomingBirthdays: [],
     studentBirthdays: [],
     classStats: [],
+    // Phase 3: New widgets
+    myWorkDays: 0,
+    studentsExpiringSoon: [],
+    studentsWithDebt: [],
   });
+
+  // Phase 3: Checklist state
+  const [checklistItems, setChecklistItems] = useState<{ id: string; task: string; count: number; done: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth] = useState('Tháng hiện tại');
   
@@ -492,7 +509,59 @@ export const Dashboard: React.FC = () => {
         { position: 'Tổng', amount: tongLuong },
       ];
       const salaryPercent = totalRevenue > 0 ? Math.round((tongLuong / totalRevenue) * 100 * 100) / 100 : 0;
-      
+
+      // ========================================
+      // Phase 3: New widgets data calculation
+      // ========================================
+
+      // Widget 1: Số ngày công của tháng (current user)
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const currentUserId = user?.staffData?.id || user?.uid || '';
+
+      const myWorkDays = workSessions.filter((ws: any) => {
+        const wsDate = ws.date ? new Date(ws.date) : null;
+        if (!wsDate) return false;
+        return (
+          ws.staffId === currentUserId &&
+          ws.status === 'Đã xác nhận' &&
+          wsDate.getMonth() === currentMonth &&
+          wsDate.getFullYear() === currentYear
+        );
+      }).length;
+
+      // Widget 2: DS Học Sinh sắp hết phí (remainingSessions <= 5)
+      const EXPIRY_THRESHOLD = 5;
+      const studentsExpiringSoon = students
+        .filter((s: any) =>
+          s.status === 'Đang học' &&
+          s.remainingSessions !== undefined &&
+          s.remainingSessions <= EXPIRY_THRESHOLD &&
+          s.remainingSessions > 0
+        )
+        .map((s: any) => ({
+          id: s.id,
+          fullName: s.fullName || s.name || '',
+          className: s.currentClassName || s.className || s.class || '-',
+          remainingSessions: s.remainingSessions,
+        }))
+        .sort((a: any, b: any) => a.remainingSessions - b.remainingSessions);
+
+      // Widget 3: DS Học Sinh Nợ Phí
+      const studentsWithDebt = students
+        .filter((s: any) =>
+          s.hasDebt === true || s.status === 'Nợ phí' ||
+          (s.remainingSessions !== undefined && s.remainingSessions < 0)
+        )
+        .map((s: any) => ({
+          id: s.id,
+          fullName: s.fullName || s.name || '',
+          className: s.currentClassName || s.className || s.class || '-',
+          status: s.status || 'Nợ phí',
+        }));
+
+      // ========================================
+
       // Chỉ số sức khỏe doanh nghiệp - tính từ dữ liệu thực
       const activeStudents = students.filter((s: any) => s.status === 'Đang học').length;
       const debtStudents = students.filter((s: any) => s.hasDebt || s.status === 'Nợ phí').length;
@@ -554,9 +623,9 @@ export const Dashboard: React.FC = () => {
         avgPerClass: Number(avgPerClass),
         studentsByStatus,
         revenueData,
-        debtStats: { 
-          noPhi: Math.round(totalDebt * 0.6), 
-          noHocPhi: Math.round(totalDebt * 0.4) 
+        debtStats: {
+          noPhi: Math.round(totalDebt * 0.6),
+          noHocPhi: Math.round(totalDebt * 0.4)
         },
         totalRevenue,
         totalDebt,
@@ -569,7 +638,24 @@ export const Dashboard: React.FC = () => {
         upcomingBirthdays,
         studentBirthdays,
         classStats,
+        // Phase 3: New widgets
+        myWorkDays,
+        studentsExpiringSoon,
+        studentsWithDebt,
       });
+
+      // Phase 3: Widget 4 - Auto-generated checklist
+      const birthdaysToday = studentBirthdays.filter((b: any) => {
+        const [day, month] = b.date.split('/').map(Number);
+        return day === now.getDate() && month === now.getMonth() + 1;
+      }).length;
+
+      setChecklistItems([
+        { id: '1', task: 'Nhắc HS sắp hết phí', count: studentsExpiringSoon.length, done: false },
+        { id: '2', task: 'Nhắc HS nợ phí', count: studentsWithDebt.length, done: false },
+        { id: '3', task: 'Chúc mừng sinh nhật HS', count: birthdaysToday, done: false },
+        { id: '4', task: 'Xác nhận công GV', count: workSessions.filter((ws: any) => ws.status === 'Chờ xác nhận').length, done: false },
+      ]);
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -598,8 +684,13 @@ export const Dashboard: React.FC = () => {
         upcomingBirthdays: [],
         studentBirthdays: [],
         classStats: [],
+        // Phase 3: New widgets
+        myWorkDays: 0,
+        studentsExpiringSoon: [],
+        studentsWithDebt: [],
       });
       setRevenuePieData([]);
+      setChecklistItems([]);
     } finally {
       setLoading(false);
     }
@@ -1253,6 +1344,141 @@ export const Dashboard: React.FC = () => {
 
         {/* Common Widgets Section - All office staff can see (not teachers) */}
         {!isTeacher && (
+        <>
+        {/* Phase 3: New Widgets Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+          {/* Widget 1: Số ngày công */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg shadow-slate-200/50 border border-white/60 hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg shadow-emerald-500/30">
+                <CalendarCheck className="text-white" size={22} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">Ngày công tháng này</h3>
+                <span className="text-xs text-gray-500">Đã xác nhận</span>
+              </div>
+            </div>
+            <div className="text-center py-4">
+              <span className="text-5xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">{stats.myWorkDays}</span>
+              <span className="text-gray-500 ml-2 text-lg">ngày</span>
+            </div>
+          </div>
+
+          {/* Widget 2: DS sắp hết phí */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="text-white" size={18} />
+                <h3 className="font-bold text-white text-sm">Sắp hết phí ({stats.studentsExpiringSoon.length})</h3>
+              </div>
+            </div>
+            <div className="p-3 max-h-48 overflow-y-auto">
+              {stats.studentsExpiringSoon.length > 0 ? (
+                <table className="w-full text-xs">
+                  <thead className="bg-amber-50 sticky top-0">
+                    <tr>
+                      <th className="text-left py-1.5 px-2">Học viên</th>
+                      <th className="text-right py-1.5 px-2">Còn</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.studentsExpiringSoon.slice(0, 10).map(s => (
+                      <tr key={s.id} className="border-b border-gray-100 hover:bg-amber-50/50">
+                        <td className="py-1.5 px-2 truncate max-w-[120px]" title={s.fullName}>{s.fullName}</td>
+                        <td className="py-1.5 px-2 text-right font-bold text-amber-600">{s.remainingSessions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <AlertTriangle size={24} className="mx-auto mb-1 opacity-30" />
+                  <span className="text-xs">Không có HS sắp hết phí</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Widget 3: DS Nợ Phí */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-rose-100/30 transition-all duration-300">
+            <div className="bg-gradient-to-r from-rose-500 to-red-500 p-3">
+              <div className="flex items-center gap-2">
+                <Clock className="text-white" size={18} />
+                <h3 className="font-bold text-white text-sm">Nợ phí ({stats.studentsWithDebt.length})</h3>
+              </div>
+            </div>
+            <div className="p-3 max-h-48 overflow-y-auto">
+              {stats.studentsWithDebt.length > 0 ? (
+                <table className="w-full text-xs">
+                  <thead className="bg-rose-50 sticky top-0">
+                    <tr>
+                      <th className="text-left py-1.5 px-2">Học viên</th>
+                      <th className="text-right py-1.5 px-2">Lớp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.studentsWithDebt.slice(0, 10).map(s => (
+                      <tr key={s.id} className="border-b border-gray-100 hover:bg-rose-50/50">
+                        <td className="py-1.5 px-2 truncate max-w-[120px]" title={s.fullName}>{s.fullName}</td>
+                        <td className="py-1.5 px-2 text-right text-gray-500 truncate max-w-[80px]" title={s.className}>{s.className}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <Clock size={24} className="mx-auto mb-1 opacity-30" />
+                  <span className="text-xs">Không có HS nợ phí</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Widget 4: Checklist công việc */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-indigo-100/30 transition-all duration-300">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="text-white" size={18} />
+                <h3 className="font-bold text-white text-sm">Việc cần làm hôm nay</h3>
+              </div>
+            </div>
+            <div className="p-3">
+              {checklistItems.length > 0 ? (
+                <div className="space-y-2">
+                  {checklistItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        onChange={() => {
+                          setChecklistItems(prev =>
+                            prev.map(i => i.id === item.id ? { ...i, done: !i.done } : i)
+                          );
+                        }}
+                        className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                      />
+                      <span className={`flex-1 text-xs ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                        {item.task}
+                      </span>
+                      {item.count > 0 && (
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                          {item.count}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <CheckSquare size={24} className="mx-auto mb-1 opacity-30" />
+                  <span className="text-xs">Không có việc cần làm</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Existing Widgets Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           {/* Left Column - Products */}
           <div className="space-y-6">
@@ -1473,6 +1699,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        </>
         )}
       </div>
 

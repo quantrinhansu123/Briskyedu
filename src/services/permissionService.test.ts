@@ -255,15 +255,15 @@ describe('Permission Service', () => {
       expect(canEdit(role, 'salary_config')).toBe(true);
     });
 
-    it('should have full access to invoices', () => {
+    it('should have view/create/edit access to invoices but NOT delete (Gap #18)', () => {
       expect(canView(role, 'invoices')).toBe(true);
       expect(canCreate(role, 'invoices')).toBe(true);
       expect(canEdit(role, 'invoices')).toBe(true);
-      expect(canDelete(role, 'invoices')).toBe(true);
+      expect(canDelete(role, 'invoices')).toBe(false); // Gap #18: NO DELETE
     });
 
-    it('should not access attendance', () => {
-      expect(canView(role, 'attendance')).toBe(false);
+    it('should have access to attendance (Gap #15 - Đào Tạo operations)', () => {
+      expect(canView(role, 'attendance')).toBe(true);
     });
 
     it('should not access leads/campaigns', () => {
@@ -529,6 +529,155 @@ describe('Permission Service', () => {
       it('admin has full edit on leads (no onlyUpdateStatus)', () => {
         expect(canEdit('admin', 'leads')).toBe(true);
         expect(shouldOnlyUpdateStatus('admin', 'leads')).toBe(false);
+      });
+    });
+  });
+
+  // ========================================
+  // CM_LEAD Permission Gaps Fix Tests
+  // Based on spec analysis: 251231-cm-ketoan-permission-gaps-analysis.md
+  // ========================================
+  describe('CM_LEAD Permission Gaps Fix', () => {
+    const role: UserRole = 'cm_lead';
+
+    describe('Gaps #1-2: Kinh Doanh hidden', () => {
+      it('should NOT view leads', () => {
+        expect(canView(role, 'leads')).toBe(false);
+      });
+      it('should NOT view campaigns', () => {
+        expect(canView(role, 'campaigns')).toBe(false);
+      });
+    });
+
+    describe('Gap #3: staff hidden', () => {
+      it('should NOT view staff', () => {
+        expect(canView(role, 'staff')).toBe(false);
+      });
+    });
+
+    describe('Gap #4: salary_teacher with onlyOwnData', () => {
+      it('should view salary_teacher with onlyOwnData', () => {
+        expect(canView(role, 'salary_teacher')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+      });
+    });
+
+    describe('Gap #5: Tài Chính hidden', () => {
+      it('should NOT view contracts', () => {
+        expect(canView(role, 'contracts')).toBe(false);
+      });
+      it('should NOT view invoices', () => {
+        expect(canView(role, 'invoices')).toBe(false);
+      });
+      it('should NOT view revenue', () => {
+        expect(canView(role, 'revenue')).toBe(false);
+      });
+      it('should NOT view debt', () => {
+        expect(canView(role, 'debt')).toBe(false);
+      });
+    });
+
+    describe('Gap #6: reports_finance hidden', () => {
+      it('should NOT view reports_finance', () => {
+        expect(canView(role, 'reports_finance')).toBe(false);
+      });
+    });
+  });
+
+  // ========================================
+  // CM_STAFF Permission Gaps Fix Tests
+  // Based on spec analysis: 251231-cm-ketoan-permission-gaps-analysis.md
+  // ========================================
+  describe('CM_STAFF Permission Gaps Fix', () => {
+    const role: UserRole = 'cm_staff';
+
+    describe('Gaps #7-8: Kinh Doanh hidden', () => {
+      it('should NOT view leads', () => {
+        expect(canView(role, 'leads')).toBe(false);
+      });
+      it('should NOT view campaigns', () => {
+        expect(canView(role, 'campaigns')).toBe(false);
+      });
+    });
+
+    describe('Gap #9: staff hidden', () => {
+      it('should NOT view staff', () => {
+        expect(canView(role, 'staff')).toBe(false);
+      });
+    });
+
+    describe('Gap #10: salary_teacher with onlyOwnData', () => {
+      it('should view salary_teacher with onlyOwnData', () => {
+        expect(canView(role, 'salary_teacher')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+      });
+    });
+
+    describe('Gap #11: Tài Chính hidden', () => {
+      it('should NOT view contracts', () => {
+        expect(canView(role, 'contracts')).toBe(false);
+      });
+      it('should NOT view invoices', () => {
+        expect(canView(role, 'invoices')).toBe(false);
+      });
+      it('should NOT view debt', () => {
+        expect(canView(role, 'debt')).toBe(false);
+      });
+    });
+  });
+
+  // ========================================
+  // KETOAN Permission Gaps Fix Tests
+  // Based on spec analysis: 251231-cm-ketoan-permission-gaps-analysis.md
+  // ========================================
+  describe('KETOAN Permission Gaps Fix', () => {
+    const role: UserRole = 'ketoan';
+
+    describe('Gaps #12-14: Đào Tạo management full access', () => {
+      it('should have full access to classes', () => {
+        expect(canView(role, 'classes')).toBe(true);
+        expect(canCreate(role, 'classes')).toBe(true);
+        expect(canEdit(role, 'classes')).toBe(true);
+      });
+      it('should have full access to schedule', () => {
+        expect(canView(role, 'schedule')).toBe(true);
+        expect(canCreate(role, 'schedule')).toBe(true);
+        expect(canEdit(role, 'schedule')).toBe(true);
+      });
+      it('should have full access to holidays', () => {
+        expect(canView(role, 'holidays')).toBe(true);
+        expect(canCreate(role, 'holidays')).toBe(true);
+        expect(canEdit(role, 'holidays')).toBe(true);
+      });
+    });
+
+    describe('Gaps #15-17: Đào Tạo operations full access', () => {
+      it('should have full access to attendance', () => {
+        expect(canView(role, 'attendance')).toBe(true);
+        expect(canCreate(role, 'attendance')).toBe(true);
+      });
+      it('should have full access to tutoring', () => {
+        expect(canView(role, 'tutoring')).toBe(true);
+        expect(canCreate(role, 'tutoring')).toBe(true);
+      });
+      it('should have full access to homework', () => {
+        expect(canView(role, 'homework')).toBe(true);
+        expect(canCreate(role, 'homework')).toBe(true);
+      });
+    });
+
+    describe('Gap #18: invoices no delete', () => {
+      it('should view/create/edit invoices but NOT delete', () => {
+        expect(canView(role, 'invoices')).toBe(true);
+        expect(canCreate(role, 'invoices')).toBe(true);
+        expect(canEdit(role, 'invoices')).toBe(true);
+        expect(canDelete(role, 'invoices')).toBe(false);
+      });
+    });
+
+    describe('Gap #19: reports_training visible', () => {
+      it('should view reports_training', () => {
+        expect(canView(role, 'reports_training')).toBe(true);
       });
     });
   });

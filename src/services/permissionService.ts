@@ -196,7 +196,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
 
   // ========================================
   // CM_LEAD - Trưởng Nhóm Chuyên Môn (Văn phòng)
-  // Same permissions as cskh_lead
+  // Gap fixes: #1 leads, #2 campaigns, #3 staff, #4 salary_teacher, #5 finance, #6 reports_finance
   // ========================================
   cm_lead: {
     dashboard: { view: true, create: false, edit: false, delete: false },
@@ -214,20 +214,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     students_trial: { view: true, create: true, edit: true, delete: false },
     parents: { view: true, create: true, edit: true, delete: false },
     feedback: { view: true, create: true, edit: true, delete: false },
-    leads: { view: true, create: true, edit: true, delete: false },
-    campaigns: { view: true, create: true, edit: true, delete: false },
-    staff: { view: true, create: false, edit: false, delete: false },
+    leads: { view: false, create: false, edit: false, delete: false }, // Gap #1: Hide Kinh Doanh
+    campaigns: { view: false, create: false, edit: false, delete: false }, // Gap #2: Hide Kinh Doanh
+    staff: { view: false, create: false, edit: false, delete: false }, // Gap #3: Hide staff list
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: true },
-    salary_teacher: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #4: View own salary
     salary_staff: { view: false, create: false, edit: false, delete: false },
-    contracts: { view: true, create: true, edit: true, delete: false },
-    invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
-    revenue: { view: true, create: false, edit: false, delete: false }, // CAN SEE REVENUE
-    debt: { view: true, create: true, edit: true, delete: false },
+    contracts: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
+    invoices: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
+    revenue: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
+    debt: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
     reports_training: { view: true, create: false, edit: false, delete: false },
-    reports_finance: { view: true, create: false, edit: false, delete: false },
+    reports_finance: { view: false, create: false, edit: false, delete: false }, // Gap #6: Hide reports_finance
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -235,7 +235,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
 
   // ========================================
   // CM_STAFF - NV Chuyên Môn (Văn phòng)
-  // Same permissions as cskh_staff
+  // Gap fixes: #7 leads, #8 campaigns, #9 staff, #10 salary_teacher, #11 finance
   // ========================================
   cm_staff: {
     dashboard: { view: true, create: false, edit: false, delete: false },
@@ -253,18 +253,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     students_trial: { view: true, create: true, edit: true, delete: false },
     parents: { view: true, create: true, edit: true, delete: false },
     feedback: { view: true, create: true, edit: true, delete: false },
-    leads: { view: true, create: true, edit: true, delete: false },
-    campaigns: { view: true, create: true, edit: true, delete: false },
-    staff: { view: true, create: false, edit: false, delete: false },
+    leads: { view: false, create: false, edit: false, delete: false }, // Gap #7: Hide Kinh Doanh
+    campaigns: { view: false, create: false, edit: false, delete: false }, // Gap #8: Hide Kinh Doanh
+    staff: { view: false, create: false, edit: false, delete: false }, // Gap #9: Hide staff list
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: false },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: false },
-    salary_teacher: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #10: View own salary
     salary_staff: { view: false, create: false, edit: false, delete: false },
-    contracts: { view: true, create: true, edit: true, delete: false },
-    invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
+    contracts: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
+    invoices: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
     revenue: { view: false, create: false, edit: false, delete: false }, // CANNOT SEE REVENUE
-    debt: { view: true, create: true, edit: true, delete: false },
+    debt: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
@@ -352,17 +352,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
 
   // ========================================
   // KẾ TOÁN (Văn phòng)
+  // Gap fixes: #12-14 Đào Tạo mgmt, #15-17 Đào Tạo ops, #18 invoices no delete, #19 reports_training
   // ========================================
   ketoan: {
     dashboard: { view: true, create: false, edit: false, delete: false },
-    classes: { view: true, create: false, edit: false, delete: false },
-    schedule: { view: true, create: false, edit: false, delete: false },
-    holidays: { view: true, create: false, edit: false, delete: false },
-    attendance: { view: false, create: false, edit: false, delete: false },
-    attendance_history: { view: false, create: false, edit: false, delete: false },
+    classes: { view: true, create: true, edit: true, delete: false }, // Gap #12: Full Đào Tạo access
+    schedule: { view: true, create: true, edit: true, delete: false }, // Gap #13: Full Đào Tạo access
+    holidays: { view: true, create: true, edit: true, delete: false }, // Gap #14: Full Đào Tạo access
+    attendance: { view: true, create: true, edit: true, delete: false }, // Gap #15: Full Đào Tạo operations
+    attendance_history: { view: true, create: false, edit: false, delete: false },
     enrollment_history: { view: true, create: false, edit: false, delete: false },
-    tutoring: { view: false, create: false, edit: false, delete: false },
-    homework: { view: false, create: false, edit: false, delete: false },
+    tutoring: { view: true, create: true, edit: true, delete: false }, // Gap #16: Full Đào Tạo operations
+    homework: { view: true, create: true, edit: true, delete: false }, // Gap #17: Full Đào Tạo operations
     students: { view: true, create: false, edit: false, delete: false },
     students_reserved: { view: true, create: false, edit: false, delete: false },
     students_dropped: { view: true, create: false, edit: false, delete: false },
@@ -378,10 +379,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_teacher: { view: true, create: true, edit: true, delete: false },
     salary_staff: { view: true, create: true, edit: true, delete: false },
     contracts: { view: true, create: true, edit: true, delete: false },
-    invoices: { view: true, create: true, edit: true, delete: true },
+    invoices: { view: true, create: true, edit: true, delete: false }, // Gap #18: NO DELETE
     revenue: { view: true, create: true, edit: true, delete: false },
     debt: { view: true, create: true, edit: true, delete: false },
-    reports_training: { view: false, create: false, edit: false, delete: false },
+    reports_training: { view: true, create: false, edit: false, delete: false }, // Gap #19: Can view reports_training
     reports_finance: { view: true, create: true, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },

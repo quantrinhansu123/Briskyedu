@@ -102,10 +102,14 @@ const getDatesForDayOfWeek = (dayOfWeek: number, startDate: Date, endDate: Date)
 };
 
 const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  // Use local date to avoid timezone issues (toISOString converts to UTC)
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-export const useAutoWorkSessions = (weekStartDate: Date) => {
+export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
   const [confirmedSessions, setConfirmedSessions] = useState<WorkSession[]>([]);
   const [manualSessions, setManualSessions] = useState<WorkSession[]>([]);
   const [holidays, setHolidays] = useState<string[]>([]);
@@ -113,15 +117,16 @@ export const useAutoWorkSessions = (weekStartDate: Date) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Calculate week end date
-  const weekEndDate = useMemo(() => {
-    const end = new Date(weekStartDate);
-    end.setDate(end.getDate() + 6); // Sunday
+  // Calculate end date - defaults to 6 days after start (1 week) if not provided
+  const rangeEndDate = useMemo(() => {
+    if (endDate) return endDate;
+    const end = new Date(startDate);
+    end.setDate(end.getDate() + 6); // Default: Sunday of the week
     return end;
-  }, [weekStartDate]);
+  }, [startDate, endDate]);
 
-  const startDateStr = formatDate(weekStartDate);
-  const endDateStr = formatDate(weekEndDate);
+  const startDateStr = formatDate(startDate);
+  const endDateStr = formatDate(rangeEndDate);
 
   // Fetch data from Firebase
   useEffect(() => {
@@ -237,7 +242,7 @@ export const useAutoWorkSessions = (weekStartDate: Date) => {
       if (days.length === 0 || !timeStart || !timeEnd) continue;
       
       for (const dayOfWeek of days) {
-        const dates = getDatesForDayOfWeek(dayOfWeek, weekStartDate, weekEndDate);
+        const dates = getDatesForDayOfWeek(dayOfWeek, startDate, rangeEndDate);
         
         for (const date of dates) {
           const dateStr = formatDate(date);
@@ -305,7 +310,7 @@ export const useAutoWorkSessions = (weekStartDate: Date) => {
     }
     
     return sessions;
-  }, [classes, holidays, confirmedSessions, weekStartDate, weekEndDate]);
+  }, [classes, holidays, confirmedSessions, startDate, rangeEndDate]);
 
   // Get list of teachers who have schedules in TKB
   const teachersInTKB = useMemo(() => {

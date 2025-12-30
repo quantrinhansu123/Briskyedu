@@ -24,19 +24,43 @@ export const WorkConfirmation: React.FC = () => {
   const { isTeacher, canApprove, staffId } = usePermissions();
   const { staffData } = useAuth();
   const canApproveWork = canApprove('work_confirmation');
-  // Week navigation - current week
-  const [currentWeekStart] = useState(() => {
+  // Filters - default to "Tuần này" to show all sessions
+  const [timeFilter, setTimeFilter] = useState('Tuần này');
+
+  // Calculate date range based on timeFilter
+  const { startDate, endDate } = useMemo(() => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (timeFilter === 'Hôm nay') {
+      return { startDate: today, endDate: today };
+    }
+
+    if (timeFilter === 'Tuần này') {
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      const monday = new Date(today);
+      monday.setDate(diff);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { startDate: monday, endDate: sunday };
+    }
+
+    if (timeFilter === 'Tháng này') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return { startDate: firstDay, endDate: lastDay };
+    }
+
+    // Default: this week
     const day = today.getDay();
     const diff = today.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(today);
     monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
-  });
-
-  // Filters - default to "Tuần này" to show all sessions
-  const [timeFilter, setTimeFilter] = useState('Tuần này');
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { startDate: monday, endDate: sunday };
+  }, [timeFilter]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [positionFilter, setPositionFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,7 +73,7 @@ export const WorkConfirmation: React.FC = () => {
     unconfirmSession,
     confirmMultiple,
     addManualSession,
-  } = useAutoWorkSessions(currentWeekStart);
+  } = useAutoWorkSessions(startDate, endDate);
 
   // Staff list for substitute selection (hiển thị tất cả nhân viên)
   const { staff: staffList } = useStaff();
@@ -104,30 +128,28 @@ export const WorkConfirmation: React.FC = () => {
 
   // Filter sessions và tự động đánh dấu "Nghỉ" cho GV được thay
   const filteredSessions = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    
     // Tìm tất cả công dạy thay để biết GV nào nghỉ
-    const substituteRecords = sessions.filter(s => 
+    const substituteRecords = sessions.filter(s =>
       s.type === 'Dạy thay' && s.substituteForStaffName
     );
-    
+
     // Tạo map: key = "date|className|staffName|timeStart" → value = substitute info
     // Include timeStart để match chính xác buổi học (tránh trường hợp cùng ngày có 2 buổi)
     const substitutedMap = new Map<string, { substituteBy: string; reason?: string }>();
     substituteRecords.forEach(s => {
       const key = `${s.date}|${s.className}|${s.substituteForStaffName}|${s.timeStart}`;
-      substitutedMap.set(key, { 
+      substitutedMap.set(key, {
         substituteBy: s.staffName,
-        reason: s.substituteReason 
+        reason: s.substituteReason
       });
     });
-    
+
     return sessions
       .map(s => {
         // Check xem công này có bị thay không (match cả timeStart)
         const key = `${s.date}|${s.className}|${s.staffName}|${s.timeStart}`;
         const substituteInfo = substitutedMap.get(key);
-        
+
         if (substituteInfo && s.type !== 'Dạy thay') {
           // Đánh dấu công này là "Nghỉ - được thay"
           return {
@@ -147,21 +169,20 @@ export const WorkConfirmation: React.FC = () => {
           if (s.staffName !== myName && s.staffId !== myId) return false;
         }
 
-        // Time filter
-        if (timeFilter === 'Hôm nay' && s.date !== today) return false;
-        
+        // Date range is already handled by hook - no need for additional time filter
+
         // Status filter - "Nghỉ" không khớp với filter status thông thường
         if (statusFilter && !s.isSubstituted && s.status !== statusFilter) return false;
-        
+
         // Position filter
         if (positionFilter && !s.position.includes(positionFilter)) return false;
-        
+
         // Search filter
         if (searchTerm && !s.staffName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-        
+
         return true;
       });
-  }, [sessions, timeFilter, statusFilter, positionFilter, searchTerm, isTeacher, staffData, staffId]);
+  }, [sessions, statusFilter, positionFilter, searchTerm, isTeacher, staffData, staffId]);
 
   // Confirm all pending (không xác nhận công đã bị thay)
   const handleConfirmAll = async () => {

@@ -315,3 +315,134 @@ export const createStaffAccount = functions.region(REGION).https.onCall(async (d
     throw new functions.https.HttpsError('internal', error.message || 'Có lỗi xảy ra khi tạo tài khoản.');
   }
 });
+
+/**
+ * Register new staff WITH account in one step (callable by admin)
+ * Creates both Auth user and Firestore staff document atomically
+ * Uses Admin SDK so no auto-login occurs on client
+ */
+export const registerStaffWithAccount = functions.region(REGION).https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Bạn cần đăng nhập để thực hiện thao tác này.');
+  }
+
+  // Check caller permissions
+  const callerDoc = await db.collection('staff').doc(context.auth.uid).get();
+  if (!callerDoc.exists) {
+    throw new functions.https.HttpsError('permission-denied', 'Không tìm thấy thông tin người dùng.');
+  }
+
+  const callerData = callerDoc.data();
+  const callerRole = callerData?.role || '';
+  const allowedRoles = ['Quản trị viên', 'Quản lý'];
+
+  if (!allowedRoles.includes(callerRole)) {
+    throw new functions.https.HttpsError('permission-denied', 'Bạn không có quyền tạo nhân viên.');
+  }
+
+  // Validate input
+  const { email, password, staffData } = data;
+
+  if (!email || typeof email !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu email đăng nhập.');
+  }
+
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    throw new functions.https.HttpsError('invalid-argument', 'Mật khẩu phải có ít nhất 6 ký tự.');
+  }
+
+  if (!staffData || !staffData.name) {
+    throw new functions.https.HttpsError('invalid-argument', 'Thiếu thông tin nhân viên.');
+  }
+
+  try {
+    // Check if email is already used
+    const existingStaffWithEmail = await db.collection('staff')
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    if (!existingStaffWithEmail.empty) {
+      throw new functions.https.HttpsError('already-exists', 'Email này đã được sử dụng.');
+    }
+
+    // Create Firebase Auth user (Admin SDK - no auto-login!)
+    const userRecord = await auth.createUser({
+      email: email,
+      password: password,
+      displayName: staffData.name,
+    });
+
+    try {
+      // Determine permissions based on role
+      const isAdmin = staffData.role === 'Quản trị viên' || staffData.role === 'Quản lý';
+
+      // Create staff document with Auth UID as document ID
+      await db.collection('staff').doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        email: email,
+        name: staffData.name,
+        code: staffData.code || `NV${Date.now().toString().slice(-6)}`,
+        role: staffData.role || 'Nhân viên',
+        roles: staffData.roles || [staffData.role || 'Nhân viên'],
+        department: staffData.department || 'Văn phòng',
+        position: staffData.position || 'Nhân viên',
+        phone: staffData.phone || '',
+        dob: staffData.dob || '',
+        startDate: staffData.startDate || new Date().toISOString().split('T')[0],
+        branch: staffData.branch || '',
+        status: 'Active',
+        permissions: {
+          canManageStudents: isAdmin,
+          canManageClasses: isAdmin,
+          canManageStaff: isAdmin,
+          canManageFinance: isAdmin,
+          canViewReports: true,
+        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Log the action
+      await db.collection('auditLogs').add({
+        action: 'STAFF_REGISTERED_WITH_ACCOUNT',
+        targetStaffId: userRecord.uid,
+        targetStaffName: staffData.name,
+        performedBy: context.auth.uid,
+        performedByName: callerData?.name || '',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        message: 'Đã tạo nhân viên với tài khoản đăng nhập thành công!',
+        uid: userRecord.uid,
+      };
+    } catch (firestoreError: any) {
+      // If Firestore fails, delete the created Auth user to avoid orphan
+      console.error('Firestore failed, rolling back Auth user:', firestoreError);
+      await auth.deleteUser(userRecord.uid);
+      throw new functions.https.HttpsError(
+        'internal',
+        'Không thể tạo staff document. Vui lòng thử lại.'
+      );
+    }
+  } catch (error: any) {
+    console.error('Error registering staff with account:', error);
+
+    if (error.code === 'auth/email-already-exists') {
+      throw new functions.https.HttpsError('already-exists', 'Email này đã được sử dụng trong Firebase Auth.');
+    }
+
+    if (error.code === 'auth/invalid-email') {
+      throw new functions.https.HttpsError('invalid-argument', 'Email không hợp lệ.');
+    }
+
+    // Re-throw HttpsError as-is
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+
+    throw new functions.https.HttpsError('internal', error.message || 'Có lỗi xảy ra khi tạo tài khoản.');
+  }
+});

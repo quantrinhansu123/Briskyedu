@@ -3,10 +3,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
-  createUserWithEmailAndPassword,
-  updateProfile
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../config/firebase';
 import app from '../config/firebase';
@@ -55,7 +53,8 @@ export class AuthService {
     }
   }
   
-  // Register new staff with email and password
+  // Register new staff with email and password (via Cloud Function)
+  // Uses Admin SDK on server to avoid auto-login issue
   static async registerStaff(
     email: string,
     password: string,
@@ -73,46 +72,19 @@ export class AuthService {
     }
   ): Promise<string> {
     try {
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const registerFn = httpsCallable<
+        { email: string; password: string; staffData: typeof staffData },
+        { success: boolean; message: string; uid?: string }
+      >(functions, 'registerStaffWithAccount');
 
-      // Update display name
-      await updateProfile(user, {
-        displayName: staffData.name
-      });
+      const result = await registerFn({ email, password, staffData });
 
-      // Determine permissions based on role
-      const isAdmin = staffData.role === 'Quản trị viên' || staffData.role === 'Quản lý';
+      if (!result.data.success || !result.data.uid) {
+        throw new Error(result.data.message || 'Không thể tạo tài khoản');
+      }
 
-      // Create staff document in Firestore with UID as document ID
-      await setDoc(doc(db, 'staff', user.uid), {
-        uid: user.uid,
-        email: email,
-        name: staffData.name,
-        code: staffData.code,
-        role: staffData.role,
-        roles: staffData.roles || [staffData.role],
-        department: staffData.department,
-        position: staffData.position,
-        phone: staffData.phone,
-        dob: staffData.dob || '',
-        startDate: staffData.startDate || new Date().toISOString().split('T')[0],
-        branch: staffData.branch || '',
-        status: 'Active',
-        permissions: {
-          canManageStudents: isAdmin,
-          canManageClasses: isAdmin,
-          canManageStaff: isAdmin,
-          canManageFinance: isAdmin,
-          canViewReports: true
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      return user.uid;
-    } catch (error) {
+      return result.data.uid;
+    } catch (error: any) {
       console.error('Register error:', error);
       throw new Error(sanitizeFirebaseError(error));
     }

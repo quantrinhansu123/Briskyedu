@@ -680,14 +680,15 @@ export const StaffManager: React.FC = () => {
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Thông tin đăng nhập</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email đăng nhập</label>
                     <input
-                      type="text"
+                      type="email"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="username"
+                      placeholder="email@example.com"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Để trống nếu chưa cần tài khoản</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
@@ -760,7 +761,7 @@ export const StaffManager: React.FC = () => {
                     value={accountEmail}
                     onChange={(e) => setAccountEmail(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                    placeholder="username hoặc email@example.com"
+                    placeholder="email@example.com"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Nếu không có @, hệ thống sẽ thêm @edumanager.local

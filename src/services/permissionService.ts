@@ -274,7 +274,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
 
   // ========================================
   // SALE_LEAD - Trưởng Nhóm Sale (Văn phòng)
-  // Same permissions as cskh_lead
+  // Gap fix: #1 salary_teacher (same as cskh_lead)
   // ========================================
   sale_lead: {
     dashboard: { view: true, create: false, edit: false, delete: false },
@@ -298,7 +298,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: true },
-    salary_teacher: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #1: View own salary
     salary_staff: { view: false, create: false, edit: false, delete: false },
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
@@ -313,7 +313,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
 
   // ========================================
   // SALE_STAFF - NV Sale (Văn phòng)
-  // Same permissions as cskh_staff
+  // Gap fixes: #2 leads, #3 campaigns, #4 staff, #5 salary_teacher (same as cskh_staff)
   // ========================================
   sale_staff: {
     dashboard: { view: true, create: false, edit: false, delete: false },
@@ -331,13 +331,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     students_trial: { view: true, create: true, edit: true, delete: false },
     parents: { view: true, create: true, edit: true, delete: false },
     feedback: { view: true, create: true, edit: true, delete: false },
-    leads: { view: true, create: true, edit: true, delete: false },
-    campaigns: { view: true, create: true, edit: true, delete: false },
-    staff: { view: true, create: false, edit: false, delete: false },
+    leads: { view: true, create: true, edit: true, delete: false, onlyUpdateStatus: true }, // Gap #2: Only update status
+    campaigns: { view: true, create: false, edit: false, delete: false }, // Gap #3: Read-only
+    staff: { view: false, create: false, edit: false, delete: false }, // Gap #4: Hidden
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: false }, // Cannot approve
     leave_request: { view: true, create: true, edit: true, delete: false, approve: false },
-    salary_teacher: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #5: View own salary
     salary_staff: { view: false, create: false, edit: false, delete: false },
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },

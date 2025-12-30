@@ -681,4 +681,57 @@ describe('Permission Service', () => {
       });
     });
   });
+
+  // ========================================
+  // SALE_LEAD Permission Gaps Fix Tests
+  // Based on spec: same as cskh_lead
+  // ========================================
+  describe('SALE_LEAD Permission Gaps Fix', () => {
+    const role: UserRole = 'sale_lead';
+
+    describe('Gap #1: salary_teacher with onlyOwnData', () => {
+      it('should view salary_teacher with onlyOwnData', () => {
+        expect(canView(role, 'salary_teacher')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+      });
+    });
+  });
+
+  // ========================================
+  // SALE_STAFF Permission Gaps Fix Tests
+  // Based on spec: same as cskh_staff
+  // ========================================
+  describe('SALE_STAFF Permission Gaps Fix', () => {
+    const role: UserRole = 'sale_staff';
+
+    describe('Gap #2: leads onlyUpdateStatus', () => {
+      it('should edit leads but only update status', () => {
+        expect(canView(role, 'leads')).toBe(true);
+        expect(canCreate(role, 'leads')).toBe(true);
+        expect(canEdit(role, 'leads')).toBe(true);
+        expect(shouldOnlyUpdateStatus(role, 'leads')).toBe(true);
+      });
+    });
+
+    describe('Gap #3: campaigns read-only', () => {
+      it('should view but NOT create/edit campaigns', () => {
+        expect(canView(role, 'campaigns')).toBe(true);
+        expect(canCreate(role, 'campaigns')).toBe(false);
+        expect(canEdit(role, 'campaigns')).toBe(false);
+      });
+    });
+
+    describe('Gap #4: staff hidden', () => {
+      it('should NOT view staff', () => {
+        expect(canView(role, 'staff')).toBe(false);
+      });
+    });
+
+    describe('Gap #5: salary_teacher with onlyOwnData', () => {
+      it('should view salary_teacher with onlyOwnData', () => {
+        expect(canView(role, 'salary_teacher')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+      });
+    });
+  });
 });

@@ -122,7 +122,16 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           class: null,
         };
 
-        // If bad debt, also update bad debt fields
+        // Clear bad debt fields when PAID
+        if (settlementType === 'Đã thanh toán') {
+          studentUpdate.badDebt = false;
+          studentUpdate.badDebtSessions = 0;
+          studentUpdate.badDebtAmount = 0;
+          studentUpdate.badDebtDate = null;
+          studentUpdate.badDebtNote = null;
+        }
+
+        // Set bad debt fields when NOT PAID
         if (settlementType === 'Nợ xấu') {
           studentUpdate.badDebt = true;
           studentUpdate.badDebtSessions = debtSessions;

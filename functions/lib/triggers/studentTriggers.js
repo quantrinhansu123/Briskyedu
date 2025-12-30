@@ -91,13 +91,46 @@ exports.onStudentUpdate = functions
     }
     // 3. Auto-calculate bad debt when student status changes to "Nghỉ học"
     if (statusChanged && after.status === 'Nghỉ học') {
+        // Step 1: Check for ANY "Nợ xấu" settlement invoice (Option B - Strict)
+        const badDebtInvoices = await db.collection('settlementInvoices')
+            .where('studentId', '==', studentId)
+            .where('status', '==', 'Nợ xấu')
+            .limit(1)
+            .get();
+        if (!badDebtInvoices.empty) {
+            // Has at least one "Nợ xấu" invoice → bad debt remains, do nothing
+            console.log(`[onStudentUpdate] Student ${after.fullName} has "Nợ xấu" invoice - keeping badDebt`);
+            return null;
+        }
+        // Step 2: Check for paid settlement invoice
+        const paidInvoices = await db.collection('settlementInvoices')
+            .where('studentId', '==', studentId)
+            .where('status', '==', 'Đã thanh toán')
+            .limit(1)
+            .get();
+        if (!paidInvoices.empty) {
+            // Has paid invoice (and no bad debt invoices) → ensure badDebt is cleared
+            console.log(`[onStudentUpdate] Student ${after.fullName} has paid settlement - ensuring badDebt cleared`);
+            // Safety net: Clear if not already cleared
+            if (after.badDebt !== false) {
+                const invoiceCode = paidInvoices.docs[0].data().invoiceCode || 'N/A';
+                await db.collection('students').doc(studentId).update({
+                    badDebt: false,
+                    badDebtSessions: 0,
+                    badDebtAmount: 0,
+                    badDebtDate: null,
+                    badDebtNote: `Đã tất toán - ${invoiceCode}`,
+                });
+            }
+            return null; // Don't proceed to auto-set bad debt
+        }
+        // Step 3: No settlement invoice - check if should auto-set bad debt
         const registeredSessions = after.registeredSessions || 0;
         const attendedSessions = after.attendedSessions || 0;
-        // If student attended more than registered, they owe money
         if (attendedSessions > registeredSessions) {
             const badDebtSessions = attendedSessions - registeredSessions;
             const badDebtAmount = badDebtSessions * 150000; // 150k per session
-            console.log(`[onStudentUpdate] Student ${after.fullName} has bad debt: ${badDebtSessions} sessions = ${badDebtAmount}đ`);
+            console.log(`[onStudentUpdate] Student ${after.fullName} has bad debt (no settlement): ${badDebtSessions} sessions = ${badDebtAmount}đ`);
             // Update student with bad debt info
             await db.collection('students').doc(studentId).update({
                 badDebt: true,

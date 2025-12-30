@@ -73,6 +73,7 @@ export interface ModulePermission {
   hideParentPhone?: boolean;      // Ẩn SĐT phụ huynh
   requireApproval?: boolean;      // Cần admin duyệt
   onlyOwnData?: boolean;          // Chỉ xem data của mình (Gap #4)
+  onlyUpdateStatus?: boolean;     // Chỉ update status, không edit full (Gap #5)
 }
 
 // Permission matrix theo role
@@ -174,7 +175,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     students_trial: { view: true, create: true, edit: true, delete: false },
     parents: { view: true, create: true, edit: true, delete: false },
     feedback: { view: true, create: true, edit: true, delete: false },
-    leads: { view: true, create: true, edit: true, delete: false },
+    leads: { view: true, create: true, edit: true, delete: false, onlyUpdateStatus: true }, // Gap #5: Chỉ update trạng thái
     campaigns: { view: true, create: false, edit: false, delete: false }, // Gap #4: Không tạo/sửa chiến dịch
     staff: { view: false, create: false, edit: false, delete: false }, // Gap #3: Ẩn danh sách nhân viên
     salary_config: { view: false, create: false, edit: false, delete: false },
@@ -649,6 +650,11 @@ export const requiresApproval = (role: UserRole, module: ModuleKey): boolean => 
 export const shouldShowOnlyOwnData = (role: UserRole, module: ModuleKey): boolean => {
   const permissions = ROLE_PERMISSIONS[role]?.[module];
   return permissions?.onlyOwnData === true;
+};
+
+export const shouldOnlyUpdateStatus = (role: UserRole, module: ModuleKey): boolean => {
+  const permissions = ROLE_PERMISSIONS[role]?.[module];
+  return permissions?.onlyUpdateStatus === true;
 };
 
 // Get visible menu items for a role

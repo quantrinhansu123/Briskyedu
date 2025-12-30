@@ -14,6 +14,7 @@ import {
   shouldHideParentPhone,
   requiresApproval,
   shouldShowOnlyOwnData,
+  shouldOnlyUpdateStatus,
   getVisibleMenuItems,
 } from './permissionService';
 
@@ -509,6 +510,25 @@ describe('Permission Service', () => {
         expect(canView('cskh_lead', 'campaigns')).toBe(true);
         expect(canCreate('cskh_lead', 'campaigns')).toBe(true);
         expect(canEdit('cskh_lead', 'campaigns')).toBe(true);
+      });
+    });
+
+    describe('Gap #5: cskh_staff leads onlyUpdateStatus', () => {
+      it('cskh_staff can edit leads but only update status', () => {
+        expect(canView('cskh_staff', 'leads')).toBe(true);
+        expect(canCreate('cskh_staff', 'leads')).toBe(true);
+        expect(canEdit('cskh_staff', 'leads')).toBe(true);
+        expect(shouldOnlyUpdateStatus('cskh_staff', 'leads')).toBe(true);
+      });
+
+      it('cskh_lead has full edit on leads (no onlyUpdateStatus)', () => {
+        expect(canEdit('cskh_lead', 'leads')).toBe(true);
+        expect(shouldOnlyUpdateStatus('cskh_lead', 'leads')).toBe(false);
+      });
+
+      it('admin has full edit on leads (no onlyUpdateStatus)', () => {
+        expect(canEdit('admin', 'leads')).toBe(true);
+        expect(shouldOnlyUpdateStatus('admin', 'leads')).toBe(false);
       });
     });
   });

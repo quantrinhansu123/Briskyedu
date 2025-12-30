@@ -22,6 +22,8 @@ import {
   shouldShowOnlyOwnClasses,
   shouldHideParentPhone,
   requiresApproval,
+  shouldShowOnlyOwnData,
+  shouldOnlyUpdateStatus,
   getVisibleMenuItems,
   // New helper functions
   isTeamLead as isTeamLeadCheck,
@@ -47,6 +49,8 @@ interface UsePermissionsReturn {
   shouldShowOnlyOwnClasses: (module: ModuleKey) => boolean;
   shouldHideParentPhone: (module: ModuleKey) => boolean;
   requiresApproval: (module: ModuleKey) => boolean;
+  shouldShowOnlyOwnData: (module: ModuleKey) => boolean;
+  shouldOnlyUpdateStatus: (module: ModuleKey) => boolean;
   
   // Menu visibility
   getVisibleMenuItems: () => ModuleKey[];
@@ -99,9 +103,15 @@ export const usePermissions = (): UsePermissionsReturn => {
     shouldHideParentPhone: (module: ModuleKey) => 
       shouldHideParentPhone(role, module),
     
-    requiresApproval: (module: ModuleKey) => 
+    requiresApproval: (module: ModuleKey) =>
       requiresApproval(role, module),
-    
+
+    shouldShowOnlyOwnData: (module: ModuleKey) =>
+      shouldShowOnlyOwnData(role, module),
+
+    shouldOnlyUpdateStatus: (module: ModuleKey) =>
+      shouldOnlyUpdateStatus(role, module),
+
     getVisibleMenuItems: () => getVisibleMenuItems(role),
     
     isMenuVisible: (module: ModuleKey) => canView(role, module),

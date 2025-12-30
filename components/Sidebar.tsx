@@ -54,7 +54,7 @@ const subItemToModule: Record<string, ModuleKey> = {
   'revenue': 'revenue',
   'report-training': 'reports_training',
   'report-finance': 'reports_finance',
-  'report-monthly': 'reports_training',
+  'report-monthly': 'reports_learning',  // Báo cáo Học Tập uses separate module
   'settings-center': 'settings',
   'settings-staff': 'settings',
   'settings-products': 'settings',
@@ -71,7 +71,7 @@ const parentMenuModules: Record<string, ModuleKey[]> = {
   'business': ['leads', 'campaigns'],
   'hr': ['staff', 'salary_config', 'work_confirmation', 'leave_request', 'salary_teacher', 'salary_staff', 'reward_penalty'],
   'finance': ['contracts', 'invoices', 'debt', 'revenue'],
-  'reports': ['reports_training', 'reports_finance'],
+  'reports': ['reports_training', 'reports_finance', 'reports_learning'],
   'settings': ['settings'],
 };
 

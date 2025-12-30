@@ -54,6 +54,7 @@ export type ModuleKey =
   | 'debt'
   | 'reports_training'
   | 'reports_finance'
+  | 'reports_learning'    // Báo cáo Học Tập (MonthlyReport)
   | 'settings'
   | 'reward_penalty'      // Gap #6: Thưởng/Phạt
   | 'personal_profile';   // Gap #7: Thông tin cá nhân
@@ -111,6 +112,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: true },
     reports_training: { view: true, create: true, edit: true, delete: true },
     reports_finance: { view: true, create: true, edit: true, delete: true },
+    reports_learning: { view: true, create: true, edit: true, delete: true },
     settings: { view: true, create: true, edit: true, delete: true },
     reward_penalty: { view: true, create: true, edit: true, delete: true },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -150,6 +152,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: true, create: false, edit: false, delete: false },
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -189,6 +192,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false }, // No finance reports
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -228,6 +232,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false }, // Gap #6: Hide reports_finance
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -267,6 +272,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false },
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -306,6 +312,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: true, create: false, edit: false, delete: false },
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -345,6 +352,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false }, // No finance reports
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -384,6 +392,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: true, create: true, edit: true, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false }, // Gap #19: Can view reports_training
     reports_finance: { view: true, create: true, edit: false, delete: false },
+    reports_learning: { view: true, create: false, edit: false, delete: false },
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
@@ -403,17 +412,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     enrollment_history: { view: false, create: false, edit: false, delete: false }, // Ẩn
     tutoring: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
     homework: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
-    students: { view: false, create: false, edit: false, delete: false }, // Gap #1: Ẩn menu Quản lý Học viên
-    students_reserved: { view: false, create: false, edit: false, delete: false }, // Ẩn
-    students_dropped: { view: false, create: false, edit: false, delete: false }, // Ẩn
+    students: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // View only, own classes
+    students_reserved: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
+    students_dropped: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     students_trial: { view: false, create: false, edit: false, delete: false }, // Ẩn
     parents: { view: false, create: false, edit: false, delete: false }, // Ẩn
-    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Gap #2: Chỉ xem, không tạo
+    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Chỉ xem, không tạo
     leads: { view: false, create: false, edit: false, delete: false }, // Ẩn
     campaigns: { view: false, create: false, edit: false, delete: false }, // Ẩn
-    staff: { view: false, create: false, edit: false, delete: false }, // Gap #3: Ẩn danh sách nhân viên
-    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #4: Xem cấu hình lương của mình
-    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Gap #5: Ẩn xác nhận công
+    staff: { view: false, create: false, edit: false, delete: false }, // Ẩn danh sách nhân viên
+    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem cấu hình lương của mình
+    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Ẩn xác nhận công
     leave_request: { view: true, create: true, edit: false, delete: false }, // Xem riêng, tạo nghỉ phép
     salary_teacher: { view: true, create: false, edit: false, delete: false }, // Chỉ xem lương của mình
     salary_staff: { view: false, create: false, edit: false, delete: false }, // Ẩn
@@ -423,9 +432,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: false, create: false, edit: false, delete: false }, // Ẩn
     reports_training: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     reports_finance: { view: false, create: false, edit: false, delete: false }, // Ẩn
+    reports_learning: { view: false, create: false, edit: false, delete: false }, // GV không có access Học Tập
     settings: { view: false, create: false, edit: false, delete: false }, // Ẩn
-    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Gap #6: Hiển thị All
-    personal_profile: { view: true, create: false, edit: true, delete: false }, // Gap #7: Sửa thông tin cá nhân
+    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
+    personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
   },
 
   // ========================================
@@ -442,17 +452,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     enrollment_history: { view: false, create: false, edit: false, delete: false },
     tutoring: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
     homework: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
-    students: { view: false, create: false, edit: false, delete: false }, // Gap #1: Ẩn menu Quản lý Học viên
-    students_reserved: { view: false, create: false, edit: false, delete: false },
-    students_dropped: { view: false, create: false, edit: false, delete: false },
+    students: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // View only, own classes
+    students_reserved: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
+    students_dropped: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     students_trial: { view: false, create: false, edit: false, delete: false },
     parents: { view: false, create: false, edit: false, delete: false },
-    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Gap #2: Chỉ xem, không tạo
+    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Chỉ xem, không tạo
     leads: { view: false, create: false, edit: false, delete: false },
     campaigns: { view: false, create: false, edit: false, delete: false },
-    staff: { view: false, create: false, edit: false, delete: false }, // Gap #3: Ẩn danh sách nhân viên
-    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #4: Xem cấu hình lương của mình
-    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Gap #5: Ẩn xác nhận công
+    staff: { view: false, create: false, edit: false, delete: false }, // Ẩn danh sách nhân viên
+    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem cấu hình lương của mình
+    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Ẩn xác nhận công
     salary_teacher: { view: true, create: false, edit: false, delete: false },
     salary_staff: { view: false, create: false, edit: false, delete: false },
     contracts: { view: false, create: false, edit: false, delete: false },
@@ -461,9 +471,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: false, create: false, edit: false, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     reports_finance: { view: false, create: false, edit: false, delete: false },
+    reports_learning: { view: false, create: false, edit: false, delete: false }, // GV không có access Học Tập
     settings: { view: false, create: false, edit: false, delete: false },
-    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Gap #6: Hiển thị All
-    personal_profile: { view: true, create: false, edit: true, delete: false }, // Gap #7: Sửa thông tin cá nhân
+    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
+    personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
   },
 
   // ========================================
@@ -480,17 +491,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     enrollment_history: { view: false, create: false, edit: false, delete: false },
     tutoring: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
     homework: { view: true, create: true, edit: true, delete: false, onlyOwnClasses: true },
-    students: { view: false, create: false, edit: false, delete: false }, // Gap #1: Ẩn menu Quản lý Học viên
-    students_reserved: { view: false, create: false, edit: false, delete: false },
-    students_dropped: { view: false, create: false, edit: false, delete: false },
+    students: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // View only, own classes
+    students_reserved: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
+    students_dropped: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     students_trial: { view: false, create: false, edit: false, delete: false },
     parents: { view: false, create: false, edit: false, delete: false },
-    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Gap #2: Chỉ xem, không tạo
+    feedback: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true }, // Chỉ xem, không tạo
     leads: { view: false, create: false, edit: false, delete: false },
     campaigns: { view: false, create: false, edit: false, delete: false },
-    staff: { view: false, create: false, edit: false, delete: false }, // Gap #3: Ẩn danh sách nhân viên
-    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #4: Xem cấu hình lương của mình
-    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Gap #5: Ẩn xác nhận công
+    staff: { view: false, create: false, edit: false, delete: false }, // Ẩn danh sách nhân viên
+    salary_config: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem cấu hình lương của mình
+    work_confirmation: { view: false, create: false, edit: false, delete: false }, // Ẩn xác nhận công
     salary_teacher: { view: true, create: false, edit: false, delete: false },
     salary_staff: { view: false, create: false, edit: false, delete: false },
     contracts: { view: false, create: false, edit: false, delete: false },
@@ -499,9 +510,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     debt: { view: false, create: false, edit: false, delete: false },
     reports_training: { view: true, create: false, edit: false, delete: false, onlyOwnClasses: true },
     reports_finance: { view: false, create: false, edit: false, delete: false },
+    reports_learning: { view: false, create: false, edit: false, delete: false }, // GV không có access Học Tập
     settings: { view: false, create: false, edit: false, delete: false },
-    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Gap #6: Hiển thị All
-    personal_profile: { view: true, create: false, edit: true, delete: false }, // Gap #7: Sửa thông tin cá nhân
+    reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
+    personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
   },
 };
 

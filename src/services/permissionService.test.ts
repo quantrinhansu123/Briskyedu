@@ -284,10 +284,11 @@ describe('Permission Service', () => {
       expect(shouldShowOnlyOwnClasses(role, 'classes')).toBe(true);
     });
 
-    it('should hide parent phone for classes (students hidden per spec)', () => {
+    it('should hide parent phone for classes and view students (own classes only)', () => {
       expect(shouldHideParentPhone(role, 'classes')).toBe(true);
-      // Gap #1: students module is now hidden for GV
-      expect(canView(role, 'students')).toBe(false);
+      // GV can view students but only their own classes
+      expect(canView(role, 'students')).toBe(true);
+      expect(shouldShowOnlyOwnClasses(role, 'students')).toBe(true);
     });
 
     it('should view holidays (per spec - view only)', () => {
@@ -299,10 +300,13 @@ describe('Permission Service', () => {
       expect(canView(role, 'enrollment_history')).toBe(false);
     });
 
-    it('should not access any customer modules', () => {
+    it('should view students (own classes) but not parents', () => {
       expect(canView(role, 'parents')).toBe(false);
-      expect(canView(role, 'students_reserved')).toBe(false);
-      expect(canView(role, 'students_dropped')).toBe(false);
+      // GV can view students_reserved and students_dropped (own classes only)
+      expect(canView(role, 'students_reserved')).toBe(true);
+      expect(shouldShowOnlyOwnClasses(role, 'students_reserved')).toBe(true);
+      expect(canView(role, 'students_dropped')).toBe(true);
+      expect(shouldShowOnlyOwnClasses(role, 'students_dropped')).toBe(true);
     });
 
     it('should not access finance modules', () => {
@@ -333,13 +337,14 @@ describe('Permission Service', () => {
 
     it('should have same restrictions as gv_viet (updated per spec)', () => {
       expect(shouldShowOnlyOwnClasses(role, 'classes')).toBe(true);
-      // Gap #1: students module hidden, so hideParentPhone not applicable
-      expect(canView(role, 'students')).toBe(false);
+      // GV/TG can view students (own classes only)
+      expect(canView(role, 'students')).toBe(true);
+      expect(shouldShowOnlyOwnClasses(role, 'students')).toBe(true);
       expect(canView(role, 'holidays')).toBe(true); // Can VIEW but not create
       expect(canCreate(role, 'holidays')).toBe(false);
       expect(canView(role, 'contracts')).toBe(false);
       expect(canView(role, 'settings')).toBe(false);
-      // Gap #5: work_confirmation hidden
+      // work_confirmation hidden
       expect(canView(role, 'work_confirmation')).toBe(false);
     });
   });
@@ -374,7 +379,7 @@ describe('Permission Service', () => {
       expect(items).not.toContain('settings');
     });
 
-    it('should hide most modules for teachers except holidays', () => {
+    it('should show limited modules for teachers', () => {
       const items = getVisibleMenuItems('gv_viet');
       expect(items).toContain('dashboard');
       expect(items).toContain('classes');
@@ -382,11 +387,11 @@ describe('Permission Service', () => {
       expect(items).not.toContain('leads');
       expect(items).not.toContain('contracts');
       expect(items).not.toContain('settings');
-      // Gap #1: students hidden
-      expect(items).not.toContain('students');
-      // Gap #6: reward_penalty visible
+      // GV can view students (own classes only)
+      expect(items).toContain('students');
+      // reward_penalty visible
       expect(items).toContain('reward_penalty');
-      // Gap #7: personal_profile visible
+      // personal_profile visible
       expect(items).toContain('personal_profile');
     });
   });
@@ -398,10 +403,13 @@ describe('Permission Service', () => {
   describe('GV/TG Permission Gaps Fix', () => {
     const gvRoles: UserRole[] = ['gv_viet', 'gv_nuocngoai', 'tro_giang'];
 
-    describe('Gap #1: students module should be hidden', () => {
+    describe('GV students: view-only, own classes', () => {
       gvRoles.forEach(role => {
-        it(`${role} should NOT view students module`, () => {
-          expect(canView(role, 'students')).toBe(false);
+        it(`${role} should view students module (own classes only)`, () => {
+          expect(canView(role, 'students')).toBe(true);
+          expect(shouldShowOnlyOwnClasses(role, 'students')).toBe(true);
+          expect(canCreate(role, 'students')).toBe(false);
+          expect(canEdit(role, 'students')).toBe(false);
         });
       });
     });

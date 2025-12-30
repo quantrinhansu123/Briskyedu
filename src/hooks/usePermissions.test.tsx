@@ -334,9 +334,9 @@ describe('usePermissions Hook', () => {
       expect(result.current.canEdit('salary_config')).toBe(true);
     });
 
-    it('should not access attendance', () => {
+    it('should access attendance (Ketoan has full Đào Tạo access per spec)', () => {
       const { result } = renderHook(() => usePermissions());
-      expect(result.current.canView('attendance')).toBe(false);
+      expect(result.current.canView('attendance')).toBe(true);
     });
   });
 

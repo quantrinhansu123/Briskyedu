@@ -31,7 +31,9 @@ import {
   CalendarCheck,
   AlertTriangle,
   CheckSquare,
-  Clock
+  Clock,
+  FileText,
+  GraduationCap
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -112,11 +114,25 @@ interface DashboardStats {
   myWorkDays: number; // Số ngày công tháng này
   studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number }[]; // DS sắp hết phí
   studentsWithDebt: { id: string; fullName: string; className: string; status: string }[]; // DS nợ phí
+  // Phase 4: GV Dashboard data
+  myClasses: { id: string; name: string; studentCount: number; scheduleDay: string; scheduleTime: string }[];
+  myStudentIds: string[];
+  myTotalStudents: number;
+  myAvgPerClass: number;
+  upcomingClasses: { id: string; className: string; date: string; time: string; room: string }[];
+  btvnNeedingReport: { id: string; className: string; lastClassDate: string }[];
+  topAbsentStudents: { id: string; name: string; absences: number }[];
+  topLowHomework: { id: string; name: string; completionRate: number }[];
+  myStudentBirthdays: { id: string; name: string; date: string; dayOfMonth: number }[];
+  myConfirmedSalary: number;
+  myPendingSalary: number;
+  myConfirmedSessions: number;
+  myTotalSessions: number;
 }
 
 export const Dashboard: React.FC = () => {
   // Permission check for revenue visibility
-  const { canSeeRevenue, isTeacher } = usePermissions();
+  const { canSeeRevenue, isTeacher, staffId } = usePermissions();
   const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>({
@@ -141,6 +157,20 @@ export const Dashboard: React.FC = () => {
     myWorkDays: 0,
     studentsExpiringSoon: [],
     studentsWithDebt: [],
+    // Phase 4: GV Dashboard
+    myClasses: [],
+    myStudentIds: [],
+    myTotalStudents: 0,
+    myAvgPerClass: 0,
+    upcomingClasses: [],
+    btvnNeedingReport: [],
+    topAbsentStudents: [],
+    topLowHomework: [],
+    myStudentBirthdays: [],
+    myConfirmedSalary: 0,
+    myPendingSalary: 0,
+    myConfirmedSessions: 0,
+    myTotalSessions: 0,
   });
 
   // Phase 3: Checklist state
@@ -561,6 +591,201 @@ export const Dashboard: React.FC = () => {
         }));
 
       // ========================================
+      // Phase 4: GV Dashboard Data
+      // ========================================
+
+      // Get classes where current user is the teacher
+      const myClasses = classes
+        .filter((c: any) => c.teacherId === staffId || c.assistantId === staffId)
+        .map((c: any) => ({
+          id: c.id,
+          name: c.name || '',
+          studentCount: c.currentStudents || c.studentIds?.length || 0,
+          scheduleDay: c.scheduleDay || c.schedule?.day || '',
+          scheduleTime: c.scheduleTime || c.schedule?.time || '',
+        }));
+
+      // Get all student IDs from my classes
+      const myStudentIds: string[] = [];
+      classes
+        .filter((c: any) => c.teacherId === staffId || c.assistantId === staffId)
+        .forEach((c: any) => {
+          if (c.studentIds) {
+            myStudentIds.push(...c.studentIds);
+          }
+        });
+      const uniqueMyStudentIds = [...new Set(myStudentIds)];
+
+      // My stats
+      const myTotalStudents = uniqueMyStudentIds.length;
+      const myAvgPerClass = myClasses.length > 0
+        ? Math.round(myTotalStudents / myClasses.length * 10) / 10
+        : 0;
+
+      // Upcoming classes (today/this week)
+      const todayStr = now.toISOString().split('T')[0];
+      const dayOfWeek = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
+
+      // Fetch schedule for upcoming classes
+      let upcomingClasses: { id: string; className: string; date: string; time: string; room: string }[] = [];
+      try {
+        const scheduleSnap = await getDocs(collection(db, 'schedule'));
+        const scheduleData = scheduleSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        upcomingClasses = scheduleData
+          .filter((s: any) => {
+            const classInfo = classes.find((c: any) => c.id === s.classId);
+            if (!classInfo) return false;
+            const isMyClass = classInfo.teacherId === staffId || classInfo.assistantId === staffId;
+            if (!isMyClass) return false;
+
+            // Check if schedule is today or this week
+            const scheduleDate = s.date ? new Date(s.date) : null;
+            if (scheduleDate) {
+              const diffDays = Math.ceil((scheduleDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              return diffDays >= 0 && diffDays <= 7;
+            }
+            // Or check by day of week
+            return s.dayOfWeek === dayOfWeek || s.day === dayOfWeek;
+          })
+          .slice(0, 5)
+          .map((s: any) => {
+            const classInfo = classes.find((c: any) => c.id === s.classId);
+            return {
+              id: s.id,
+              className: classInfo?.name || s.className || '',
+              date: s.date || s.dayOfWeek || s.day || '',
+              time: s.startTime || s.time || '',
+              room: s.room || s.roomName || '',
+            };
+          });
+      } catch (err) {
+        console.log('No schedule data for GV dashboard');
+      }
+
+      // If no schedule entries, use class schedule info
+      if (upcomingClasses.length === 0) {
+        upcomingClasses = myClasses
+          .filter(c => c.scheduleDay === dayOfWeek || c.scheduleDay.includes(dayOfWeek))
+          .slice(0, 5)
+          .map(c => ({
+            id: c.id,
+            className: c.name,
+            date: dayOfWeek,
+            time: c.scheduleTime,
+            room: '',
+          }));
+      }
+
+      // BTVN needing report - classes that had class recently but no homework report
+      let btvnNeedingReport: { id: string; className: string; lastClassDate: string }[] = [];
+      try {
+        const homeworkSnap = await getDocs(collection(db, 'homework'));
+        const homeworkData = homeworkSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Find classes needing report (simplified logic)
+        btvnNeedingReport = myClasses
+          .filter(c => {
+            // Check if there's a homework report for this class in the last 3 days
+            const recentHomework = homeworkData.find((hw: any) => {
+              if (hw.classId !== c.id) return false;
+              const hwDate = hw.createdAt?.toDate?.() || new Date(hw.createdAt);
+              const diffDays = Math.ceil((now.getTime() - hwDate.getTime()) / (1000 * 60 * 60 * 24));
+              return diffDays <= 3;
+            });
+            return !recentHomework;
+          })
+          .slice(0, 5)
+          .map(c => ({
+            id: c.id,
+            className: c.name,
+            lastClassDate: 'Cần báo cáo',
+          }));
+      } catch (err) {
+        console.log('No homework data');
+      }
+
+      // Top 5 frequently absent students (from my classes only)
+      let topAbsentStudents: { id: string; name: string; absences: number }[] = [];
+      try {
+        const attendanceSnap = await getDocs(collection(db, 'studentAttendance'));
+        const attendanceData = attendanceSnap.docs.map(d => d.data());
+
+        const absenceCounts: { [studentId: string]: number } = {};
+        attendanceData
+          .filter((a: any) =>
+            uniqueMyStudentIds.includes(a.studentId) &&
+            (a.status === 'Vắng' || a.status === 'Absent')
+          )
+          .forEach((a: any) => {
+            absenceCounts[a.studentId] = (absenceCounts[a.studentId] || 0) + 1;
+          });
+
+        topAbsentStudents = Object.entries(absenceCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([studentId, count]) => {
+            const student = students.find((s: any) => s.id === studentId) as StudentData | undefined;
+            return {
+              id: studentId,
+              name: student?.fullName || 'Unknown',
+              absences: count,
+            };
+          });
+      } catch (err) {
+        console.log('No attendance data for alerts');
+      }
+
+      // Top 5 students with lowest homework completion (placeholder - simplified)
+      const topLowHomework: { id: string; name: string; completionRate: number }[] = [];
+
+      // My class student birthdays
+      const myStudentBirthdays = students
+        .filter((s: any) => {
+          if (!uniqueMyStudentIds.includes(s.id)) return false;
+          const bdayStr = s['sinh nhật'] || s['ngày sinh'] || s.birthDate || s.dob || s.dateOfBirth;
+          if (!bdayStr) return false;
+          const bday = bdayStr.toDate ? bdayStr.toDate() : new Date(bdayStr);
+          if (isNaN(bday.getTime())) return false;
+          return bday.getMonth() === thisMonth;
+        })
+        .map((s: any) => {
+          const bdayStr = s['sinh nhật'] || s['ngày sinh'] || s.birthDate || s.dob || s.dateOfBirth;
+          const bday = bdayStr.toDate ? bdayStr.toDate() : new Date(bdayStr);
+          return {
+            id: s.id,
+            name: s.fullName || s.name || '',
+            date: `${String(bday.getDate()).padStart(2, '0')}/${String(bday.getMonth() + 1).padStart(2, '0')}`,
+            dayOfMonth: bday.getDate(),
+          };
+        })
+        .sort((a: any, b: any) => a.dayOfMonth - b.dayOfMonth);
+
+      // My salary calculation
+      const myWorkSessionsThisMonth = workSessions.filter((ws: any) => {
+        const wsDate = ws.date ? new Date(ws.date) : null;
+        if (!wsDate) return false;
+        return (
+          ws.staffId === staffId &&
+          wsDate.getMonth() === currentMonth &&
+          wsDate.getFullYear() === currentYear
+        );
+      });
+
+      const myConfirmedSessionsData = myWorkSessionsThisMonth.filter((ws: any) => ws.status === 'Đã xác nhận');
+      const myPendingSessionsData = myWorkSessionsThisMonth.filter((ws: any) => ws.status === 'Chờ xác nhận');
+
+      // Get salary rate based on position (simplified)
+      const myStaff = allStaff.find((s: any) => s.id === staffId) as { id: string; position?: string } | undefined;
+      const myPosition = myStaff?.position || 'Trợ giảng';
+      const myRate = salaryRates[myPosition] || salaryRates['Trợ giảng'] || 100000;
+
+      const myConfirmedSalary = myConfirmedSessionsData.length * myRate;
+      const myPendingSalary = myPendingSessionsData.length * myRate;
+      const myConfirmedSessions = myConfirmedSessionsData.length;
+      const myTotalSessions = myWorkSessionsThisMonth.length;
+
+      // ========================================
 
       // Chỉ số sức khỏe doanh nghiệp - tính từ dữ liệu thực
       const activeStudents = students.filter((s: any) => s.status === 'Đang học').length;
@@ -642,6 +867,20 @@ export const Dashboard: React.FC = () => {
         myWorkDays,
         studentsExpiringSoon,
         studentsWithDebt,
+        // Phase 4: GV Dashboard
+        myClasses,
+        myStudentIds: uniqueMyStudentIds,
+        myTotalStudents,
+        myAvgPerClass,
+        upcomingClasses,
+        btvnNeedingReport,
+        topAbsentStudents,
+        topLowHomework,
+        myStudentBirthdays,
+        myConfirmedSalary,
+        myPendingSalary,
+        myConfirmedSessions,
+        myTotalSessions,
       });
 
       // Phase 3: Widget 4 - Auto-generated checklist
@@ -688,6 +927,20 @@ export const Dashboard: React.FC = () => {
         myWorkDays: 0,
         studentsExpiringSoon: [],
         studentsWithDebt: [],
+        // Phase 4: GV Dashboard
+        myClasses: [],
+        myStudentIds: [],
+        myTotalStudents: 0,
+        myAvgPerClass: 0,
+        upcomingClasses: [],
+        btvnNeedingReport: [],
+        topAbsentStudents: [],
+        topLowHomework: [],
+        myStudentBirthdays: [],
+        myConfirmedSalary: 0,
+        myPendingSalary: 0,
+        myConfirmedSessions: 0,
+        myTotalSessions: 0,
       });
       setRevenuePieData([]);
       setChecklistItems([]);
@@ -1699,6 +1952,302 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        </>
+        )}
+
+        {/* ================================================ */}
+        {/* TEACHER DASHBOARD - Phase 4 */}
+        {/* ================================================ */}
+        {isTeacher && (
+        <>
+          {/* GV Header Stats */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 p-6 shadow-2xl shadow-indigo-500/20">
+            <div className="absolute inset-0 opacity-10">
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="teacher-grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" strokeWidth="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#teacher-grid)"/>
+              </svg>
+            </div>
+            <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/10 backdrop-blur-sm rounded-2xl">
+                  <GraduationCap className="text-white" size={28} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Dashboard Giáo Viên</h1>
+                  <p className="text-white/70 text-sm">Tổng quan lớp học và hoạt động của bạn</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                {/* My Students */}
+                <div className="group relative bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white/20 rounded-xl">
+                      <Users className="text-white" size={22} />
+                    </div>
+                    <div>
+                      <div className="text-white/70 text-xs font-medium uppercase tracking-wider">Học viên của tôi</div>
+                      <div className="text-3xl font-bold text-white">{stats.myTotalStudents}</div>
+                    </div>
+                  </div>
+                </div>
+                {/* My Classes */}
+                <div className="group relative bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white/20 rounded-xl">
+                      <BookOpen className="text-white" size={22} />
+                    </div>
+                    <div>
+                      <div className="text-white/70 text-xs font-medium uppercase tracking-wider">Lớp đang dạy</div>
+                      <div className="text-3xl font-bold text-white">{stats.myClasses.length}</div>
+                    </div>
+                  </div>
+                </div>
+                {/* Average */}
+                <div className="group relative bg-white/10 backdrop-blur-md rounded-2xl px-6 py-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-white/20 rounded-xl">
+                      <TrendingUp className="text-white" size={22} />
+                    </div>
+                    <div>
+                      <div className="text-white/70 text-xs font-medium uppercase tracking-wider">Sĩ số TB</div>
+                      <div className="text-3xl font-bold text-white">{stats.myAvgPerClass}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* GV Widgets Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Widget 2: Upcoming Classes */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-blue-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Clock className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">Lớp học sắp diễn ra</h3>
+                  </div>
+                </div>
+                <div className="p-4 max-h-64 overflow-y-auto">
+                  {stats.upcomingClasses.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead className="bg-blue-50 sticky top-0">
+                        <tr>
+                          <th className="text-left py-2 px-3">Lớp</th>
+                          <th className="text-right py-2 px-3">Thời gian</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.upcomingClasses.map((cls) => (
+                          <tr key={cls.id} className="border-b border-gray-100 hover:bg-blue-50/50">
+                            <td className="py-2.5 px-3 font-medium text-gray-700">{cls.className}</td>
+                            <td className="py-2.5 px-3 text-right text-blue-600">{cls.time || cls.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <Clock size={32} className="mx-auto mb-2 opacity-30" />
+                      <span>Không có lớp sắp diễn ra</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Widget 3: BTVN Reports Needed */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-amber-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <FileText className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">BTVN cần báo cáo ({stats.btvnNeedingReport.length})</h3>
+                  </div>
+                </div>
+                <div className="p-4 max-h-48 overflow-y-auto">
+                  {stats.btvnNeedingReport.length > 0 ? (
+                    <div className="space-y-2">
+                      {stats.btvnNeedingReport.map((cls) => (
+                        <Link
+                          key={cls.id}
+                          to={`/training/homework?classId=${cls.id}`}
+                          className="block p-3 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors"
+                        >
+                          <div className="font-medium text-gray-800">{cls.className}</div>
+                          <div className="text-xs text-amber-600">{cls.lastClassDate}</div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-gray-400">
+                      <FileText size={32} className="mx-auto mb-2 opacity-30" />
+                      <span>Đã báo cáo đầy đủ</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Widget 4: Student Alerts */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-rose-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-rose-500 to-red-500 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <AlertTriangle className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">Báo Động Học Viên</h3>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Top Absent */}
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-2 text-sm">Top 5 vắng nhiều</h4>
+                    {stats.topAbsentStudents.length > 0 ? (
+                      <div className="space-y-1">
+                        {stats.topAbsentStudents.map((student, idx) => (
+                          <div key={student.id} className="flex justify-between py-1.5 px-2 rounded-lg hover:bg-rose-50">
+                            <span className="text-sm text-gray-700">{idx + 1}. {student.name}</span>
+                            <span className="text-sm font-bold text-rose-600">{student.absences} lần</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-3 text-gray-400 text-sm">Không có học viên vắng nhiều</div>
+                    )}
+                  </div>
+                  {/* Top Low Homework */}
+                  {stats.topLowHomework.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2 text-sm">Top 5 ít làm BTVN</h4>
+                      <div className="space-y-1">
+                        {stats.topLowHomework.map((student, idx) => (
+                          <div key={student.id} className="flex justify-between py-1.5 px-2 rounded-lg hover:bg-amber-50">
+                            <span className="text-sm text-gray-700">{idx + 1}. {student.name}</span>
+                            <span className="text-sm font-bold text-amber-600">{Math.round(student.completionRate * 100)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Widget 6: Monthly Salary */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Wallet className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">Lương tháng này</h3>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Đã xác nhận:</span>
+                    <span className="text-lg font-bold text-emerald-600">{formatCurrency(stats.myConfirmedSalary)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600">Chờ xác nhận:</span>
+                    <span className="text-lg font-bold text-amber-600">{formatCurrency(stats.myPendingSalary)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 bg-teal-50 rounded-xl px-3">
+                    <span className="font-semibold text-gray-700">Tổng dự kiến:</span>
+                    <span className="text-xl font-bold text-teal-600">{formatCurrency(stats.myConfirmedSalary + stats.myPendingSalary)}</span>
+                  </div>
+                  <div className="text-center text-xs text-gray-500 pt-2">
+                    {stats.myConfirmedSessions} buổi xác nhận / {stats.myTotalSessions} tổng buổi
+                  </div>
+                </div>
+              </div>
+
+              {/* Widget 5: My Class Birthdays */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-pink-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-pink-500 to-rose-400 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Cake className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">Sinh nhật lớp tôi</h3>
+                  </div>
+                </div>
+                <div className="p-4 max-h-48 overflow-y-auto">
+                  {stats.myStudentBirthdays.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead className="bg-pink-50 sticky top-0">
+                        <tr>
+                          <th className="text-left py-2 px-3">Học viên</th>
+                          <th className="text-right py-2 px-3">Ngày SN</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.myStudentBirthdays.map((student) => (
+                          <tr key={student.id} className="border-b border-gray-100 hover:bg-pink-50/50">
+                            <td className="py-2.5 px-3 text-gray-700">{student.name}</td>
+                            <td className="py-2.5 px-3 text-right font-medium text-pink-600">{student.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-6 text-gray-400">
+                      <Cake size={32} className="mx-auto mb-2 opacity-30" />
+                      <span>Không có sinh nhật tháng này</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* My Classes List */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-indigo-100/30 transition-all duration-300">
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <BookOpen className="text-white" size={20} />
+                    </div>
+                    <h3 className="font-bold text-white">Danh sách lớp của tôi</h3>
+                  </div>
+                </div>
+                <div className="p-4 max-h-48 overflow-y-auto">
+                  {stats.myClasses.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead className="bg-indigo-50 sticky top-0">
+                        <tr>
+                          <th className="text-left py-2 px-3">Lớp</th>
+                          <th className="text-right py-2 px-3">Sĩ số</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.myClasses.map((cls) => (
+                          <tr key={cls.id} className="border-b border-gray-100 hover:bg-indigo-50/50">
+                            <td className="py-2.5 px-3 font-medium text-gray-700">{cls.name}</td>
+                            <td className="py-2.5 px-3 text-right text-indigo-600 font-bold">{cls.studentCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-6 text-gray-400">
+                      <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
+                      <span>Chưa được phân công lớp</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </>
         )}
       </div>

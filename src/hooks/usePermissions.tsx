@@ -25,11 +25,14 @@ import {
   shouldShowOnlyOwnData,
   shouldOnlyUpdateStatus,
   getVisibleMenuItems,
-  // New helper functions
+  // Role helper functions
   isTeamLead as isTeamLeadCheck,
   canSeeRevenue as canSeeRevenueCheck,
   isTeacher as isTeacherCheck,
   isOfficeStaff as isOfficeStaffCheck,
+  isCSKH as isCSKHCheck,
+  isCSKHLeader as isCSKHLeaderCheck,
+  isKeToan as isKeToanCheck,
 } from '../services/permissionService';
 
 interface UsePermissionsReturn {
@@ -60,8 +63,11 @@ interface UsePermissionsReturn {
   isAdmin: boolean;
   isTeacher: boolean;
   isOfficeStaff: boolean;
-  isTeamLead: boolean;      // NEW: Trưởng nhóm (admin, cskh_lead, cm_lead)
-  canSeeRevenue: boolean;   // NEW: Có thể xem doanh thu
+  isTeamLead: boolean;      // Trưởng nhóm (admin, cskh_lead, cm_lead)
+  canSeeRevenue: boolean;   // Có thể xem doanh thu
+  isCSKH: boolean;          // CSKH staff (cskh_lead or cskh_staff)
+  isCSKHLeader: boolean;    // CSKH leader only
+  isKeToan: boolean;        // Kế toán
 }
 
 export const usePermissions = (): UsePermissionsReturn => {
@@ -124,6 +130,9 @@ export const usePermissions = (): UsePermissionsReturn => {
     isOfficeStaff: isOfficeStaffCheck(role),
     isTeamLead: isTeamLeadCheck(role),
     canSeeRevenue: canSeeRevenueCheck(role),
+    isCSKH: isCSKHCheck(role),
+    isCSKHLeader: isCSKHLeaderCheck(role),
+    isKeToan: isKeToanCheck(role),
   }), [role]);
 
   return {

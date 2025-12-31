@@ -8,7 +8,7 @@ import { StudentStatus } from './types';
 import { useAuth } from './src/hooks/useAuth';
 
 // Lazy load page components for code splitting
-const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const DashboardRouter = lazy(() => import('./pages/DashboardRouter').then(m => ({ default: m.DashboardRouter })));
 const ClassManager = lazy(() => import('./pages/ClassManager').then(m => ({ default: m.ClassManager })));
 const StudentManager = lazy(() => import('./pages/StudentManager').then(m => ({ default: m.StudentManager })));
 const TrialStudents = lazy(() => import('./pages/TrialStudents').then(m => ({ default: m.TrialStudents })));
@@ -116,7 +116,7 @@ const App: React.FC = () => {
           <ProtectedRoute>
             <Layout>
               <Routes>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<DashboardRouter />} />
 
                 {/* Training Routes */}
                 <Route path="/training/classes" element={<ClassManager />} />

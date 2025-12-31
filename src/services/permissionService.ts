@@ -608,6 +608,19 @@ export const isOfficeStaff = (role: UserRole): boolean => {
   return ['cskh_lead', 'cskh_staff', 'cm_lead', 'cm_staff', 'sale_lead', 'sale_staff', 'ketoan'].includes(role);
 };
 
+// CSKH role checks (for dashboard routing)
+export const isCSKH = (role: UserRole): boolean => {
+  return ['cskh_lead', 'cskh_staff'].includes(role);
+};
+
+export const isCSKHLeader = (role: UserRole): boolean => {
+  return role === 'cskh_lead';
+};
+
+export const isKeToan = (role: UserRole): boolean => {
+  return role === 'ketoan';
+};
+
 export const hasPermission = (
   role: UserRole,
   module: ModuleKey,

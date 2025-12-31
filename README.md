@@ -13,7 +13,7 @@ EduManager Pro is a comprehensive web-based application for Vietnamese language 
 | **Hooks** | 35 | Real-time listeners |
 | **Collections** | 36+ | Firestore |
 | **Cloud Functions** | 11 | Serverless triggers + utilities |
-| **Test Coverage** | 155+ tests | Unit, integration |
+| **Test Coverage** | 294 tests | Unit, integration, permissions |
 | **Feature Modules** | 7 | Encapsulated domain logic |
 
 ## Key Features
@@ -96,12 +96,15 @@ This pattern ensures clean separation of concerns and maintainable code.
 
 For detailed architecture documentation, refer to `docs/system-architecture.md`.
 
-## Recent Changes (December 28, 2025)
+## Recent Changes (December 31, 2025)
 
-- **Codebase Review**: Completed full audit of all 28 services, 27 hooks, 36 pages
-- **Quality Assessment**: 6.5/10 score with identified security (P0) and code quality (P1) issues
-- **Active Plan**: Phase-based remediation plan in `plans/251226-2134-codebase-review/`
-- **Documentation**: Updated all core documentation files with latest statistics and audit findings
+- **Permission System**: Fixed CSKH/CM/Sale Staff over-permissioned modules (classes, schedule, holidays)
+- **Role-Based Dashboards**:
+  - Office Dashboard: Enhanced with 4 new CSKH/Sale widgets (Work Days, Expiring Fees, Debt List, Checklist)
+  - Teacher Dashboard: Complete GV/TG implementation with 7 widgets for class management and salary tracking
+- **Test Coverage**: Increased to 294 tests (from 226) with comprehensive permission and dashboard tests
+- **Build Status**: All tests passing, production build successful
+- **Commits**: f607592 (GV Dashboard), 643445f (CSKH Widgets), 7959e41 (Permission fixes)
 
 ## Development
 
@@ -130,10 +133,11 @@ Complete documentation available in the `docs/` directory:
 
 ## Current Focus
 
-The project is in the **Codebase Review Phase** targeting v1.1 (Q1 2026):
+The project is in the **Production Stabilization Phase** (v1.0.1):
 
-1. **Security Hardening** (P0): Firestore rules, permission checks
-2. **Code Quality** (P1): DRY violations, hook consistency, test coverage
-3. **User Features** (P2): Mobile responsive, notifications, integrations
+1. **Permission & Dashboard** ✅: Complete GV/TG teacher dashboard implementation
+2. **Security Hardening** (P0): Firestore rules, permission checks (in progress)
+3. **Code Quality** (P1): DRY violations, hook consistency (planned v1.1)
+4. **User Features** (P2): Mobile responsive, notifications (planned v1.2)
 
 See `docs/project-roadmap.md` for complete roadmap.

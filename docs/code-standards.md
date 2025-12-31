@@ -1,6 +1,6 @@
 # EduManager Pro - Code Standards
 
-**Last Updated**: December 28, 2025
+**Last Updated**: December 31, 2025
 
 ## Overview
 
@@ -660,9 +660,10 @@ test: Add tests for StudentService
 
 ## Technical Debt / Known Issues
 
-Based on the latest codebase review (December 28, 2025):
+Based on the latest codebase review (December 31, 2025):
 
--   **Quality Score**: 6.5/10 - Indicating areas for improvement across the codebase.
--   **Security**: There are identified weaknesses in current Firestore rules and some areas lack explicit permission checks, which need to be addressed to prevent unauthorized access or data manipulation.
+-   **Quality Score**: 6.5/10 - Indicating focused areas for improvement in security and code quality.
+-   **Security**: P0 issues in current Firestore rules and some areas lacking explicit permission checks. Permission & dashboard implementation (v1.0.1) addressed permission system gaps. Further hardening needed for comprehensive security.
 -   **DRY Violations (Timestamp Conversion & Query Building)**: The codebase exhibits duplication in handling Firestore Timestamp conversions and constructing Firestore queries. This leads to redundant code and increased maintenance effort. A centralized utility or helper functions should be implemented to abstract these common operations.
 -   **Hooks Consistency**: There's an inconsistency in the `src/hooks/` layer regarding data fetching patterns. Some hooks utilize `onSnapshot` for real-time updates (preferred), while others perform one-time `getDocs` fetches. This mixed approach can lead to unpredictable UI behavior and make debugging more challenging. A consistent approach favoring real-time listeners for dynamic data should be adopted where appropriate.
+-   **Dashboard Performance**: Teacher dashboard filtering on 70+ students could benefit from memoization to prevent unnecessary re-renders. Recommendation: use `useMemo` for filtered class lists and student arrays.

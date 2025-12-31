@@ -1,6 +1,6 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2025-12-30 10:15
+**Last Updated:** 2025-12-31 12:50
 
 ---
 
@@ -22,11 +22,11 @@
 | Metric | Value |
 |--------|-------|
 | **Branch** | main |
-| **Quality Score** | 6.5/10 (security fixes pending) |
+| **Quality Score** | 7.0/10 (Permission & Dashboard v1.0.1 complete) |
 | **Progress** | Mature codebase, actively maintained |
-| **Last Commit** | `cf21e61` feat(hr): add leave request management system |
-| **Active Plan** | `plans/251226-2134-codebase-review/plan.md` |
-| **Next Priority** | Phase 1: Security Fixes (P0) |
+| **Last Commit** | `f607592` feat(dashboard): implement GV/TG teacher dashboard (Phase 4) |
+| **Active Plans** | Permission & Dashboard ✅ | Staff Role/Position ✅ |
+| **Next Priority** | Production stabilization, v1.1 security hardening |
 
 ---
 
@@ -38,14 +38,14 @@
 ├── App.tsx          # Main app with HashRouter (38 routes)
 ├── index.tsx        # React entry point
 ├── types.ts         # ALL TypeScript interfaces/enums (28+ interfaces, 9 enums)
-├── pages/           # 38 page components (8 domains)
+├── pages/           # 37 page components (8 domains)
 ├── components/      # 6 shared UI components
 ├── docs/            # 31 documentation files + 8 ADRs
 ├── plans/           # 40+ plan files + reports
 ├── src/
 │   ├── config/firebase.ts
 │   ├── services/    # 37 Firestore CRUD services (static class)
-│   ├── hooks/       # 30 React hooks (real-time listeners)
+│   ├── hooks/       # 35 React hooks (real-time listeners)
 │   ├── utils/       # 12 utility files
 │   └── features/    # 7 feature modules (encapsulated domain logic)
 ├── functions/       # 13 Cloud Functions (11 triggers + 2 callables + 1 scheduler)
@@ -70,38 +70,50 @@
 
 ## Active Plans
 
+### Permission & Dashboard Completion (2025-12-30) ✅ COMPLETE
+**Path:** `plans/251230-2152-permission-dashboard-completion/plan.md`
+**Status:** All 5 phases completed on 2025-12-31
+
+| Phase | Name | Status |
+|-------|------|--------|
+| 1 | Permission Fix | ✅ Complete |
+| 2 | Dashboard CSKH Bug Fix | ✅ Complete |
+| 3 | Dashboard CSKH Widgets | ✅ Complete |
+| 4 | Dashboard GV Implementation | ✅ Complete |
+| 5 | Testing & Verification | ✅ Complete |
+
+### Key Achievements (v1.0.1)
+- Fixed CSKH/CM/Sale Staff permissions (classes, schedule, holidays)
+- Added 4 new CSKH/Sale widgets (work days, expiring fees, debt list, checklist)
+- Implemented complete GV/TG Dashboard (7 widgets with data isolation)
+- All 294 tests pass, production build successful
+
 ### Codebase Review Plan (2025-12-26)
 **Path:** `plans/251226-2134-codebase-review/plan.md`
-**Status:** Review Complete, Implementation Pending
-
-| Phase | Name | Priority | Status |
-|-------|------|----------|--------|
-| 1 | Security Fixes | P0 | Pending |
-| 2 | Type Safety & DRY | P1 | Pending |
-| 3 | Hooks Consistency | P2 | Pending |
-| 4 | Service Layer | P2 | Pending |
-| 5 | Test Coverage | P3 | Pending |
-
-### Key Issues Found
-- 4 critical security issues (Firestore rules, permissions)
-- 6 instances of `any` type
-- 15+ DRY violations
-- Only 25% pages have permission checks
+**Status:** Review Complete, Security Phase Pending (v1.1)
 
 ---
 
-## Recent Activity (Last 10 Commits)
+## Recent Activity (Last 10 Tasks)
 
-1. `a7e8a95` docs: Remove project management details and update project memory
-2. `1779052` docs: Add new documentation for code standards
-3. `03a0ae5` docs: Create project-memory.md and update .gitignore
-4. `c62df9e` chore(git): add repomix files to gitignore
-5. `af5bcce` fix(data): improve class and attendance data consistency
-6. `704e94f` feat: Add student editing modal, new attendance/class services
-7. `6235f81` fix: properly track attendance increments for historical data
-8. `fb0c8b1` fix: use MAX of current/counted attendance (never decrease)
-9. `56e44db` fix: also update remainingSessions field when recalculating status
-10. `4059d4b` feat: add manual status recalculation for students
+**2025-12-31 (Current Session)**
+1. ✅ **Staff Role/Position Conflict Fix** - Expanded Văn phòng positions, clarified role labels
+   - Added 8 Văn phòng positions with optgroup grouping (CSKH, CM, Sale, Finance)
+   - Renamed role checkboxes to "Vai trò lương" with helper text
+   - Updated normalizePosition function for backward compatibility
+   - All 294 tests pass, build successful
+
+2. ✅ **Permission & Dashboard Completion** - All 5 phases complete (v1.0.1)
+   - Fixed CSKH/CM/Sale Staff permissions
+   - Added 4 new CSKH/Sale widgets
+   - Implemented GV/TG Dashboard (7 widgets)
+
+**Recent Commits**
+1. `f607592` feat(dashboard): implement GV/TG teacher dashboard (Phase 4)
+2. `643445f` feat(dashboard): add CSKH/Sale 4 new widgets (Phase 3)
+3. `7959e41` fix(permissions): update GV students access and add reports_learning module
+4. `f97c582` fix(permissions): fix Sale permission gaps #1-5 to match CSKH
+5. `58346c1` fix(permissions): fix CM & Kế toán permission gaps #5-19
 
 ---
 
@@ -137,21 +149,25 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Last Session (2025-12-30 10:15)
+### Current Session (2025-12-31 12:15 - 12:50)
+- ✅ Staff Role/Position Conflict Fix - pages/StaffManager.tsx updated
+  - POSITIONS constant expanded with 8 Văn phòng positions
+  - Added POSITION_GROUPS for optgroup dropdown display
+  - Updated role checkboxes label to "Vai trò lương" (salary roles)
+  - normalizePosition function updated for backward compatibility
+  - Test results: All 294 tests pass ✅
+- ✅ Permission & Dashboard plan fully complete (5/5 phases)
+- Version: v1.0.1 Production Stabilization Release
+
+### Previous Session (2025-12-30 10:15)
 - Full documentation update completed (`/docs:update`)
-- Scout reports: pages (38), components (6), src (37 services, 30 hooks), functions (13)
-- Docs updated: codebase-summary.md, system-architecture.md, README.md
-- Recent features: Leave Request Management, Staff Reward/Penalty, Work Sessions with leave awareness
+- Scout reports: pages (37), components (6), src (37 services, 35 hooks), functions (13)
 - Firebase connected: edumanager-pro-6180f
 
-### Previous Session (2025-12-28 19:10)
-- Documentation update and codebase review
-- Working tree clean
-
 ### Next Priority
-- Phase 1: Security Fixes (P0)
+- Production stabilization and monitoring
+- v1.1: Security Hardening (P0) - Firestore rules, permission checks
 - See `plans/251226-2134-codebase-review/phases/phase-01-security.md`
-- 4 critical issues: Firestore rules, permissions, staff auth, salary privacy
 
 ### Recommended Skills
 - `frontend-development` - React/TypeScript patterns
@@ -164,11 +180,11 @@ firebase deploy          # Deploy to Firebase
 
 | File | Updated |
 |------|---------|
-| `docs/codebase-summary.md` | 2025-12-30 |
-| `docs/system-architecture.md` | 2025-12-30 |
-| `docs/code-standards.md` | 2025-12-28 |
-| `docs/project-roadmap.md` | 2025-12-28 |
-| `README.md` | 2025-12-28 |
+| `docs/codebase-summary.md` | 2025-12-31 |
+| `docs/system-architecture.md` | 2025-12-31 |
+| `docs/code-standards.md` | 2025-12-31 |
+| `docs/project-roadmap.md` | 2025-12-31 |
+| `README.md` | 2025-12-31 |
 
 ---
 

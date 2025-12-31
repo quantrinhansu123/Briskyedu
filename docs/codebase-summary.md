@@ -1,6 +1,6 @@
 # EduManager Pro Codebase Summary
 
-**Last Updated**: December 29, 2025
+**Last Updated**: December 31, 2025
 
 ## 🎯 Project Overview
 
@@ -12,7 +12,7 @@ EduManager Pro is a comprehensive education center management system designed fo
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Functions, Storage, Hosting)
 -   **Routing**: react-router-dom 7 with HashRouter
 
-## 📊 Codebase Statistics (Latest Audit: Dec 30, 2025)
+## 📊 Codebase Statistics (Latest Audit: Dec 31, 2025)
 
 | Component | Count | Location |
 |-----------|-------|----------|
@@ -26,7 +26,7 @@ EduManager Pro is a comprehensive education center management system designed fo
 | **Firestore Collections** | 36+ | Multiple domains |
 | **TypeScript Interfaces** | 28+ | `types.ts` (single source of truth) |
 | **TypeScript Enums** | 9+ | `types.ts` |
-| **Test Files** | 155+ | Unit, integration, utilities |
+| **Test Files** | 294 | Unit, integration, permissions, dashboards |
 | **Maintenance Scripts** | 18+ | `/scripts/` (data seeding, consistency checks) |
 
 ## 🧩 Domain-Based Module Structure
@@ -109,13 +109,16 @@ Serverless functions in `/functions/src/triggers/` and utilities for automation 
 ## ⚠️ Recent Changes & Quality Assessment
 
 -   **Quality Score**: 6.5/10 (as of Dec 26, 2025)
--   **Codebase Review**: Completed December 28, 2025. Full audit performed across all layers.
--   **Active Plan**: Codebase review implementation plan exists in `plans/251226-2134-codebase-review/plan.md`
--   **Security**: P0 priority issues identified in Firestore rules and missing permission checks require immediate attention.
+-   **Latest Work**: Permission & Dashboard completion (December 31, 2025)
+     - Permission System: Fixed CSKH/CM/Sale Staff over-permissioned modules
+     - Office Dashboard: Added 4 new CSKH/Sale widgets
+     - Teacher Dashboard: Complete GV/TG implementation with 7 widgets
+     - Test Coverage: Increased from 226 to 294 tests
+-   **Security**: P0 priority issues identified in Firestore rules and missing permission checks (in progress)
 -   **Code Quality Issues**:
      - DRY violations in timestamp conversion and Firestore query building
      - Inconsistent hook patterns (mix of onSnapshot vs getDocs approaches)
-     - Missing explicit permission checks in some operations
+     - Performance optimization needed for dashboard data filtering (memoization)
 
 ## 🗄️ Firestore Collections (36 Total)
 

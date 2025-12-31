@@ -1,6 +1,6 @@
 # EduManager Pro - System Architecture
 
-**Last Updated**: December 28, 2025
+**Last Updated**: December 31, 2025
 
 ## Overview
 
@@ -357,6 +357,92 @@ types.ts (Single Source of Truth)
 4. **Single types.ts file**: All interfaces in one place for easier maintenance
 5. **HashRouter**: Works better with Firebase Hosting static deployment
 6. **Vietnamese UI text**: All statuses and enums in Vietnamese for end users
+
+## Dashboard Architecture (Role-Based)
+
+The Dashboard component (`pages/Dashboard.tsx`) implements role-based widget rendering to provide tailored views for different user roles:
+
+### Office Dashboard (Admin, Manager, Lead, Staff, Kế toán)
+
+**Core Widgets:**
+- Dashboard stats header (total students, classes, staff)
+- Attendance insights (top absences, punctuality)
+- Common widgets: Sinh nhật, Vật phẩm kho (visible to !isTeacher)
+
+**Role-Specific Sections:**
+- **Revenue Module** (`canSeeRevenue`): Doanh số, Doanh thu, Revenue charts (Admin/Manager/Lead/Kế toán)
+- **Work Sessions** (`canSeeRevenue`): Salary data for office staff
+
+**CSKH/Sale Specific Widgets:**
+- Số ngày công (Work Days summary)
+- DS sắp hết phí (Students with expiring contracts)
+- DS nợ phí (Students with debt)
+- Checklist (Daily tasks/reminders)
+
+### Teacher Dashboard (Giáo Viên, Trợ Giảng)
+
+**Purpose**: Personal dashboard for teachers to manage classes, students, and salary
+
+**Key Widgets:**
+1. **My Classes Stats Header**
+   - Total classes taught
+   - Total students across classes
+   - Average students per class
+
+2. **My Classes List**
+   - Classes assigned to teacher (filtered by staffId)
+   - Schedule details per class
+   - Student enrollment info
+
+3. **Upcoming Classes**
+   - Classes scheduled for today and this week
+   - Time-based sorting
+   - Quick action buttons
+
+4. **BTVN Reports Needed**
+   - Homework assignments pending feedback
+   - Student progress tracking
+   - Report submission status
+
+5. **Student Alerts**
+   - Top students by absences
+   - Low homework submission students
+   - At-risk student identification
+
+6. **My Class Birthdays**
+   - Upcoming student birthdays (filtered by my classes)
+   - Birthday date organization
+
+7. **Monthly Salary**
+   - Confirmed salary (tính công)
+   - Pending salary (chưa tính công)
+   - Work session aggregation
+
+**Data Isolation**: All data filtered by `staffId` for data security and personalization
+
+### Permission Flags
+
+**canSeeRevenue**: Boolean flag determining revenue module visibility
+- Set to true for: Admin, Manager, Lead, Kế toán
+- Set to false for: Staff, CSKH, Sale, GV, TG
+
+**isTeacher**: Boolean flag determining teacher/GV status
+- Set to true for: Giáo viên, Trợ giảng roles
+- Used to hide office-specific widgets from teachers
+
+### Data Flow
+
+```
+usePermissions() ────┐
+                     ├──► Dashboard (role-based rendering)
+useAuth() ───────────┤
+                     └──► Widget components (filtered by staffId)
+
+useClasses() ────┐
+useStaff() ──────├──► Teacher Dashboard widgets (GV/TG only)
+useLeaveBalance()┤
+useSalaryData() ─┘
+```
 
 ## Tutoring System (Lịch Bồi Bài)
 

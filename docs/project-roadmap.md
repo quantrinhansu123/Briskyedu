@@ -1,6 +1,6 @@
 # EduManager Pro - Project Roadmap
 
-**Last Updated**: December 28, 2025
+**Last Updated**: December 31, 2025
 
 ## Vision
 
@@ -19,27 +19,31 @@ Build a comprehensive, efficient, and user-friendly education center management 
 └── v1.0 Release (Dec 2025)      └── v1.1 Release (Mar 2026)     └── v1.2 Release (Jun 2026)
 ```
 
-## Current Status (December 28, 2025)
+## Current Status (December 31, 2025)
 
-**System Health**: 6.5/10 - Quality score indicates room for improvement
-**Phase**: Version 1.0 Complete, Codebase Review Phase Active
-**Active Plan**: `plans/251226-2134-codebase-review/plan.md`
-**Critical Items**: 4 P0 security issues identified, targeting v1.1
+**System Health**: 6.5/10 - Quality score with specific focus areas for improvement
+**Phase**: Version 1.0.1 - Permission & Dashboard Completion
+**Latest Completion**: Permission system fix + Role-based dashboard implementation (12/31/2025)
+**Active Work**: Security hardening and code quality improvements targeting v1.1
 
-### Codebase Metrics (Latest Audit)
+### Codebase Metrics (Latest Audit: Dec 31, 2025)
 
-- **Services**: 28 static class methods in `src/services/`
-- **Hooks**: 27 real-time listeners in `src/hooks/`
-- **Pages**: 36 domain-organized components in `pages/`
-- **Collections**: 35 Firestore collections
-- **Cloud Functions**: 8 serverless triggers
-- **Test Coverage**: 155+ tests (unit, integration)
+- **Services**: 37 static class methods in `src/services/`
+- **Hooks**: 35 real-time listeners in `src/hooks/`
+- **Pages**: 37 domain-organized components in `pages/`
+- **Collections**: 36+ Firestore collections
+- **Cloud Functions**: 11 serverless triggers + utilities
+- **Test Coverage**: 294 tests (unit, integration, permissions, dashboards)
 
-### Recent Work Summary
+### Recent Work Summary (December 31, 2025)
 
-- **Completed**: Full codebase audit across 28 services, 27 hooks, 36 pages
-- **In Progress**: Security issue remediation
-- **Next Priority**: Implement codebase review recommendations
+- **Completed**: Permission System fixes + Role-based dashboard implementation
+  - Fixed CSKH/CM/Sale Staff over-permissioned modules (classes, schedule, holidays)
+  - Enhanced Office Dashboard with 4 new CSKH/Sale widgets
+  - Implemented complete Teacher Dashboard with 7 widgets for GV/TG roles
+  - Increased test coverage from 226 to 294 tests
+- **In Progress**: Security issue remediation (P0)
+- **Next Priority**: Code quality improvements (DRY violations, hook consistency)
 
 ## Version 1.0 (Released - Dec 2025)
 
@@ -88,29 +92,47 @@ Build a comprehensive, efficient, and user-friendly education center management 
 - [x] Production deployment
 - [x] User documentation
 
-## Version 1.1 (Q1 2026) - Active Phase
+## Version 1.0.1 (December 31, 2025) - Stabilization Release
 
-### Critical Focus: Codebase Quality & Security
+### Completed Features ✅
 
-Per the active review plan (`plans/251226-2134-codebase-review/plan.md`), v1.1 prioritizes:
+- [x] **Permission System Hardening**: Fixed CSKH/CM/Sale Staff over-permissioned modules
+- [x] **Office Dashboard Enhancement**: Added 4 new CSKH/Sale widgets (Work Days, Expiring Fees, Debt List, Checklist)
+- [x] **Teacher Dashboard**: Complete implementation for GV/TG roles with 7 specialized widgets
+- [x] **Test Coverage**: Increased from 226 to 294 tests
+- [x] **Production Build**: All tests passing, no critical errors
+
+### Key Improvements
+- Role-based widget rendering for better user experience
+- Data isolation by staffId for security
+- Permission flags (canSeeRevenue, isTeacher) for flexible access control
+- Extended DashboardStats interface with 14 new teacher-specific fields
+
+## Version 1.1 (Q1 2026) - Code Quality & Security
+
+### Critical Focus: Security Hardening & Code Quality
+
+v1.1 builds on the 1.0.1 stabilization to address:
 
 **Phase 1: Security Hardening (P0)**
 
 Critical security issues from codebase audit (Dec 2025):
-- [ ] Firestore rules hardening - apply principle of least privilege across 35 collections
+- [ ] Firestore rules hardening - apply principle of least privilege across 36+ collections
 - [ ] Permission checks - add explicit permission verification in all CRUD operations
 - [ ] Input validation - validate user inputs in forms and API submissions
 - [ ] Sensitive data handling - encrypt confidential information
-- [ ] Target Quality Score: 9.0/10
+- [ ] Permission-based data filtering - ensure data isolation by role
+- [ ] Target Quality Score: 8.5+/10
 
 **Phase 2: Code Quality & Maintenance (P1)**
 
 Identified technical debt:
 - [ ] DRY violations - consolidate timestamp conversion utility, centralize Firestore query builders
-- [ ] Hook consistency - standardize onSnapshot vs getDocs usage across 27 hooks
-- [ ] Service layer refactoring - simplify complex methods in 28 services
+- [ ] Hook consistency - standardize onSnapshot vs getDocs usage across 35 hooks
+- [ ] Service layer refactoring - simplify complex methods in 37 services
+- [ ] Dashboard performance - implement memoization for filtered data (70+ students)
 - [ ] Error boundary improvement - comprehensive error logging and user feedback
-- [ ] Test coverage - achieve 95%+ across all layers
+- [ ] Test coverage - achieve 95%+ across all layers (currently at 294 tests)
 
 **Phase 3: User Experience Enhancements**
 - [ ] Mobile responsive improvements - ensure 36 pages render correctly on mobile

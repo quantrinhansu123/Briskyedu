@@ -22,3 +22,4 @@ export * from './triggers/attendanceTriggers';
 export * from './triggers/studentAttendanceTriggers';
 export * from './triggers/contractTriggers';
 export * from './triggers/staffTriggers';
+export * from './triggers/salaryTriggers';

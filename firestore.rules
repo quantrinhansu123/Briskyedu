@@ -176,7 +176,19 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isAdmin();
     }
-    
+
+    // Monthly Salary Summary - unified salary calculations
+    match /monthlySalarySummary/{docId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // Reward/Penalty records
+    match /rewardPenalties/{docId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
     // Staff Attendance collection
     match /staffAttendance/{docId} {
       allow read: if isStaff();

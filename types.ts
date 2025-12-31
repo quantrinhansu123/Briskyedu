@@ -207,6 +207,49 @@ export interface SalaryCalculationResult {
   totalNet: number;
 }
 
+// Monthly Salary Summary - unified collection for salary calculations
+export type SalarySummaryStatus = 'draft' | 'calculated' | 'approved' | 'paid';
+
+export interface MonthlySalarySummary {
+  id?: string;
+  staffId: string;
+  staffName: string;
+  position: string;
+  department: string;
+  month: number;
+  year: number;
+
+  // Base salary
+  baseSalary: number;
+  positionBonus: number;
+
+  // Work-based calculations
+  workDays: number;           // For office staff
+  workSessions: number;       // For teachers
+  sessionRate: number;        // Rate per session
+
+  // Bonuses
+  kpiBonus: number;
+  commission: number;
+  rewards: number;            // Sum from rewardPenalties
+
+  // Deductions
+  penalties: number;          // Sum from rewardPenalties
+  latePenalty: number;        // From attendance
+  otherDeductions: number;
+
+  // Totals
+  totalGross: number;
+  totalDeductions: number;
+  totalNet: number;
+
+  // Metadata
+  status: SalarySummaryStatus;
+  calculatedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
 export interface Staff {
   id: string;
   name: string;

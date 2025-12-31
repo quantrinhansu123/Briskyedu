@@ -57,4 +57,5 @@ __exportStar(require("./triggers/attendanceTriggers"), exports);
 __exportStar(require("./triggers/studentAttendanceTriggers"), exports);
 __exportStar(require("./triggers/contractTriggers"), exports);
 __exportStar(require("./triggers/staffTriggers"), exports);
+__exportStar(require("./triggers/salaryTriggers"), exports);
 //# sourceMappingURL=index.js.map

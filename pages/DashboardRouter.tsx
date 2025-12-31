@@ -14,6 +14,7 @@ import { usePermissions } from '../src/hooks/usePermissions';
 // Lazy load dashboards
 const Dashboard = lazy(() => import('./Dashboard').then(m => ({ default: m.Dashboard })));
 const DashboardCSKH = lazy(() => import('./DashboardCSKH').then(m => ({ default: m.DashboardCSKH })));
+const DashboardGV = lazy(() => import('./DashboardGV').then(m => ({ default: m.DashboardGV })));
 
 // Loading component
 const DashboardLoading: React.FC = () => (
@@ -53,6 +54,15 @@ export const DashboardRouter: React.FC = () => {
     });
   }
 
+  // Route teachers to GV Dashboard
+  if (isTeacher) {
+    return (
+      <Suspense fallback={<DashboardLoading />}>
+        <DashboardGV />
+      </Suspense>
+    );
+  }
+
   // Route CSKH staff to CSKH Dashboard
   if (isCSKH) {
     return (
@@ -61,11 +71,6 @@ export const DashboardRouter: React.FC = () => {
       </Suspense>
     );
   }
-
-  // Future Phase 4: Route teachers to DashboardGV
-  // if (isTeacher) {
-  //   return <Suspense fallback={<DashboardLoading />}><DashboardGV /></Suspense>;
-  // }
 
   // Default: Admin/Kế toán/other roles use main Dashboard
   return (

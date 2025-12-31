@@ -227,14 +227,18 @@ export const SalaryReportStaff: React.FC = () => {
 
                 {activeTab === 'commission' && (
                   <div>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="grid grid-cols-3 gap-4 mb-6">
                       <div className="bg-gray-50 p-3 rounded border border-gray-300">
                         <p className="text-xs text-gray-500 uppercase font-bold">Lương cứng</p>
                         <p className="text-lg font-bold text-gray-900">{formatCurrency(selectedSalary.baseSalary)}</p>
                       </div>
+                      <div className="bg-indigo-50 p-3 rounded border border-indigo-300">
+                        <p className="text-xs text-indigo-700 uppercase font-bold">Phụ cấp vị trí</p>
+                        <p className="text-lg font-bold text-indigo-700">{formatCurrency(selectedSalary.positionBonus || 0)}</p>
+                      </div>
                       <div className="bg-green-50 p-3 rounded border border-green-300">
-                        <p className="text-xs text-green-700 uppercase font-bold">Tổng hoa hồng</p>
-                        <p className="text-lg font-bold text-green-700">{formatCurrency(selectedSalary.commission)}</p>
+                        <p className="text-xs text-green-700 uppercase font-bold">Tổng thực nhận</p>
+                        <p className="text-lg font-bold text-green-700">{formatCurrency(selectedSalary.totalSalary)}</p>
                       </div>
                     </div>
                     <div className="bg-white border border-gray-300 rounded overflow-hidden">
@@ -250,14 +254,30 @@ export const SalaryReportStaff: React.FC = () => {
                             <td className="px-4 py-2 border-r border-gray-200">Lương cơ bản ({selectedSalary.workDays} công)</td>
                             <td className="px-4 py-2 text-right font-medium">{formatCurrency(selectedSalary.baseSalary)}</td>
                           </tr>
-                          <tr>
-                            <td className="px-4 py-2 border-r border-gray-200">Hoa hồng doanh số</td>
-                            <td className="px-4 py-2 text-right font-medium">{formatCurrency(selectedSalary.commission)}</td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-2 border-r border-gray-200">Phụ cấp</td>
-                            <td className="px-4 py-2 text-right font-medium">{formatCurrency(selectedSalary.allowance)}</td>
-                          </tr>
+                          {(selectedSalary.positionBonus || 0) > 0 && (
+                            <tr className="bg-indigo-50/50">
+                              <td className="px-4 py-2 border-r border-gray-200 text-indigo-700">Phụ cấp vị trí (Lead/Quản lý)</td>
+                              <td className="px-4 py-2 text-right font-medium text-indigo-700">+{formatCurrency(selectedSalary.positionBonus || 0)}</td>
+                            </tr>
+                          )}
+                          {(selectedSalary.kpiBonus || 0) > 0 && (
+                            <tr className="bg-amber-50/50">
+                              <td className="px-4 py-2 border-r border-gray-200 text-amber-700">Thưởng KPI</td>
+                              <td className="px-4 py-2 text-right font-medium text-amber-700">+{formatCurrency(selectedSalary.kpiBonus || 0)}</td>
+                            </tr>
+                          )}
+                          {selectedSalary.commission > 0 && (
+                            <tr>
+                              <td className="px-4 py-2 border-r border-gray-200">Hoa hồng doanh số</td>
+                              <td className="px-4 py-2 text-right font-medium">{formatCurrency(selectedSalary.commission)}</td>
+                            </tr>
+                          )}
+                          {selectedSalary.allowance > 0 && (
+                            <tr>
+                              <td className="px-4 py-2 border-r border-gray-200">Phụ cấp khác</td>
+                              <td className="px-4 py-2 text-right font-medium">{formatCurrency(selectedSalary.allowance)}</td>
+                            </tr>
+                          )}
                           {selectedSalary.deduction > 0 && (
                             <tr>
                               <td className="px-4 py-2 border-r border-gray-200 text-red-600">Khấu trừ (đi muộn, phạt...)</td>

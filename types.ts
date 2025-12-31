@@ -186,6 +186,27 @@ export type StaffRole =
   // Legacy
   | 'Văn phòng';
 
+// Position-based Salary Configuration
+export interface PositionSalaryConfig {
+  position: string;
+  baseMultiplier: number;    // 1.0 = standard, 1.3 = lead, 1.5 = management
+  hasKpiBonus: boolean;
+  hasCommission: boolean;
+  defaultBaseSalary?: number;
+}
+
+export interface SalaryCalculationResult {
+  baseSalary: number;
+  positionBonus: number;
+  kpiBonus: number;
+  commission: number;
+  rewards: number;
+  penalties: number;
+  totalGross: number;
+  deductions: number;
+  totalNet: number;
+}
+
 export interface Staff {
   id: string;
   name: string;

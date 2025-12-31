@@ -1,16 +1,17 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
   where,
-  orderBy 
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { getPositionConfig } from '../config/salaryConfig';
 
 export interface StaffSalaryRecord {
   id?: string;
@@ -20,8 +21,12 @@ export interface StaffSalaryRecord {
   month: number;
   year: number;
   baseSalary: number;
+  positionBonus: number;      // Lead/Management bonus based on multiplier
+  kpiBonus: number;           // KPI achievement bonus
   workDays: number;
   commission: number;
+  commissionRate?: number;    // For Sale team (percentage)
+  commissionBase?: number;    // Revenue base for commission calculation
   allowance: number;
   deduction: number;
   totalSalary: number;
@@ -73,22 +78,35 @@ export const getStaffSalaries = async (month: number, year: number): Promise<Sta
     );
 
     if (existingSalary) {
-      return existingSalary as StaffSalaryRecord;
+      // Ensure existing records have new fields (backward compatibility)
+      const record = existingSalary as StaffSalaryRecord;
+      return {
+        ...record,
+        positionBonus: record.positionBonus ?? 0,
+        kpiBonus: record.kpiBonus ?? 0,
+      };
     }
 
-    // Default salary record nếu chưa có
+    // Get position-based salary configuration
+    const posConfig = getPositionConfig(staff.position || 'Nhân viên');
+    const baseSalary = staff.salary || posConfig.defaultBaseSalary || 0;
+    const positionBonus = baseSalary * (posConfig.baseMultiplier - 1);
+
+    // Default salary record with position-based calculations
     return {
       staffId: staff.id,
       staffName: staff.name || staff.staffName || 'N/A',
       position: staff.position || 'Nhân viên',
       month,
       year,
-      baseSalary: staff.salary || 0,
+      baseSalary,
+      positionBonus,
+      kpiBonus: 0, // Default, can be updated by HR
       workDays: 0,
       commission: 0,
       allowance: 0,
       deduction: 0,
-      totalSalary: 0,
+      totalSalary: baseSalary + positionBonus,
     };
   });
 

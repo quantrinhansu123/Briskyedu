@@ -83,7 +83,8 @@
   uid: string (Firebase Auth UID, indexed)
   code: string (unique, indexed)
   name: string (indexed)
-  role: 'Giáo viên' | 'Trợ giảng' | 'Nhân viên' | 'Quản lý' | 'Quản trị viên'
+  role: StaffRole (see types.ts - includes 20+ variants for legacy compatibility)
+  roles?: StaffRole[] (multi-role for salary configuration)
   department: string
   position: string
   phone: string (indexed)

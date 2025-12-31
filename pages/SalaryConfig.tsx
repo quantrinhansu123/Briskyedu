@@ -95,17 +95,30 @@ export const SalaryConfig: React.FC = () => {
   // Grouped view state for saved configs
   const [expandedStaff, setExpandedStaff] = useState<Set<string>>(new Set());
 
-  // Normalize position for display
+  // Normalize position for display and backward compatibility
+  // Maps old roles to new salary role categories
   const normalizePosition = (pos: string): string => {
     const lower = pos?.toLowerCase() || '';
-    if (lower.includes('quản lý') || lower === 'admin') return 'Quản lý';
+
+    // Điều hành
+    if (lower.includes('quản lý') || lower.includes('quản trị') || lower === 'admin') return 'Quản lý';
+
+    // Đào Tạo
     if (lower.includes('nước ngoài') || lower.includes('ngoại') || lower === 'foreign') return 'Giáo Viên Nước Ngoài';
     if (lower.includes('việt') || lower === 'gv việt') return 'Giáo Viên Việt';
     if (lower.includes('trợ') || lower === 'tg') return 'Trợ Giảng';
-    if (lower.includes('nhân viên') || lower === 'nv') return 'Nhân viên';
-    if (lower.includes('văn phòng') || lower === 'vp') return 'Văn phòng';
+
+    // Văn phòng - New roles
+    if (lower.includes('cskh') || lower.includes('lễ tân') || lower.includes('tư vấn')) return 'CSKH';
+    if (lower.includes('chuyên môn') || lower.includes(' cm') || lower === 'cm') return 'Chuyên môn';
+    if (lower.includes('kế toán')) return 'Kế toán';
     if (lower.includes('sale')) return 'Sale';
-    return pos || 'Nhân viên';
+
+    // Backward compatibility: old roles → new roles
+    if (lower.includes('nhân viên') || lower === 'nv') return 'CSKH';
+    if (lower.includes('văn phòng') || lower === 'vp') return 'CSKH';
+
+    return pos || 'CSKH';
   };
 
   // Fetch staff list - includes all positions (GV, TG, NV, VP, Sale...)

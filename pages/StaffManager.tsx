@@ -39,8 +39,20 @@ const POSITION_GROUPS = {
   ],
 };
 
-// Available roles for multi-select
-const AVAILABLE_ROLES: StaffRole[] = ['Giáo viên', 'Trợ giảng', 'Nhân viên', 'Sale', 'Văn phòng', 'Quản lý', 'Quản trị viên'];
+// Available roles for salary configuration (multi-select)
+// Đào Tạo: tính theo giờ/ca | Văn phòng: lương cứng + KPI/commission | Quản lý: lương cứng + thưởng
+const AVAILABLE_ROLES: StaffRole[] = [
+  // Đào Tạo
+  'Giáo viên',
+  'Trợ giảng',
+  // Văn phòng
+  'CSKH',
+  'Sale',
+  'Chuyên môn',
+  'Kế toán',
+  // Điều hành
+  'Quản lý',
+];
 
 export const StaffManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

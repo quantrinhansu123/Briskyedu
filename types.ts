@@ -175,6 +175,7 @@ export type StaffRole =
   | 'Trưởng Nhóm Chuyên Môn'
   | 'NV CM'
   | 'NV Chuyên Môn'
+  | 'Chuyên môn'
   // Văn Phòng - Sale
   | 'Trưởng Nhóm Sale'
   | 'NV Sale'

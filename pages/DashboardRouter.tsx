@@ -11,8 +11,9 @@
 import React, { Suspense, lazy } from 'react';
 import { usePermissions } from '../src/hooks/usePermissions';
 
-// Lazy load the main dashboard (contains both admin and teacher views currently)
+// Lazy load dashboards
 const Dashboard = lazy(() => import('./Dashboard').then(m => ({ default: m.Dashboard })));
+const DashboardCSKH = lazy(() => import('./DashboardCSKH').then(m => ({ default: m.DashboardCSKH })));
 
 // Loading component
 const DashboardLoading: React.FC = () => (
@@ -34,11 +35,10 @@ const DashboardLoading: React.FC = () => (
 /**
  * DashboardRouter Component
  *
- * Future phases will add:
- * - Phase 3: DashboardCSKH for CSKH staff
- * - Phase 4: DashboardGV extracted from Dashboard
- *
- * Current: Routes to main Dashboard which handles role-based rendering internally
+ * Routing logic:
+ * - CSKH staff → DashboardCSKH (Phase 3)
+ * - Teachers (GV/TG) → Dashboard (Phase 4 will extract to DashboardGV)
+ * - Admin/Kế toán → Dashboard (main admin view)
  */
 export const DashboardRouter: React.FC = () => {
   const { isTeacher, isCSKH, isKeToan, canSeeRevenue } = usePermissions();
@@ -53,15 +53,21 @@ export const DashboardRouter: React.FC = () => {
     });
   }
 
-  // Future: Route to specific dashboards
+  // Route CSKH staff to CSKH Dashboard
+  if (isCSKH) {
+    return (
+      <Suspense fallback={<DashboardLoading />}>
+        <DashboardCSKH />
+      </Suspense>
+    );
+  }
+
+  // Future Phase 4: Route teachers to DashboardGV
   // if (isTeacher) {
   //   return <Suspense fallback={<DashboardLoading />}><DashboardGV /></Suspense>;
   // }
-  // if (isCSKH) {
-  //   return <Suspense fallback={<DashboardLoading />}><DashboardCSKH /></Suspense>;
-  // }
 
-  // Currently: Use existing Dashboard which handles role-based rendering
+  // Default: Admin/Kế toán/other roles use main Dashboard
   return (
     <Suspense fallback={<DashboardLoading />}>
       <Dashboard />

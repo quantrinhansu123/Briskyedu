@@ -13,7 +13,30 @@ const DEPARTMENTS = ['Điều hành', 'Đào Tạo', 'Văn phòng'];
 const POSITIONS = {
   'Điều hành': ['Quản lý (Admin)'],
   'Đào Tạo': ['Giáo Viên Việt', 'Giáo Viên Nước Ngoài', 'Trợ Giảng'],
-  'Văn phòng': ['Nhân viên', 'Kế toán', 'Lễ tân'],
+  'Văn phòng': [
+    // CSKH Team
+    'Trưởng Nhóm CSKH',
+    'NV CSKH',
+    'Lễ tân',
+    // CM Team
+    'Trưởng Nhóm CM',
+    'NV CM',
+    // Sale Team
+    'Trưởng Nhóm Sale',
+    'NV Sale',
+    // Finance
+    'Kế toán',
+  ],
+};
+
+// Grouped positions for optgroup dropdown (Văn phòng only)
+const POSITION_GROUPS = {
+  'Văn phòng': [
+    { label: 'CSKH', positions: ['Trưởng Nhóm CSKH', 'NV CSKH', 'Lễ tân'] },
+    { label: 'Chuyên Môn', positions: ['Trưởng Nhóm CM', 'NV CM'] },
+    { label: 'Sale', positions: ['Trưởng Nhóm Sale', 'NV Sale'] },
+    { label: 'Kế toán', positions: ['Kế toán'] },
+  ],
 };
 
 // Available roles for multi-select
@@ -76,25 +99,57 @@ export const StaffManager: React.FC = () => {
   const normalizePosition = (pos: string): string => {
     if (!pos) return '';
     const lower = pos.toLowerCase();
+
+    // Admin
     if (lower.includes('quản lý') || lower.includes('admin')) return 'Quản lý (Admin)';
+
+    // Teachers
     if (lower.includes('giáo viên việt') || lower === 'gv việt') return 'Giáo Viên Việt';
     if (lower.includes('nước ngoài') || lower.includes('gv ngoại') || lower.includes('foreign')) return 'Giáo Viên Nước Ngoài';
     if (lower.includes('trợ giảng')) return 'Trợ Giảng';
-    if (lower.includes('kế toán')) return 'Kế toán';
+
+    // CSKH Team
+    if (lower.includes('trưởng nhóm cskh') || lower === 'cskh lead') return 'Trưởng Nhóm CSKH';
+    if (lower.includes('nv cskh') || lower === 'cskh staff') return 'NV CSKH';
     if (lower.includes('lễ tân')) return 'Lễ tân';
-    if (lower.includes('nhân viên')) return 'Nhân viên';
+
+    // CM Team
+    if (lower.includes('trưởng nhóm cm') || lower === 'cm lead') return 'Trưởng Nhóm CM';
+    if (lower.includes('nv cm') || lower === 'cm staff') return 'NV CM';
+
+    // Sale Team
+    if (lower.includes('trưởng nhóm sale') || lower === 'sale lead') return 'Trưởng Nhóm Sale';
+    if (lower.includes('nv sale') || lower === 'sale staff') return 'NV Sale';
+
+    // Finance
+    if (lower.includes('kế toán')) return 'Kế toán';
+
+    // Legacy fallback - map old "Nhân viên" to NV CSKH for backward compatibility
+    if (lower.includes('nhân viên')) return 'NV CSKH';
+
     return pos;
   };
 
-  // Position order for sorting (by teaching hierarchy)
+  // Position order for sorting (by department hierarchy)
   const positionOrder: Record<string, number> = {
+    // Admin
     'Quản lý (Admin)': 1,
+    // Teachers
     'Giáo Viên Việt': 2,
     'Giáo Viên Nước Ngoài': 3,
     'Trợ Giảng': 4,
-    'Kế toán': 5,
-    'Nhân viên': 6,
+    // CSKH Team
+    'Trưởng Nhóm CSKH': 5,
+    'NV CSKH': 6,
     'Lễ tân': 7,
+    // CM Team
+    'Trưởng Nhóm CM': 8,
+    'NV CM': 9,
+    // Sale Team
+    'Trưởng Nhóm Sale': 10,
+    'NV Sale': 11,
+    // Finance
+    'Kế toán': 12,
   };
 
   // Filter and sort staff by position
@@ -597,15 +652,30 @@ export const StaffManager: React.FC = () => {
               {/* Position & Branch */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vị trí
+                    <span className="text-xs text-gray-400 font-normal ml-1">- quyết định quyền truy cập</span>
+                  </label>
                   <select
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                   >
-                    {(POSITIONS[formData.department as keyof typeof POSITIONS] || []).map(pos => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
+                    {formData.department === 'Văn phòng' ? (
+                      // Grouped dropdown for Văn phòng
+                      POSITION_GROUPS['Văn phòng'].map(group => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.positions.map(pos => (
+                            <option key={pos} value={pos}>{pos}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    ) : (
+                      // Simple dropdown for other departments
+                      (POSITIONS[formData.department as keyof typeof POSITIONS] || []).map(pos => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
@@ -623,10 +693,11 @@ export const StaffManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Multiple Roles */}
+              {/* Multiple Roles - for salary configuration only */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vai trò (có thể chọn nhiều)
+                  Vai trò lương (có thể chọn nhiều)
+                  <span className="text-xs text-gray-400 font-normal ml-1">- dùng cho cấu hình lương</span>
                 </label>
                 <div className="border border-gray-300 rounded-lg p-2 grid grid-cols-2 gap-2">
                   {AVAILABLE_ROLES.map(role => (

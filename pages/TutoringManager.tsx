@@ -88,14 +88,27 @@ const ConfirmModal: React.FC<{
   message: string;
   confirmText: string;
   confirmColor?: 'emerald' | 'red' | 'blue' | 'amber';
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onClose: () => void;
 }> = ({ title, message, confirmText, confirmColor = 'emerald', onConfirm, onClose }) => {
+  const [loading, setLoading] = useState(false);
   const colors = {
     emerald: 'bg-emerald-600 hover:bg-emerald-700',
     red: 'bg-red-600 hover:bg-red-700',
     blue: 'bg-blue-600 hover:bg-blue-700',
     amber: 'bg-amber-600 hover:bg-amber-700',
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (err: any) {
+      alert(`Lỗi: ${err?.message || 'Không thể thực hiện thao tác'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -107,14 +120,17 @@ const ConfirmModal: React.FC<{
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            disabled={loading}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             Hủy
           </button>
           <button
-            onClick={() => { onConfirm(); onClose(); }}
-            className={`px-4 py-2 text-white rounded-lg ${colors[confirmColor]}`}
+            onClick={handleConfirm}
+            disabled={loading}
+            className={`px-4 py-2 text-white rounded-lg ${colors[confirmColor]} disabled:opacity-50 flex items-center gap-2`}
           >
+            {loading && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>}
             {confirmText}
           </button>
         </div>

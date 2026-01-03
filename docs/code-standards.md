@@ -1,6 +1,6 @@
 # EduManager Pro - Code Standards
 
-**Last Updated**: December 31, 2025
+**Last Updated**: January 3, 2026
 
 ## Overview
 
@@ -494,6 +494,144 @@ useEffect(() => {
 - Prevents excessive function calls (throttling for search, autocomplete)
 - Perfect for search inputs, API calls, auto-save features
 - Reduces server load and improves UX
+
+## Dashboard Widget Design System
+
+Dashboard components use a consistent **glass morphism design pattern** with modern visual hierarchy. All dashboards follow these standards:
+
+### Visual Design Pattern
+
+```tsx
+// Glass morphism: Frosted glass effect with backdrop blur
+<div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-white/20">
+  {/* Widget content */}
+</div>
+
+// Gradient headers for visual hierarchy
+<div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-xl">
+  <h3 className="text-white font-semibold">Widget Title</h3>
+</div>
+
+// Spacing: 4px unit system
+// p-4 (16px), p-6 (24px), gap-4 (16px), mt-4 (16px)
+```
+
+### Dashboard Component Structure
+
+**Main Dashboards** (Pages in `/pages/`):
+- `Dashboard.tsx` - Main dashboard for Admin (2,368 LOC - largest component)
+- `DashboardRouter.tsx` - Role-based routing dispatcher
+- `DashboardCSKH.tsx` - CSKH staff dashboard with 4 widgets
+- `DashboardGV.tsx` - Teacher/GV dashboard with 7 widgets
+
+**Reusable Widgets** (Components in `/components/`):
+- `DashboardStats.tsx` - Key metric cards with trend indicators
+- `RevenueChart.tsx` - Revenue visualization with Recharts
+- `SalesChart.tsx` - Sales trends and performance
+- `StudentDebtWidget.tsx` - Outstanding debt tracking
+- `StudentExpiringSoonWidget.tsx` - Expiring fee notifications
+- `WorkDaysWidget.tsx` - Teacher work session tracking
+- `ChecklistWidget.tsx` - Task management widget
+- `SalaryWidget.tsx` - Monthly salary summary
+- `StockWidget.tsx` - Inventory management
+- `BirthdayWidget.tsx` - Upcoming birthdays
+
+### Widget Implementation Pattern
+
+```typescript
+// ✅ Good - Reusable widget component
+interface DashboardWidgetProps {
+  title: string;
+  icon?: React.ReactNode;
+  loading?: boolean;
+  error?: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
+  title,
+  icon,
+  loading,
+  error,
+  children,
+  className = ''
+}) => {
+  return (
+    <div className={`bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-white/20 ${className}`}>
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 rounded-t-xl">
+        <div className="flex items-center gap-3">
+          {icon && <span className="text-white text-xl">{icon}</span>}
+          <h3 className="text-white font-semibold">{title}</h3>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {loading && <LoadingSpinner />}
+        {error && <ErrorMessage message={error} />}
+        {!loading && !error && children}
+      </div>
+    </div>
+  );
+};
+
+// Usage
+<DashboardWidget
+  title="Revenue Summary"
+  icon={<BarChart3 />}
+  loading={loading}
+  error={error}
+>
+  <RevenueChart data={data} />
+</DashboardWidget>
+```
+
+### Color System for Widgets
+
+```
+Role-based Colors:
+- Admin:   indigo-600 (primary brand)
+- Teacher (GV): blue-600 (education focus)
+- CSKH:    purple-600 (customer service)
+- Manager: emerald-600 (management)
+
+Widget Status:
+- Positive: green-600
+- Warning: amber-600
+- Alert:   red-600
+- Neutral: gray-600
+```
+
+### Dashboard Hook Pattern
+
+```typescript
+// Data hooks for dashboard widgets
+export const useMonthlySalary = () => {
+  const [summary, setSummary] = useState<MonthlySalarySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Real-time listener for salary data
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'monthlySalaries')),
+      (snapshot) => {
+        const data = snapshot.docs[0]?.data() as MonthlySalarySummary;
+        setSummary(data);
+        setLoading(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  return { summary, loading, error };
+};
+
+// Usage in DashboardGV.tsx
+const { summary, loading } = useMonthlySalary();
+```
 
 ## Feature Folder Structure
 

@@ -286,10 +286,13 @@ export const ContractCreation: React.FC = () => {
   // Smart filtering: Filter classes by status and student's branch
   const filteredClasses = useMemo(() => {
     return classes.filter(c => {
-      // 1. Must be active (studying)
-      if (c.status !== ClassStatus.STUDYING) return false;
+      // 1. Must be studying or pending (opening soon)
+      if (c.status !== ClassStatus.STUDYING && c.status !== ClassStatus.PENDING) return false;
 
-      // 2. Filter by student's branch (if student selected and has branch)
+      // 2. Branch filter: show classes if:
+      //    - Student has no branch (show all)
+      //    - Class has no branch (can accept any student)
+      //    - Both have branch and they match
       if (selectedStudent?.branch && c.branch && c.branch !== selectedStudent.branch) {
         return false;
       }
@@ -925,27 +928,60 @@ export const ContractCreation: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <select
-                        value={item.discount * 100}
+                        value={
+                          // Find matching discount by calculated value
+                          discounts.find(d => {
+                            if (d.type === 'percent') {
+                              return d.value === item.discount * 100;
+                            } else {
+                              // For fixed: check if finalPrice matches subtotal - fixed value
+                              return item.subtotal - d.value === item.finalPrice;
+                            }
+                          })?.id || (item.discount > 0 ? 'custom' : '0')
+                        }
                         onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          updateItem(index, 'discount', value / 100);
+                          const selectedId = e.target.value;
+                          if (selectedId === '0') {
+                            // No discount
+                            updateItem(index, 'discount', 0);
+                          } else if (selectedId === 'custom') {
+                            // Custom: set small default to trigger custom input
+                            updateItem(index, 'discount', 0.01);
+                          } else {
+                            // Find discount by ID
+                            const selectedDiscount = discounts.find(d => d.id === selectedId);
+                            if (selectedDiscount) {
+                              if (selectedDiscount.type === 'percent') {
+                                updateItem(index, 'discount', selectedDiscount.value / 100);
+                              } else {
+                                // Fixed amount: calculate equivalent percent
+                                const subtotal = item.subtotal || 0;
+                                const fixedPercent = subtotal > 0 ? selectedDiscount.value / subtotal : 0;
+                                updateItem(index, 'discount', Math.min(fixedPercent, 1)); // Cap at 100%
+                              }
+                            }
+                          }
                         }}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm cursor-pointer"
                       >
                         <option value="0">Không ưu đãi</option>
                         {discounts.map(d => (
-                          <option key={d.id} value={d.type === 'percent' ? d.value : 0}>
+                          <option key={d.id} value={d.id}>
                             {d.name} {d.type === 'percent' ? `(${d.value}%)` : `(-${formatCurrency(d.value)})`}
                           </option>
                         ))}
                         <option value="custom">Tùy chỉnh...</option>
                       </select>
-                      {item.discount > 0 && !discounts.some(d => d.value === item.discount * 100) && (
+                      {/* Show custom input when: discount > 0 AND no matching discount found */}
+                      {item.discount > 0 && !discounts.some(d =>
+                        (d.type === 'percent' && d.value === item.discount * 100) ||
+                        (d.type === 'fixed' && item.subtotal - d.value === item.finalPrice)
+                      ) && (
                         <input
                           type="number"
                           min="0"
                           max="100"
-                          value={item.discount * 100}
+                          value={Math.round(item.discount * 100)}
                           onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) / 100 || 0)}
                           className="w-16 px-2 py-1 border border-gray-300 rounded text-center mt-1"
                           placeholder="%"

@@ -58,9 +58,13 @@ export interface Student {
   startDate?: string; // Ngày bắt đầu học
   expectedEndDate?: string; // Ngày kết thúc dự kiến (tự động tính)
   reserveDate?: string; // Ngày bảo lưu
-  reserveNote?: string; // Ghi chú bảo lưu  
+  reserveNote?: string; // Ghi chú bảo lưu
   reserveSessions?: number; // Số buổi bảo lưu
-  
+
+  // Nghỉ học
+  dropoutReason?: string; // Lý do nghỉ học (free-text)
+  dropoutDate?: string; // Ngày nghỉ học
+
   // Nợ xấu
   badDebt?: boolean; // Tick nợ xấu (học sinh nghỉ học nhưng còn nợ)
   badDebtSessions?: number; // Số buổi nợ

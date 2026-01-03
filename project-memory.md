@@ -1,6 +1,6 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2025-12-31 12:50
+**Last Updated:** 2026-01-03 15:58
 
 ---
 
@@ -22,10 +22,10 @@
 | Metric | Value |
 |--------|-------|
 | **Branch** | main |
-| **Quality Score** | 7.0/10 (Permission & Dashboard v1.0.1 complete) |
+| **Quality Score** | 7.5/10 (Dashboard Phases 1-4 complete, unified salary) |
 | **Progress** | Mature codebase, actively maintained |
-| **Last Commit** | `f607592` feat(dashboard): implement GV/TG teacher dashboard (Phase 4) |
-| **Active Plans** | Permission & Dashboard ✅ | Staff Role/Position ✅ |
+| **Last Commit** | `2dceea5` feat(dashboard): implement DashboardGV for teachers (Phase 4) |
+| **Active Plans** | Permission & Dashboard ✅ | Staff Role/Position ✅ | Monthly Salary ✅ |
 | **Next Priority** | Production stabilization, v1.1 security hardening |
 
 ---
@@ -35,22 +35,22 @@
 ### Structure (Non-standard Vite)
 ```
 /                    # Root level (source at root, NOT in src/)
-├── App.tsx          # Main app with HashRouter (38 routes)
+├── App.tsx          # Main app with HashRouter (40+ routes)
 ├── index.tsx        # React entry point
-├── types.ts         # ALL TypeScript interfaces/enums (28+ interfaces, 9 enums)
-├── pages/           # 37 page components (8 domains)
-├── components/      # 6 shared UI components
+├── types.ts         # ALL TypeScript interfaces/enums (50+ interfaces, 7 enums)
+├── pages/           # 40 page components (7 domains + auth + dashboard)
+├── components/      # 17 shared UI components (6 root + 11 dashboard widgets)
 ├── docs/            # 31 documentation files + 8 ADRs
 ├── plans/           # 40+ plan files + reports
 ├── src/
 │   ├── config/firebase.ts
-│   ├── services/    # 37 Firestore CRUD services (static class)
-│   ├── hooks/       # 35 React hooks (real-time listeners)
+│   ├── services/    # 34 Firestore CRUD services (static class)
+│   ├── hooks/       # 39 React hooks (12 real-time + 19 fetch + 2 hybrid)
 │   ├── utils/       # 12 utility files
-│   └── features/    # 7 feature modules (encapsulated domain logic)
-├── functions/       # 13 Cloud Functions (11 triggers + 2 callables + 1 scheduler)
+│   └── features/    # 5 active feature modules (students, classes, attendance, reports, debt)
+├── functions/       # 15+ Cloud Functions (10 modules + 3 callables + scheduled)
 ├── scripts/         # 18 maintenance scripts
-└── firestore.rules  # 36+ collection rules
+└── firestore.rules  # 37+ collection rules
 ```
 
 ### Three-Layer Pattern
@@ -149,13 +149,20 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Current Session (2025-12-31 12:15 - 12:50)
+### Current Session (2026-01-03 15:43 - 15:58)
+- ✅ Full Documentation Update (`/docs:update Ultrathink`)
+  - Spawned 6 parallel scout-external agents for deep codebase analysis
+  - Pages: 40 files, 30,489 LOC, 7 route domains
+  - Services: 34 files, 37+ Firestore collections
+  - Hooks: 39 files (12 real-time, 19 fetch, 2 hybrid)
+  - Features: 5 active modules (students, classes, attendance, reports, debt)
+  - Components: 17 shared (6 root + 11 dashboard widgets)
+  - Cloud Functions: 15+ (10 modules, 3 callables, scheduled)
+- ✅ Updated 5 core docs + created project-overview-pdr.md (NEW)
+- ✅ Created comprehensive docs-manager report
+
+### Previous Session (2025-12-31 12:15 - 12:50)
 - ✅ Staff Role/Position Conflict Fix - pages/StaffManager.tsx updated
-  - POSITIONS constant expanded with 8 Văn phòng positions
-  - Added POSITION_GROUPS for optgroup dropdown display
-  - Updated role checkboxes label to "Vai trò lương" (salary roles)
-  - normalizePosition function updated for backward compatibility
-  - Test results: All 294 tests pass ✅
 - ✅ Permission & Dashboard plan fully complete (5/5 phases)
 - Version: v1.0.1 Production Stabilization Release
 
@@ -180,10 +187,11 @@ firebase deploy          # Deploy to Firebase
 
 | File | Updated |
 |------|---------|
-| `docs/codebase-summary.md` | 2025-12-31 |
-| `docs/system-architecture.md` | 2025-12-31 |
-| `docs/code-standards.md` | 2025-12-31 |
-| `docs/project-roadmap.md` | 2025-12-31 |
+| `docs/codebase-summary.md` | 2026-01-03 |
+| `docs/system-architecture.md` | 2026-01-03 |
+| `docs/code-standards.md` | 2026-01-03 |
+| `docs/project-roadmap.md` | 2026-01-03 |
+| `docs/project-overview-pdr.md` | 2026-01-03 (NEW) |
 | `README.md` | 2025-12-31 |
 
 ---

@@ -96,18 +96,23 @@ export const SalaryReportTeacher: React.FC = () => {
 
   const handleSaveEdit = async () => {
     if (!editingSession) return;
-    
+
     try {
-      // Save to Firebase
-      const docRef = doc(db, 'workDetails', editingSession.id);
+      // Save to workSessions collection (source of truth)
+      const docRef = doc(db, 'workSessions', editingSession.id);
       await setDoc(docRef, {
-        ...editingSession,
+        date: editingSession.date,
+        timeStart: editingSession.time?.split(' - ')[0] || editingSession.timeStart,
+        timeEnd: editingSession.time?.split(' - ')[1] || editingSession.timeEnd,
+        className: editingSession.className,
+        type: editingSession.type,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-      
+
       // Refresh data
       await refresh(selectedMonth, selectedYear);
       setEditingSession(null);
+      alert('Đã cập nhật thông tin công!');
     } catch (err) {
       console.error('Error saving:', err);
       alert('Không thể lưu. Vui lòng thử lại.');

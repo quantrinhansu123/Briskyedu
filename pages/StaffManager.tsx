@@ -233,6 +233,21 @@ export const StaffManager: React.FC = () => {
       return;
     }
 
+    // Validate age >= 18 if DOB is provided
+    if (formData.dob) {
+      const birthDate = new Date(formData.dob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        alert('Nhân viên phải từ 18 tuổi trở lên!');
+        return;
+      }
+    }
+
     try {
       // Determine primary role from position or roles array
       const primaryRole = formData.roles.length > 0 ? formData.roles[0] :

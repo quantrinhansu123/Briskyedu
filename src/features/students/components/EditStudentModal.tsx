@@ -29,6 +29,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
     remainingSessions: (student.registeredSessions || 0) - (student.attendedSessions || 0),
     attendedSessions: student.attendedSessions || 0,
     startDate: student.startDate ? new Date(student.startDate).toISOString().split('T')[0] : '',
+    // Nghỉ học
+    dropoutReason: student.dropoutReason || '',
+    dropoutDate: student.dropoutDate ? new Date(student.dropoutDate).toISOString().split('T')[0] : '',
   });
 
   // Auto-recalculate remainingSessions when registeredSessions or attendedSessions changes
@@ -119,7 +122,17 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
               </label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as StudentStatus })}
+                onChange={(e) => {
+                  const newStatus = e.target.value as StudentStatus;
+                  setFormData({
+                    ...formData,
+                    status: newStatus,
+                    // Tự động set ngày nghỉ khi chuyển sang DROPPED
+                    dropoutDate: newStatus === StudentStatus.DROPPED && !formData.dropoutDate
+                      ? new Date().toISOString().split('T')[0]
+                      : formData.dropoutDate,
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               >
                 {Object.values(StudentStatus).map(status => (
@@ -127,6 +140,35 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
                 ))}
               </select>
             </div>
+
+            {/* Hiển thị lý do nghỉ học khi status = DROPPED */}
+            {formData.status === StudentStatus.DROPPED && (
+              <>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Lý do nghỉ học
+                  </label>
+                  <textarea
+                    value={formData.dropoutReason}
+                    onChange={(e) => setFormData({ ...formData, dropoutReason: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="Nhập lý do nghỉ học..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ngày nghỉ học
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.dropoutDate}
+                    onChange={(e) => setFormData({ ...formData, dropoutDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

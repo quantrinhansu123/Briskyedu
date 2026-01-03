@@ -1,14 +1,15 @@
 # EduManager Pro - System Architecture
 
-**Last Updated**: December 31, 2025
+**Last Updated**: January 3, 2026
 
 ## Overview
 
-EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 36+ Firestore collections across 8 domains via:
+EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 37+ Firestore collections across 8 domains via:
 - **37 Services**: Static class methods for CRUD operations
-- **35 Hooks**: Real-time listeners with onSnapshot pattern
-- **37 Pages**: Domain-organized UI components
-- **7 Feature Modules**: Encapsulated domain-specific logic
+- **39 Hooks**: Real-time listeners with onSnapshot pattern
+- **40 Pages**: Domain-organized UI components + 3 dashboard pages + router
+- **7 Feature Modules**: Encapsulated domain-specific logic (students, classes, attendance, contracts, reports, debt, inventory)
+- **15+ Cloud Functions**: Event-driven triggers and background jobs
 
 ## High-Level Architecture
 
@@ -20,7 +21,7 @@ EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages)
 │  │                    React 19 Application                      ││
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ ││
 │  │  │   Pages     │  │  Components │  │      Router         │ ││
-│  │  │  (36 pages) │  │  (shared)   │  │  (HashRouter)       │ ││
+│  │  │  (40 pages) │  │  (17 total) │  │  (HashRouter)       │ ││
 │  │  └──────┬──────┘  └─────────────┘  └─────────────────────┘ ││
 │  │         │                                                    ││
 │  │  ┌──────▼─────────────────────────────────────────────────┐ ││
@@ -241,51 +242,105 @@ service cloud.firestore {
 }
 ```
 
-## Firestore Collections (36+ Total)
+## Firestore Collections (37+ Total)
 
-The system utilizes 36+ Firestore collections organized across multiple domains:
+The system utilizes 37+ Firestore collections organized across multiple domains:
 
 | Category | Collections | Purpose |
 |----------|-------------|---------|
 | **Core** | students, classes, staff | Core entities |
 | **Operational** | attendance, studentAttendance, contracts, enrollments, workSessions, invoices | Business operations |
+| **Finance** | invoices, contracts, revenue, debt, settlementInvoices | Financial management + settlement tracking |
 | **Business** | leads, campaigns, parents, feedback | CRM and customer relations |
 | **Configuration** | products, rooms, curriculum, salaryConfigs, centerSettings | System configuration |
-| **Finance** | invoices, contracts, revenue, debt | Financial management |
-| **Reporting** | reports, analytics | Business intelligence |
+| **Salary** | monthlySalaries, salaryRecords | Salary calculation and reporting |
+| **Reporting** | reports, analytics, comments | Business intelligence |
 
-For a comprehensive and up-to-date schema with all 36+ collections, refer to `docs/FIRESTORE_SCHEMA.md`.
+For a comprehensive and up-to-date schema with all 37+ collections, refer to `docs/FIRESTORE_SCHEMA.md`.
 
-## Cloud Functions Architecture (11 Total)
+## Cloud Functions Architecture (15+ Total)
 
-Serverless functions in `/functions/src/triggers/` provide backend automation:
+Serverless functions in `/functions/src/triggers/` provide backend automation and event-driven processing:
 
 ```
-┌─────────────────────────────────────────┐
-│    Cloud Functions (11 Total)           │
-├─────────────────────────────────────────┤
-│  ├─ Database Triggers (9)               │
-│  │  ├─ onClassCreate/Update/Delete      │
-│  │  ├─ onStudentCreate/Update/Delete    │
-│  │  ├─ onContractCreate/Update          │
-│  │  ├─ onAttendanceWrite                │
-│  │  ├─ onSessionComplete                │
-│  │  ├─ onHolidayUpdate                  │
-│  │  ├─ homeworkTriggers                 │
-│  │  └─ staffTriggers                    │
-│  └─ Utilities (2)                       │
-│     ├─ Batch operations                 │
-│     └─ Schedule parsers                 │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│    Cloud Functions (15+ Total)               │
+├──────────────────────────────────────────────┤
+│  ├─ Core Triggers (6)                        │
+│  │  ├─ onClassCreate/Update/Delete           │
+│  │  ├─ onStudentCreate/Update/Delete         │
+│  │  ├─ onContractCreate/Update               │
+│  │  ├─ onAttendanceWrite                     │
+│  │  ├─ onSessionComplete                     │
+│  │  └─ onHolidayUpdate                       │
+│  ├─ Specialized Triggers (5)                 │
+│  │  ├─ homeworkTriggers                      │
+│  │  ├─ staffTriggers                         │
+│  │  ├─ settlementInvoiceTriggers             │
+│  │  ├─ calculateMonthlySalaries (1st/month)  │
+│  │  └─ recalculateStudentStats (daily 2 AM)  │
+│  └─ Utilities (3+)                           │
+│     ├─ Batch operations                      │
+│     ├─ Schedule parsers                      │
+│     └─ PDF generation (settlements)          │
+└──────────────────────────────────────────────┘
 ```
 
-**Key Functions**:
-- **Class Triggers**: Real-time updates when classes are created, modified, or deleted
-- **Student Triggers**: Sync student records and maintain enrollment history
-- **Contract Triggers**: Auto-create enrollments and track payment contracts
-- **Attendance Triggers**: Real-time attendance synchronization
-- **Session Triggers**: Calculate salary and work hours on session completion
-- **Holiday Triggers**: Manage holiday periods and class cancellations
+### Core Triggers (Event-driven)
+
+**Class Operations**:
+- `onClassCreate` - Auto-generate workSessions for class schedule
+- `onClassUpdate` - Cascade updates to enrollments and attendance
+- `onClassDelete` - Cleanup sessions, cascade to student records
+
+**Student Management**:
+- `onStudentCreate` - Initialize student record with default values
+- `onStudentUpdate` - Calculate bad debt status, cascade to contracts
+- `onStudentDelete` - Cleanup enrollments, attendance, contracts (cascade)
+
+**Financial Operations**:
+- `onContractCreate` - Auto-create enrollments with paid sessions from contract
+- `onContractUpdate` - Recalculate enrollments if contract terms change
+- `onAttendanceWrite` - Update student stats, trigger tutoring if needed
+
+**Work & Salary**:
+- `onSessionComplete` - Accumulate work hours, calculate session salary
+- `onHolidayUpdate` - Apply/remove sessions during holiday periods
+
+### Specialized Triggers (Background Processing)
+
+**Scheduled Jobs**:
+- `calculateMonthlySalaries` - Scheduled for 1st of each month
+  - Aggregates all work sessions
+  - Calculates position-based salary + bonuses
+  - Generates monthlySalarySummary documents
+  - Handles salary adjustments and penalties
+
+- `recalculateStudentStats` - Daily 2 AM batch update
+  - Recalculates debt calculations
+  - Updates class enrollment stats
+  - Refreshes analytics data
+
+**Real-time Operations**:
+- `settlementInvoiceTriggers` - Debt settlement tracking
+  - Generate settlement invoices for students with bad debt
+  - Track settlement status and payment history
+  - Generate PDF invoices for printing
+
+- `homeworkTriggers` - Homework assignment tracking
+  - Track homework submissions
+  - Update student progress
+
+- `staffTriggers` - Staff account management
+  - Create/update staff accounts in Firebase Auth
+  - Sync permission changes
+  - Handle role transitions
+
+### Utilities
+
+- **Batch Operations**: Bulk inserts, updates, exports
+- **Schedule Parsers**: Parse weekly class schedules into workSessions
+- **PDF Generation**: Generate settlement invoices for download/printing
 - **Staff Triggers**: Account creation and permission management
 
 **Benefits**:

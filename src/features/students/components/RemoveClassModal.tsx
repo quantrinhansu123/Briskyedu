@@ -112,13 +112,17 @@ export const RemoveClassModal: React.FC<RemoveClassModalProps> = ({ student, sta
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {newStatus === StudentStatus.DROPPED ? 'Lý do nghỉ học' : 'Ghi chú'}
+              {newStatus === StudentStatus.DROPPED && <span className="text-red-500 ml-1">*</span>}
+            </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
+              required={newStatus === StudentStatus.DROPPED}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="Lý do xóa khỏi lớp..."
+              placeholder={newStatus === StudentStatus.DROPPED ? 'Nhập lý do nghỉ học (bắt buộc)...' : 'Lý do xóa khỏi lớp...'}
             />
           </div>
 

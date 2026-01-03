@@ -94,6 +94,10 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
   const [roomList, setRoomList] = useState<{ id: string; name: string }[]>([]);
   const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
 
+  // All classes for room conflict validation
+  const [allClasses, setAllClasses] = useState<{ id: string; room: string; schedule: string; scheduleDays?: string[] }[]>([]);
+  const [roomConflictError, setRoomConflictError] = useState<string | null>(null);
+
   // Curriculum autocomplete state
   const [curriculumList, setCurriculumList] = useState<string[]>([]);
   const [showCurriculumDropdown, setShowCurriculumDropdown] = useState(false);
@@ -163,6 +167,17 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
           name: d.data().name || '',
         }));
       setCenterList(centers);
+
+      // Fetch all classes for room conflict validation
+      const classesSnap = await getDocs(collection(db, 'classes'));
+      const classes = classesSnap.docs.map(d => ({
+        id: d.id,
+        name: d.data().name || '',
+        room: d.data().room || '',
+        schedule: d.data().schedule || '',
+        scheduleDays: d.data().scheduleDays || [],
+      }));
+      setAllClasses(classes);
     };
     fetchDropdownData();
   }, []);
@@ -408,8 +423,89 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
     }
   }, [formData.startDate, formData.totalSessions, formData.scheduleDays]);
 
+  // Helper to parse time from schedule string (e.g., "08:00-10:00" or from schedule like "08:00-10:00 Thứ 2")
+  const parseScheduleTime = (schedule: string): { start: string; end: string } | null => {
+    const timeMatch = schedule.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+    if (timeMatch) {
+      return { start: timeMatch[1], end: timeMatch[2] };
+    }
+    return null;
+  };
+
+  // Helper to check if two time ranges overlap
+  const timeRangesOverlap = (time1: { start: string; end: string }, time2: { start: string; end: string }): boolean => {
+    const toMinutes = (time: string) => {
+      const [h, m] = time.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const start1 = toMinutes(time1.start), end1 = toMinutes(time1.end);
+    const start2 = toMinutes(time2.start), end2 = toMinutes(time2.end);
+    return start1 < end2 && start2 < end1;
+  };
+
+  // Helper to get days from schedule string
+  const getScheduleDays = (schedule: string): string[] => {
+    const days: string[] = [];
+    const dayPatterns = [
+      { pattern: /Thứ 2|T2/gi, day: '2' },
+      { pattern: /Thứ 3|T3/gi, day: '3' },
+      { pattern: /Thứ 4|T4/gi, day: '4' },
+      { pattern: /Thứ 5|T5/gi, day: '5' },
+      { pattern: /Thứ 6|T6/gi, day: '6' },
+      { pattern: /Thứ 7|T7/gi, day: '7' },
+      { pattern: /Chủ nhật|CN/gi, day: 'CN' },
+    ];
+    dayPatterns.forEach(({ pattern, day }) => {
+      if (pattern.test(schedule)) days.push(day);
+    });
+    return days;
+  };
+
+  // Room conflict validation
+  const checkRoomConflict = (): string | null => {
+    if (!formData.room || formData.scheduleDays.length === 0) return null;
+
+    const currentTime = formData.scheduleStartTime && formData.scheduleEndTime
+      ? { start: formData.scheduleStartTime, end: formData.scheduleEndTime }
+      : parseScheduleTime(formData.schedule);
+
+    if (!currentTime) return null;
+
+    for (const cls of allClasses) {
+      // Skip current class if editing
+      if (classData && cls.id === classData.id) continue;
+      // Skip if different room
+      if (cls.room !== formData.room) continue;
+
+      // Get the other class's schedule info
+      const otherTime = parseScheduleTime(cls.schedule);
+      if (!otherTime) continue;
+
+      const otherDays = cls.scheduleDays?.length > 0 ? cls.scheduleDays : getScheduleDays(cls.schedule);
+
+      // Check if any days overlap
+      const hasOverlappingDay = formData.scheduleDays.some(d => otherDays.includes(d));
+      if (!hasOverlappingDay) continue;
+
+      // Check if time overlaps
+      if (timeRangesOverlap(currentTime, otherTime)) {
+        const conflictDays = formData.scheduleDays.filter(d => otherDays.includes(d));
+        return `Phòng "${formData.room}" đã có lớp "${cls.name}" học vào ${conflictDays.map(d => d === 'CN' ? 'Chủ nhật' : `Thứ ${d}`).join(', ')} (${cls.schedule}). Vui lòng chọn phòng hoặc khung giờ khác.`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setRoomConflictError(null);
+
+    // Check room conflict before submitting
+    const conflictError = checkRoomConflict();
+    if (conflictError) {
+      setRoomConflictError(conflictError);
+      return;
+    }
 
     let schedule = formData.schedule;
     if (formData.scheduleStartTime && formData.scheduleEndTime && formData.scheduleDays.length > 0) {
@@ -471,6 +567,13 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto max-h-[70vh]">
+          {/* Room conflict error */}
+          {roomConflictError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <strong>⚠️ Xung đột phòng học:</strong> {roomConflictError}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             {/* Tên lớp học */}
             <div className="col-span-2">

@@ -159,9 +159,20 @@ export const Attendance: React.FC = () => {
     return getHolidayForDate(reviewDate);
   }, [reviewDate, holidays]);
 
+  // Get selected class info for sessions hook (needed for addMakeup when no sessions exist)
+  const selectedClassForSessions = useMemo(() => {
+    return classes.find(c => c.id === selectedClassId);
+  }, [classes, selectedClassId]);
+
   // Sessions hook
-  const { sessions: allSessions, upcomingSessions, loading: sessionsLoading, markSessionComplete, addMakeup } = useSessions({ 
-    classId: selectedClassId 
+  const { sessions: allSessions, upcomingSessions, loading: sessionsLoading, markSessionComplete, addMakeup } = useSessions({
+    classId: selectedClassId,
+    classInfo: selectedClassForSessions ? {
+      name: selectedClassForSessions.name,
+      teacherId: selectedClassForSessions.teacherId,
+      teacherName: selectedClassForSessions.teacher,
+      room: selectedClassForSessions.room,
+    } : undefined
   });
 
   // Close dropdown when clicking outside

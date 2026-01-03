@@ -19,6 +19,13 @@ interface UseSessionsProps {
   status?: ClassSession['status'];
   fromDate?: string;
   toDate?: string;
+  // Class info fallback when no sessions exist (for addMakeup)
+  classInfo?: {
+    name?: string;
+    teacherId?: string;
+    teacherName?: string;
+    room?: string;
+  };
 }
 
 interface UseSessionsReturn {
@@ -83,27 +90,27 @@ export const useSessions = (props?: UseSessionsProps): UseSessionsReturn => {
 
   const addMakeup = useCallback(async (date: string, time?: string, note?: string): Promise<string> => {
     if (!props?.classId) throw new Error('No class selected');
-    
-    // Get class info from sessions
-    const classInfo = sessions[0] || upcomingSessions[0];
-    if (!classInfo) throw new Error('No class info available');
-    
+
+    // Get class info from sessions, or fallback to props.classInfo
+    const sessionInfo = sessions[0] || upcomingSessions[0];
+    const classInfoData = {
+      id: props.classId,
+      name: sessionInfo?.className || props?.classInfo?.name || 'Unknown',
+      teacherId: sessionInfo?.teacherId || props?.classInfo?.teacherId || '',
+      teacherName: sessionInfo?.teacherName || props?.classInfo?.teacherName || '',
+      room: sessionInfo?.room || props?.classInfo?.room || '',
+    };
+
     const id = await addMakeupSession(
-      {
-        id: props.classId,
-        name: classInfo.className,
-        teacherId: classInfo.teacherId,
-        teacherName: classInfo.teacherName,
-        room: classInfo.room,
-      },
+      classInfoData,
       date,
       time,
       note
     );
-    
+
     await fetchSessions();
     return id;
-  }, [props?.classId, sessions, upcomingSessions, fetchSessions]);
+  }, [props?.classId, props?.classInfo, sessions, upcomingSessions, fetchSessions]);
 
   return {
     sessions,

@@ -622,13 +622,50 @@ export const SalaryConfig: React.FC = () => {
                       <td className="px-4 py-3 font-medium text-gray-900">{config.className}</td>
                       <td className="px-4 py-3 text-gray-600">{config.classCode}</td>
                       <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          value={config.ratePerUnit}
-                          onChange={(e) => updateClassConfig(idx, 'ratePerUnit', parseInt(e.target.value) || 0)}
-                          className="w-32 px-3 py-1 border border-gray-300 rounded text-center mx-auto block"
-                          step={10000}
-                        />
+                        <div className="flex flex-col items-center gap-2">
+                          {/* Quick rate buttons */}
+                          <div className="flex gap-1 flex-wrap justify-center">
+                            {[150000, 200000, 250000, 300000].map(rate => (
+                              <button
+                                key={rate}
+                                type="button"
+                                onClick={() => updateClassConfig(idx, 'ratePerUnit', rate)}
+                                className={`px-2 py-1 text-xs rounded border ${
+                                  config.ratePerUnit === rate
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                                }`}
+                              >
+                                {(rate / 1000)}k
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const custom = prompt('Nhập mức lương tùy chỉnh (VNĐ):', String(config.ratePerUnit));
+                                if (custom !== null) {
+                                  const value = parseInt(custom) || 0;
+                                  updateClassConfig(idx, 'ratePerUnit', value);
+                                }
+                              }}
+                              className={`px-2 py-1 text-xs rounded border ${
+                                ![150000, 200000, 250000, 300000].includes(config.ratePerUnit)
+                                  ? 'bg-orange-500 text-white border-orange-500'
+                                  : 'bg-white text-orange-600 border-orange-300 hover:border-orange-400'
+                              }`}
+                            >
+                              Tuỳ chỉnh
+                            </button>
+                          </div>
+                          {/* Show custom value input */}
+                          <input
+                            type="number"
+                            value={config.ratePerUnit}
+                            onChange={(e) => updateClassConfig(idx, 'ratePerUnit', parseInt(e.target.value) || 0)}
+                            className="w-28 px-2 py-1 border border-gray-300 rounded text-center text-sm"
+                            step={10000}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <select

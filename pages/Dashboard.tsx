@@ -110,6 +110,7 @@ interface DashboardStats {
   upcomingBirthdays: { name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
   studentBirthdays: { id: string; name: string; position: string; date: string; dayOfMonth: number; branch?: string }[];
   classStats: { name: string; count: number }[];
+  revenueByClass: { name: string; value: number }[]; // Doanh thu theo lớp
   // Phase 3: New widgets data
   myWorkDays: number; // Số ngày công tháng này
   studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number }[]; // DS sắp hết phí
@@ -153,6 +154,7 @@ export const Dashboard: React.FC = () => {
     upcomingBirthdays: [],
     studentBirthdays: [],
     classStats: [],
+    revenueByClass: [],
     // Phase 3: New widgets
     myWorkDays: 0,
     studentsExpiringSoon: [],
@@ -181,7 +183,7 @@ export const Dashboard: React.FC = () => {
   // State cho bảng thống kê
   const [statsMonth, setStatsMonth] = useState(new Date().getMonth() + 1);
   const [statsYear, setStatsYear] = useState(new Date().getFullYear());
-  const [statsCategory, setStatsCategory] = useState('Lương nhân viên');
+  const [statsCategory, setStatsCategory] = useState<'salary' | 'students' | 'revenue'>('salary');
   const [statsSortOrder, setStatsSortOrder] = useState('asc'); // asc = thấp đến cao
   const [statsLimit, setStatsLimit] = useState(5);
   
@@ -200,7 +202,7 @@ export const Dashboard: React.FC = () => {
   // State cho bảng vật phẩm kho
   const [stockFilter, setStockFilter] = useState<'low' | 'all'>('low');
   
-  // State cho chi nhánh/cơ sở
+  // State cho bộ lọc cơ sở (branch filter)
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [centerList, setCenterList] = useState<{ id: string; name: string }[]>([]);
   
@@ -223,19 +225,6 @@ export const Dashboard: React.FC = () => {
     fetchCenters();
   }, []);
 
-  // Build branches array with colors
-  const branchColors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-pink-500'];
-  const branches = [
-    { id: 'all', name: 'Tất cả cơ sở', color: 'bg-gray-500', textColor: 'text-gray-700' },
-    ...centerList.map((c, idx) => ({
-      id: c.name,
-      name: c.name,
-      color: branchColors[idx % branchColors.length],
-      textColor: `text-${branchColors[idx % branchColors.length].replace('bg-', '').replace('-500', '')}-700`
-    }))
-  ];
-  const selectedBranchData = branches.find(b => b.id === selectedBranch) || branches[0];
-  
   // State cho modal danh sách học viên
   const [allStudents, setAllStudents] = useState<StudentData[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -285,7 +274,7 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [selectedBranch]); // Re-fetch when branch filter changes
 
   // Load birthday gifts for current month/year
   useEffect(() => {
@@ -332,20 +321,53 @@ export const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch students
       const studentsSnap = await getDocs(collection(db, 'students'));
-      const students = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as StudentData[];
-      setAllStudents(students);
-      
+      const allStudentsData = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as StudentData[];
+      setAllStudents(allStudentsData);
+
       // Fetch classes
       const classesSnap = await getDocs(collection(db, 'classes'));
-      const classes = classesSnap.docs.map(d => d.data());
-      
+      const allClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
       // Fetch contracts for revenue
       const contractsSnap = await getDocs(collection(db, 'contracts'));
-      const contracts = contractsSnap.docs.map(d => d.data());
-      
+      const allContracts = contractsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Apply branch filter
+      const filterByBranch = (items: any[], branchFields = ['branch', 'center', 'centerName']) => {
+        if (selectedBranch === 'all') return items;
+
+        // "unassigned" = show items WITHOUT any branch field
+        if (selectedBranch === 'unassigned') {
+          return items.filter(item => {
+            for (const field of branchFields) {
+              if (item[field] && item[field].trim() !== '') return false; // Has a branch, exclude
+            }
+            return true; // No branch field set
+          });
+        }
+
+        // Filter by specific branch
+        return items.filter(item => {
+          for (const field of branchFields) {
+            if (item[field] && item[field] === selectedBranch) return true;
+          }
+          return false;
+        });
+      };
+
+      // Filter data by selected branch
+      const students = filterByBranch(allStudentsData);
+      const classes = filterByBranch(allClasses);
+
+      // Filter contracts by student branch (via studentId lookup)
+      const studentIds = new Set(students.map(s => s.id));
+      const contracts = selectedBranch === 'all'
+        ? allContracts
+        : allContracts.filter(c => studentIds.has(c.studentId));
+
       // Calculate stats
       const totalStudents = students.length;
       const totalClasses = classes.length;
@@ -417,11 +439,11 @@ export const Dashboard: React.FC = () => {
       
       // Fetch staff for birthday and salary - real data from Firebase
       const staffSnap = await getDocs(collection(db, 'staff'));
-      const staffList = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
+      const staffListRaw = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
       // Also get staff from staffSalaries if staff collection is empty
-      let allStaff = staffList;
-      if (staffList.length === 0) {
+      let allStaffRaw = staffListRaw;
+      if (staffListRaw.length === 0) {
         const staffSalariesSnap = await getDocs(collection(db, 'staffSalaries'));
         const uniqueStaff = new Map();
         staffSalariesSnap.docs.forEach(d => {
@@ -432,11 +454,15 @@ export const Dashboard: React.FC = () => {
               name: data.staffName,
               position: data.position,
               birthDate: data.birthDate || data.dob,
+              branch: data.branch || data.center || '',
             });
           }
         });
-        allStaff = Array.from(uniqueStaff.values());
+        allStaffRaw = Array.from(uniqueStaff.values());
       }
+
+      // Apply branch filter to staff
+      const allStaff = filterByBranch(allStaffRaw);
       
       const now = new Date();
       const thisMonth = now.getMonth();
@@ -493,16 +519,54 @@ export const Dashboard: React.FC = () => {
       
       console.log('Student birthdays this month:', studentBirthdays.length);
       
-      // Class stats from real data
-      const classStats = classes.slice(0, 5).map((c: any) => ({
-        name: c.name,
-        count: c.currentStudents || 0,
-      }));
+      // Class stats - count students per class (using studentIds or counting from students collection)
+      const classStats = classes.map((c: any) => {
+        // Count students in this class from actual student data
+        // Match by: classId, classIds array, class name (legacy), or currentClassName
+        const studentCount = students.filter((s: any) =>
+          s.classId === c.id ||
+          s.classIds?.includes(c.id) ||
+          s.class === c.name ||
+          s.currentClassName === c.name
+        ).length;
+        return {
+          name: c.name || 'Không tên',
+          count: studentCount || c.currentStudents || c.studentIds?.length || 0,
+        };
+      }).filter(c => c.count > 0); // Only show classes with students
+
+      // Revenue by class - aggregate contract amounts per class
+      const revenueByClass: { name: string; value: number }[] = [];
+      const classRevenueMap = new Map<string, number>();
+
+      contracts.forEach((c: any) => {
+        if (c.status === 'Paid' || c.status === 'Đã thanh toán') {
+          const className = c.className || c.courseName || 'Khác';
+          const amount = c.finalTotal || c.totalAmount || 0;
+          classRevenueMap.set(className, (classRevenueMap.get(className) || 0) + amount);
+        }
+      });
+
+      classRevenueMap.forEach((value, name) => {
+        revenueByClass.push({ name, value });
+      });
       
       // Fetch work sessions for real salary calculation
       const workSessionsSnap = await getDocs(collection(db, 'workSessions'));
-      const workSessions = workSessionsSnap.docs.map(d => d.data());
-      const confirmedSessions = workSessions.filter((ws: any) => ws.status === 'Đã xác nhận');
+      const workSessionsRaw = workSessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Keep workSessions alias for GV dashboard (needs all sessions, not filtered by branch)
+      const workSessions = workSessionsRaw;
+
+      // Filter work sessions by branch for salary calculations (via classId or direct branch field)
+      const classIds = new Set(classes.map((c: any) => c.id));
+      const filteredWorkSessions = selectedBranch === 'all'
+        ? workSessionsRaw
+        : workSessionsRaw.filter((ws: any) =>
+            (ws.branch && ws.branch === selectedBranch) ||
+            (ws.center && ws.center === selectedBranch) ||
+            (ws.classId && classIds.has(ws.classId))
+          );
+      const confirmedSessions = filteredWorkSessions.filter((ws: any) => ws.status === 'Đã xác nhận');
       
       // Calculate salary by position from confirmed work sessions
       const salaryByPosition: { [key: string]: number } = {
@@ -863,6 +927,7 @@ export const Dashboard: React.FC = () => {
         upcomingBirthdays,
         studentBirthdays,
         classStats,
+        revenueByClass,
         // Phase 3: New widgets
         myWorkDays,
         studentsExpiringSoon,
@@ -923,6 +988,7 @@ export const Dashboard: React.FC = () => {
         upcomingBirthdays: [],
         studentBirthdays: [],
         classStats: [],
+        revenueByClass: [],
         // Phase 3: New widgets
         myWorkDays: 0,
         studentsExpiringSoon: [],
@@ -1057,9 +1123,11 @@ export const Dashboard: React.FC = () => {
                     className="bg-white/20 backdrop-blur-md text-white border border-white/30 rounded-full px-4 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer hover:bg-white/30 transition-all appearance-none pr-8"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px' }}
                   >
-                    {branches.map(branch => (
-                      <option key={branch.id} value={branch.id} className="bg-white text-gray-800">{branch.name}</option>
+                    <option value="all" className="bg-white text-gray-800">Tất cả cơ sở</option>
+                    {centerList.map(center => (
+                      <option key={center.id} value={center.name} className="bg-white text-gray-800">{center.name}</option>
                     ))}
+                    <option value="unassigned" className="bg-white text-gray-800 italic">-- Không phân loại --</option>
                   </select>
                 </div>
               </div>
@@ -1469,21 +1537,21 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div></div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Hạng mục thống kê</span>
-                    <select 
+                    <span className="text-gray-600">Hạng mục</span>
+                    <select
                       value={statsCategory}
-                      onChange={(e) => setStatsCategory(e.target.value)}
+                      onChange={(e) => setStatsCategory(e.target.value as 'salary' | 'students' | 'revenue')}
                       className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
-                      <option value="Lương nhân viên">Lương nhân viên</option>
-                      <option value="Số lượng học sinh">Số lượng học sinh</option>
-                      <option value="Doanh thu">Doanh thu</option>
+                      <option value="salary">Lương nhân viên</option>
+                      <option value="students">Số lượng học sinh</option>
+                      <option value="revenue">Doanh thu</option>
                     </select>
                   </div>
                   <div></div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Kiểu xem</span>
-                    <select 
+                    <select
                       value={statsSortOrder}
                       onChange={(e) => setStatsSortOrder(e.target.value)}
                       className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
@@ -1507,34 +1575,64 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Stats table */}
+                {/* Stats table - dynamic based on category */}
                 <table className="w-full text-sm">
                   <thead className="bg-teal-50/50 border-b-2 border-teal-100">
                     <tr>
-                      <th className="text-left py-2.5 px-3 font-medium text-gray-600">Tên nhân viên</th>
-                      <th className="text-right py-2.5 px-3 font-medium text-gray-600">Lương tạm tính</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-gray-600">
+                        {statsCategory === 'salary' ? 'Tên nhân viên' : statsCategory === 'students' ? 'Tên lớp' : 'Nguồn'}
+                      </th>
+                      <th className="text-right py-2.5 px-3 font-medium text-gray-600">
+                        {statsCategory === 'salary' ? 'Lương tạm tính' : statsCategory === 'students' ? 'Số học sinh' : 'Doanh thu'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
-                      const sortedData = [...salaryReportData]
-                        .sort((a, b) => statsSortOrder === 'asc' 
-                          ? a.estimatedSalary - b.estimatedSalary 
-                          : b.estimatedSalary - a.estimatedSalary)
+                      // Prepare data based on category
+                      let tableData: { name: string; value: number }[] = [];
+
+                      if (statsCategory === 'salary') {
+                        tableData = salaryReportData.map(item => ({
+                          name: item.staffName,
+                          value: item.estimatedSalary
+                        }));
+                      } else if (statsCategory === 'students') {
+                        tableData = stats.classStats?.map((c: any) => ({
+                          name: c.name,
+                          value: c.count || 0
+                        })) || [];
+                      } else if (statsCategory === 'revenue') {
+                        // Use revenue by class (doanh thu theo lớp học)
+                        tableData = stats.revenueByClass?.map(r => ({
+                          name: r.name,
+                          value: r.value || 0
+                        })) || [];
+                      }
+
+                      // Sort and limit
+                      const sortedData = [...tableData]
+                        .sort((a, b) => statsSortOrder === 'asc' ? a.value - b.value : b.value - a.value)
                         .slice(0, statsLimit);
-                      
+
+                      const emptyMessage = statsCategory === 'salary' ? 'Chưa có dữ liệu lương'
+                        : statsCategory === 'students' ? 'Chưa có dữ liệu lớp học'
+                        : 'Chưa có dữ liệu doanh thu';
+
                       return sortedData.length > 0 ? (
                         sortedData.map((item, idx) => (
                           <tr key={idx} className="border-b border-gray-100 hover:bg-teal-50/30 transition-colors">
-                            <td className="py-2.5 px-3 text-gray-700">{item.staffName}</td>
-                            <td className="py-2.5 px-3 text-right font-semibold text-teal-600">{formatCurrency(item.estimatedSalary)}</td>
+                            <td className="py-2.5 px-3 text-gray-700">{item.name}</td>
+                            <td className="py-2.5 px-3 text-right font-semibold text-teal-600">
+                              {statsCategory === 'students' ? item.value : formatCurrency(item.value)}
+                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
                           <td colSpan={2} className="py-6 text-center text-gray-400">
                             <BarChart3 size={32} className="mx-auto mb-2 opacity-30" />
-                            Chưa có dữ liệu lương
+                            {emptyMessage}
                           </td>
                         </tr>
                       );

@@ -116,11 +116,13 @@ export const HomeworkManager: React.FC = () => {
     if (!selectedClassId) return [];
     const selectedClass = classes.find(c => c.id === selectedClassId);
     if (!selectedClass) return [];
-    
-    return allStudents.filter(s => 
-      s.classId === selectedClassId || 
+
+    return allStudents.filter(s =>
+      s.classId === selectedClassId ||
+      s.classIds?.includes(selectedClassId) ||  // Support multi-class
       s.class === selectedClass.name ||
-      s.className === selectedClass.name
+      s.className === selectedClass.name ||
+      s.currentClassName === selectedClass.name
     ).filter(s => s.status === 'Đang học' || s.status === 'Học thử' || s.status === 'Nợ phí');
   }, [selectedClassId, classes, allStudents]);
 

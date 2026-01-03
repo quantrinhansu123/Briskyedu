@@ -100,7 +100,9 @@ export const TrialStudents: React.FC = () => {
                            s.phone?.includes(searchTerm) ||
                            s.parentName?.toLowerCase().includes(searchTerm.toLowerCase());
       const student = s as TrialStudent;
-      const matchesStatus = filterStatus === 'ALL' || student.trialStatus === filterStatus;
+      // Treat undefined trialStatus as 'Chờ Test' (default for new trial students)
+      const studentTrialStatus = student.trialStatus || 'Chờ Test';
+      const matchesStatus = filterStatus === 'ALL' || studentTrialStatus === filterStatus;
       const matchesConsultant = filterConsultant === 'ALL' || student.consultant === filterConsultant;
       const matchesSource = filterSource === 'ALL' || student.source === filterSource;
       return matchesSearch && matchesStatus && matchesConsultant && matchesSource;

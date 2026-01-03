@@ -612,13 +612,16 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày KT</th>
                     <th className="px-4 py-3 bg-gray-50">HĐ gần nhất</th>
                     <th className="px-4 py-3 bg-gray-50">Trạng thái</th>
+                    {filterStatus === StudentStatus.DROPPED && (
+                      <th className="px-4 py-3 bg-gray-50">Lý do nghỉ học</th>
+                    )}
                     <th className="px-4 py-3 bg-gray-50"></th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="text-center py-10 text-gray-500">
+                    <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-gray-500">
                       <div className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
                         Đang tải dữ liệu...
@@ -627,7 +630,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={12} className="text-center py-10 text-red-500">
+                    <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-red-500">
                       Lỗi: {error}
                     </td>
                   </tr>
@@ -696,7 +699,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </td>
                     <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold text-white ${
-                            normalizeStudentStatus(student.status) === StudentStatus.ACTIVE ? 'bg-green-500' : 
+                            normalizeStudentStatus(student.status) === StudentStatus.ACTIVE ? 'bg-green-500' :
                             normalizeStudentStatus(student.status) === StudentStatus.DEBT ? 'bg-red-500' :
                             normalizeStudentStatus(student.status) === StudentStatus.RESERVED ? 'bg-yellow-500' :
                             normalizeStudentStatus(student.status) === StudentStatus.DROPPED ? 'bg-gray-500' :
@@ -706,6 +709,18 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                             {normalizeStudentStatus(student.status)}
                         </span>
                     </td>
+                    {filterStatus === StudentStatus.DROPPED && (
+                      <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px]">
+                        <div className="truncate" title={student.dropoutReason || ''}>
+                          {student.dropoutReason || <span className="text-gray-400 italic">Chưa có</span>}
+                        </div>
+                        {student.dropoutDate && (
+                          <div className="text-gray-400 text-[10px]">
+                            {new Date(student.dropoutDate).toLocaleDateString('vi-VN')}
+                          </div>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end relative">
                           {canEditStudent && (
@@ -835,7 +850,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </tr>
                 )) : (
                     <tr>
-                        <td colSpan={12} className="text-center py-10 text-gray-500">
+                        <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-gray-500">
                             Không tìm thấy học viên nào.
                         </td>
                     </tr>
@@ -1195,11 +1210,17 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           }}
           onSubmit={async (data) => {
             const oldClass = actionStudent.class || '';
-            await updateStudent(actionStudent.id, {
+            const updateData: Record<string, any> = {
               classId: '',
               class: '',
               status: data.newStatus
-            });
+            };
+            // Nếu nghỉ học, lưu lý do và ngày nghỉ
+            if (data.newStatus === StudentStatus.DROPPED) {
+              updateData.dropoutReason = data.note || '';
+              updateData.dropoutDate = new Date().toISOString();
+            }
+            await updateStudent(actionStudent.id, updateData);
             // Log
             await createEnrollment({
               studentId: actionStudent.id,

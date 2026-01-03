@@ -73,6 +73,7 @@ export const WorkConfirmation: React.FC = () => {
     unconfirmSession,
     confirmMultiple,
     addManualSession,
+    refresh,
   } = useAutoWorkSessions(startDate, endDate);
 
   // Staff list for substitute selection (hiển thị tất cả nhân viên)
@@ -174,8 +175,8 @@ export const WorkConfirmation: React.FC = () => {
         // Status filter - "Nghỉ" không khớp với filter status thông thường
         if (statusFilter && !s.isSubstituted && s.status !== statusFilter) return false;
 
-        // Position filter
-        if (positionFilter && !s.position.includes(positionFilter)) return false;
+        // Position filter (case-insensitive)
+        if (positionFilter && !s.position.toLowerCase().includes(positionFilter.toLowerCase())) return false;
 
         // Search filter
         if (searchTerm && !s.staffName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -345,13 +346,16 @@ export const WorkConfirmation: React.FC = () => {
         selectedSession.id,
         selectedSession,
         editForm,
-        { 
-          name: staffData?.name || 'Unknown', 
-          role: staffData?.role || 'Unknown' 
+        {
+          name: staffData?.name || 'Unknown',
+          role: staffData?.role || 'Unknown'
         },
         actionReason
       );
-      
+
+      // Refresh data to show updated session
+      await refresh();
+
       alert('Đã cập nhật công thành công!');
       setEditModalOpen(false);
       setSelectedSession(null);
@@ -379,13 +383,16 @@ export const WorkConfirmation: React.FC = () => {
       await deleteWorkSessionWithAudit(
         selectedSession.id,
         selectedSession,
-        { 
-          name: staffData?.name || 'Unknown', 
-          role: staffData?.role || 'Unknown' 
+        {
+          name: staffData?.name || 'Unknown',
+          role: staffData?.role || 'Unknown'
         },
         actionReason
       );
-      
+
+      // Refresh data to show updated list
+      await refresh();
+
       alert('Đã xóa công thành công!');
       setDeleteModalOpen(false);
       setSelectedSession(null);

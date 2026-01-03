@@ -102,6 +102,44 @@ export const LeaveRequestManager: React.FC = () => {
       return;
     }
 
+    // Validation: No past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(form.startDate);
+    const endDate = new Date(form.endDate);
+
+    if (startDate < today) {
+      alert('Không thể chọn ngày nghỉ trong quá khứ');
+      return;
+    }
+
+    if (endDate < startDate) {
+      alert('Ngày kết thúc phải sau ngày bắt đầu');
+      return;
+    }
+
+    // Validation: Advance notice for long leave
+    const requestedDays = calculateDays(form.startDate, form.endDate);
+    const daysUntilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Same-day or next-day request not allowed
+    if (daysUntilStart < 1) {
+      alert('Phải xin nghỉ trước ít nhất 1 ngày');
+      return;
+    }
+
+    // 3+ days leave requires 3+ days advance notice
+    if (requestedDays >= 3 && daysUntilStart < 3) {
+      alert(`Nghỉ từ 3 ngày trở lên phải báo trước ít nhất 3 ngày (hiện tại chỉ còn ${daysUntilStart} ngày)`);
+      return;
+    }
+
+    // 5+ days leave requires 7+ days advance notice
+    if (requestedDays >= 5 && daysUntilStart < 7) {
+      alert(`Nghỉ từ 5 ngày trở lên phải báo trước ít nhất 7 ngày (hiện tại chỉ còn ${daysUntilStart} ngày)`);
+      return;
+    }
+
     // Check balance for paid leave (Nghỉ phép)
     if (form.leaveType === 'Nghỉ phép') {
       const { hasBalance, remaining, requested } = await checkBalance(
@@ -358,7 +396,8 @@ export const LeaveRequestManager: React.FC = () => {
                   <input
                     type="date"
                     value={form.startDate}
-                    onChange={(e) => setForm({...form, startDate: e.target.value})}
+                    min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                    onChange={(e) => setForm({...form, startDate: e.target.value, endDate: e.target.value > form.endDate ? e.target.value : form.endDate})}
                     className="w-full px-3 py-2 border rounded-lg"
                   />
                 </div>
@@ -367,6 +406,7 @@ export const LeaveRequestManager: React.FC = () => {
                   <input
                     type="date"
                     value={form.endDate}
+                    min={form.startDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                     onChange={(e) => setForm({...form, endDate: e.target.value})}
                     className="w-full px-3 py-2 border rounded-lg"
                   />

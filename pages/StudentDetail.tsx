@@ -1469,8 +1469,8 @@ export const StudentDetail: React.FC = () => {
       {/* Manual Enrollment Modal - Ghi danh thủ công */}
       {showManualEnrollModal && student && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 flex-shrink-0">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Ghi danh thủ công</h3>
                 <p className="text-sm text-amber-600">Học viên: {student.fullName}</p>
@@ -1480,7 +1480,7 @@ export const StudentDetail: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               {/* Current sessions info */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">Số buổi hiện tại:</p>
@@ -1559,7 +1559,7 @@ export const StudentDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+            <div className="p-5 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowManualEnrollModal(false);

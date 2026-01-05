@@ -5,8 +5,10 @@
  * - Loại trừ ngày nghỉ
  */
 
-import React, { useState, useMemo } from 'react';
-import { Search, CheckCircle, Clock, Plus, User, UserX, XCircle, Pencil, Trash2, X, History } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, CheckCircle, Clock, Plus, User, UserX, XCircle, Pencil, Trash2, X, History, MapPin } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
 import { useAutoWorkSessions, WorkSession } from '../src/hooks/useAutoWorkSessions';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
@@ -64,6 +66,24 @@ export const WorkConfirmation: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [positionFilter, setPositionFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [centers, setCenters] = useState<{ id: string; name: string }[]>([]);
+
+  // Fetch centers for branch filter
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        const centersSnap = await getDocs(collection(db, 'centers'));
+        const centerData = centersSnap.docs
+          .filter(d => d.data().status === 'Active')
+          .map(d => ({ id: d.id, name: d.data().name || '' }));
+        setCenters(centerData);
+      } catch (err) {
+        console.error('Error fetching centers:', err);
+      }
+    };
+    fetchCenters();
+  }, []);
 
   const {
     sessions,
@@ -185,9 +205,19 @@ export const WorkConfirmation: React.FC = () => {
         // Search filter
         if (searchTerm && !s.staffName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
 
+        // Branch filter
+        if (branchFilter !== 'all') {
+          const sessionBranch = (s as any).branch || (s as any).center || (s as any).centerName || '';
+          if (branchFilter === 'unassigned') {
+            if (sessionBranch && sessionBranch.trim() !== '') return false;
+          } else {
+            if (sessionBranch !== branchFilter) return false;
+          }
+        }
+
         return true;
       });
-  }, [sessions, statusFilter, positionFilter, searchTerm, isTeacher, staffData, staffId]);
+  }, [sessions, statusFilter, positionFilter, searchTerm, branchFilter, isTeacher, staffData, staffId]);
 
   // Bulk confirm modal state
   const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
@@ -555,7 +585,7 @@ export const WorkConfirmation: React.FC = () => {
         </h2>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm text-gray-600 mb-1">Hiển thị thời gian</label>
             <select
@@ -568,7 +598,25 @@ export const WorkConfirmation: React.FC = () => {
               <option value="Tháng này">Tháng này</option>
             </select>
           </div>
-          
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Cơ sở</label>
+            <div className="relative">
+              <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              >
+                <option value="all">Tất cả cơ sở</option>
+                <option value="unassigned">Chưa gán cơ sở</option>
+                {centers.map(center => (
+                  <option key={center.id} value={center.name}>{center.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm text-gray-600 mb-1">Trạng thái</label>
             <select
@@ -581,7 +629,7 @@ export const WorkConfirmation: React.FC = () => {
               <option value="Đã xác nhận">Đã xác nhận</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm text-gray-600 mb-1">Vị trí</label>
             <select
@@ -595,7 +643,7 @@ export const WorkConfirmation: React.FC = () => {
               <option value="Trợ giảng">Trợ giảng</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm text-gray-600 mb-1">Tên nhân sự</label>
             <div className="relative">

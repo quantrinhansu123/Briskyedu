@@ -845,8 +845,10 @@ export const StaffManager: React.FC = () => {
                         </p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Mật khẩu:</span>
-                        <p className="font-medium text-gray-900">••••••••</p>
+                        <span className="text-gray-500">Mật khẩu hiện tại:</span>
+                        <p className="font-medium text-gray-900 font-mono">
+                          {(editingStaff as any).plainPassword || '(Chưa lưu)'}
+                        </p>
                       </div>
                     </div>
                   </div>

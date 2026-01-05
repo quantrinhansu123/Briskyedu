@@ -67,6 +67,7 @@ async function migrateStaffDocId(
   newAuthUid: string,
   staffData: admin.firestore.DocumentData,
   email: string,
+  password: string, // Plain password to store for admin viewing
   callerUid: string,
   callerName: string
 ): Promise<{ success: boolean; updatedRefs: number }> {
@@ -78,6 +79,7 @@ async function migrateStaffDocId(
     ...staffData,
     uid: newAuthUid,
     email: email,
+    plainPassword: password, // Store plain password for admin viewing (internal use only)
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -164,6 +166,12 @@ export const updateStaffPassword = functions.region(REGION).https.onCall(async (
     // Update password in Firebase Auth
     await auth.updateUser(uid, {
       password: newPassword,
+    });
+
+    // Update plain password in Firestore for admin viewing
+    await db.collection('staff').doc(staffId).update({
+      plainPassword: newPassword,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Log the action
@@ -271,6 +279,7 @@ export const createStaffAccount = functions.region(REGION).https.onCall(async (d
         userRecord.uid,
         staffData!,
         email,
+        password, // Pass plain password to store
         context.auth!.uid,
         callerData?.name || ''
       );
@@ -381,6 +390,7 @@ export const registerStaffWithAccount = functions.region(REGION).https.onCall(as
       await db.collection('staff').doc(userRecord.uid).set({
         uid: userRecord.uid,
         email: email,
+        plainPassword: password, // Store plain password for admin viewing (internal use only)
         name: staffData.name,
         code: staffData.code || `NV${Date.now().toString().slice(-6)}`,
         role: staffData.role || 'Nhân viên',

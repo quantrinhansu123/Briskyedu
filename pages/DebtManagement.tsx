@@ -20,10 +20,23 @@ import { SettlementModal, SettlementHistoryTable } from '../src/features/debt/co
 
 const SESSIONS_WARNING_THRESHOLD = 6; // Cảnh báo khi còn <= 6 buổi
 
+// Helper to format date as DD/MM/YYYY
+const formatDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+  } catch { return '-'; }
+};
+
 export const DebtManagement: React.FC = () => {
   const navigate = useNavigate();
   const { students, loading } = useStudents();
   const { classes } = useClasses({});
+
+  // Contract data for start dates
+  const [contractMap, setContractMap] = useState<Record<string, { startDate: string; category: string }>>({});
   
   const [expandedSections, setExpandedSections] = useState({
     almostOut: true,
@@ -40,6 +53,91 @@ export const DebtManagement: React.FC = () => {
 
   // Settlement history data
   const { invoices: settlementInvoices, loading: settlementLoading } = useSettlementInvoices();
+
+  // Fetch contracts to get start dates
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const contractsSnap = await getDocs(collection(db, 'contracts'));
+        const map: Record<string, { startDate: string; category: string }> = {};
+
+        contractsSnap.docs.forEach(doc => {
+          const c = doc.data();
+          if (!c.studentId || c.status === 'Đã hủy') return;
+
+          // Get contract start date from items or contract level
+          let contractStartDate = c.createdAt || '';
+          if (c.items && c.items.length > 0) {
+            const itemDates = c.items
+              .filter((item: any) => item.startDate)
+              .map((item: any) => item.startDate);
+            if (itemDates.length > 0) {
+              contractStartDate = itemDates.sort().pop() || contractStartDate;
+            }
+          }
+
+          const existing = map[c.studentId];
+          if (!existing || contractStartDate > existing.startDate) {
+            map[c.studentId] = {
+              startDate: contractStartDate,
+              category: c.category || 'Hợp đồng mới',
+            };
+          }
+        });
+
+        setContractMap(map);
+      } catch (err) {
+        console.error('Error fetching contracts:', err);
+      }
+    };
+    fetchContracts();
+  }, []);
+
+  // Helper to calculate expected end date based on class schedule
+  const calculateExpectedEndDate = (remainingSessions: number, classId?: string): string => {
+    if (!remainingSessions || remainingSessions <= 0) return '-';
+
+    const studentClass = classId ? classes.find(c => c.id === classId) : null;
+
+    // Get class days from schedule
+    const getClassDays = (): number[] => {
+      const days: number[] = [];
+      if (studentClass?.scheduleDetails && studentClass.scheduleDetails.length > 0) {
+        studentClass.scheduleDetails.forEach((detail: any) => {
+          const dayNum = parseInt(detail.dayOfWeek);
+          if (!isNaN(dayNum)) {
+            days.push(dayNum === 7 ? 6 : dayNum - 1);
+          } else if (detail.dayOfWeek === 'CN') {
+            days.push(0);
+          }
+        });
+        return days;
+      }
+      if (studentClass?.schedule) {
+        const dayMap: Record<string, number> = { '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6 };
+        const matches = studentClass.schedule.match(/\d/g);
+        if (matches) {
+          matches.forEach((d: string) => {
+            if (dayMap[d] !== undefined) days.push(dayMap[d]);
+          });
+        }
+      }
+      return days.length > 0 ? days : [1, 3]; // Default: Mon, Wed
+    };
+
+    const classDays = getClassDays();
+    let sessionsCount = 0;
+    const endDate = new Date();
+    let dayCount = 0;
+
+    while (sessionsCount < remainingSessions && dayCount < 365) {
+      endDate.setDate(endDate.getDate() + 1);
+      dayCount++;
+      if (classDays.includes(endDate.getDay())) sessionsCount++;
+    }
+
+    return formatDate(endDate.toISOString());
+  };
 
   // Sync contract debt from contracts collection to students
   const syncContractDebt = async () => {
@@ -361,6 +459,8 @@ export const DebtManagement: React.FC = () => {
                   <th className="px-4 py-3 text-center font-semibold text-gray-700">Đã học</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-700">Đăng ký</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-700">Còn lại</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Ngày BĐ HĐ</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Dự kiến KT</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Phụ huynh</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-700">Hành động</th>
                 </tr>
@@ -368,12 +468,13 @@ export const DebtManagement: React.FC = () => {
               <tbody className="divide-y">
                 {almostOutStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                       Không có học viên nào chuẩn bị hết phí
                     </td>
                   </tr>
                 ) : almostOutStudents.map(student => {
                   const remaining = (student.registeredSessions || 0) - (student.attendedSessions || 0);
+                  const contractData = contractMap[student.id];
                   return (
                     <tr key={student.id} className="hover:bg-orange-50">
                       <td className="px-4 py-3">
@@ -390,6 +491,14 @@ export const DebtManagement: React.FC = () => {
                           remaining <= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
                         }`}>
                           {remaining} buổi
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-600 text-xs">
+                        {formatDate(contractData?.startDate)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                          {calculateExpectedEndDate(remaining, student.classId)}
                         </span>
                       </td>
                       <td className="px-4 py-3">

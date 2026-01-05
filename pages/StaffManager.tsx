@@ -208,6 +208,21 @@ export const StaffManager: React.FC = () => {
 
   // Open edit modal
   const handleEdit = (staffMember: Staff) => {
+    // Get email from various possible sources in Firestore
+    const staffEmail = (staffMember as any).email ||
+                       (staffMember as any).loginEmail ||
+                       (staffMember as any).accountEmail ||
+                       '';
+
+    // Debug logging (can be removed in production)
+    console.log('[StaffManager] Edit staff:', {
+      id: staffMember.id,
+      name: staffMember.name,
+      hasUid: !!(staffMember as any).uid,
+      email: staffEmail,
+      rawEmail: (staffMember as any).email,
+    });
+
     setEditingStaff(staffMember);
     setFormData({
       name: staffMember.name || '',
@@ -219,7 +234,7 @@ export const StaffManager: React.FC = () => {
       startDate: staffMember.startDate || '',
       contractLink: '',
       // Populate email from existing account if available
-      username: (staffMember as any).email || '',
+      username: staffEmail,
       password: '',
       status: staffMember.status || 'Active',
       branch: staffMember.branch || '',
@@ -809,39 +824,63 @@ export const StaffManager: React.FC = () => {
 
               {/* Login Credentials */}
               <div className="border-t border-gray-200 pt-4 mt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Thông tin đăng nhập</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                  Thông tin đăng nhập
+                  {editingStaff && (editingStaff as any).uid && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                      <Key size={12} />
+                      Đã có tài khoản
+                    </span>
+                  )}
+                </h4>
+
+                {/* Display current credentials for staff with account */}
+                {editingStaff && (editingStaff as any).uid && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Email đăng nhập:</span>
+                        <p className="font-medium text-gray-900">
+                          {(editingStaff as any).email || formData.username || '(Chưa có email)'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Mật khẩu:</span>
+                        <p className="font-medium text-gray-900">••••••••</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email đăng nhập
-                      {editingStaff && (editingStaff as any).uid && (
-                        <span className="ml-2 text-xs text-green-600 font-normal">(Đã có tài khoản)</span>
-                      )}
+                      {editingStaff && (editingStaff as any).uid ? 'Email (không thể đổi)' : 'Email đăng nhập'}
                     </label>
                     <div className="relative">
                       <input
                         type="email"
                         value={formData.username}
                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                          editingStaff && (editingStaff as any).uid ? 'bg-gray-100 cursor-not-allowed' : ''
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                          editingStaff && (editingStaff as any).uid
+                            ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'border-gray-300'
                         }`}
-                        placeholder="email@example.com"
+                        placeholder={editingStaff && (editingStaff as any).uid ? '' : 'email@example.com'}
                         readOnly={!!(editingStaff && (editingStaff as any).uid)}
                       />
                       {editingStaff && (editingStaff as any).uid && (
                         <Key size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" />
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {editingStaff && (editingStaff as any).uid
-                        ? 'Email không thể thay đổi sau khi tạo tài khoản'
-                        : 'Để trống nếu chưa cần tài khoản'}
-                    </p>
+                    {!(editingStaff && (editingStaff as any).uid) && (
+                      <p className="text-xs text-gray-500 mt-1">Để trống nếu chưa cần tài khoản</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {editingStaff && (editingStaff as any).uid ? 'Mật khẩu mới' : 'Mật khẩu'}
+                      {editingStaff && (editingStaff as any).uid ? 'Đổi mật khẩu mới' : 'Mật khẩu'}
                     </label>
                     <div className="relative">
                       <input
@@ -849,7 +888,7 @@ export const StaffManager: React.FC = () => {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        placeholder={editingStaff && (editingStaff as any).uid ? 'Nhập để đổi mật khẩu...' : '••••••••'}
+                        placeholder={editingStaff && (editingStaff as any).uid ? 'Nhập mật khẩu mới...' : 'Nhập mật khẩu'}
                       />
                       <button
                         type="button"
@@ -859,15 +898,21 @@ export const StaffManager: React.FC = () => {
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    {editingStaff && (editingStaff as any).uid && (
-                      <p className="text-xs text-gray-500 mt-1">Để trống nếu không muốn đổi mật khẩu</p>
-                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editingStaff && (editingStaff as any).uid
+                        ? 'Để trống nếu không muốn đổi mật khẩu'
+                        : 'Tối thiểu 6 ký tự'}
+                    </p>
                   </div>
                 </div>
-                <div className="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded flex items-center gap-2">
-                  <AlertTriangle size={14} />
-                  Vui lòng chọn mật khẩu không liên quan đến thông tin cá nhân!
-                </div>
+
+                {/* Warning for new accounts */}
+                {!(editingStaff && (editingStaff as any).uid) && formData.username && (
+                  <div className="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Vui lòng chọn mật khẩu không liên quan đến thông tin cá nhân!
+                  </div>
+                )}
               </div>
             </div>
 

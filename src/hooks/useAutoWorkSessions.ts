@@ -162,15 +162,23 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
               let hStart = '';
               let hEnd = '';
               
-              // Get start date
+              // Get start date - use local date format to avoid timezone issues
               if (data.startDate) {
-                hStart = typeof data.startDate === 'string' ? data.startDate : 
-                         data.startDate?.toDate?.()?.toISOString().split('T')[0] || '';
+                if (typeof data.startDate === 'string') {
+                  hStart = data.startDate;
+                } else if (data.startDate?.toDate) {
+                  const d = data.startDate.toDate();
+                  hStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                }
               }
-              // Get end date (or same as start if not provided)
+              // Get end date (or same as start if not provided) - use local date format
               if (data.endDate) {
-                hEnd = typeof data.endDate === 'string' ? data.endDate :
-                       data.endDate?.toDate?.()?.toISOString().split('T')[0] || '';
+                if (typeof data.endDate === 'string') {
+                  hEnd = data.endDate;
+                } else if (data.endDate?.toDate) {
+                  const d = data.endDate.toDate();
+                  hEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                }
               } else {
                 hEnd = hStart;
               }
@@ -178,12 +186,13 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
               if (!hStart) return;
               
               // Generate all dates between startDate and endDate
-              const start = new Date(hStart);
-              const end = new Date(hEnd);
+              const start = new Date(hStart + 'T00:00:00');
+              const end = new Date(hEnd + 'T00:00:00');
               const current = new Date(start);
-              
+
               while (current <= end) {
-                const dateStr = current.toISOString().split('T')[0];
+                // Use local date format to avoid timezone issues
+                const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
                 // Only add if within our week range
                 if (dateStr >= startDateStr && dateStr <= endDateStr && !holidaysData.includes(dateStr)) {
                   holidaysData.push(dateStr);

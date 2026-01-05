@@ -381,6 +381,7 @@ export const TutoringManager: React.FC = () => {
   const [selectedTutoring, setSelectedTutoring] = useState<TutoringData | null>(null);
   const [filterStatus, setFilterStatus] = useState<TutoringStatus | ''>('');
   const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [filterBranch, setFilterBranch] = useState<string>('');  // Branch/campus filter
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -450,6 +451,11 @@ export const TutoringManager: React.FC = () => {
     );
   }, [allClasses, onlyOwnClasses, staffData, staffId]);
 
+  // Get unique branches from classes
+  const branches = useMemo(() => {
+    return [...new Set(allClasses.map(c => c.branch).filter(Boolean))].sort() as string[];
+  }, [allClasses]);
+
   // Filter tutoring list for teachers
   const tutoringList = useMemo(() => {
     if (!onlyOwnClasses || !staffData) return allTutoringList;
@@ -457,7 +463,7 @@ export const TutoringManager: React.FC = () => {
     return allTutoringList.filter(t => myClassNames.includes(t.className));
   }, [allTutoringList, onlyOwnClasses, staffData, classes]);
 
-  // Filter by status and date
+  // Filter by status, date, and branch
   const filteredList = useMemo(() => {
     let result = tutoringList;
     if (filterStatus) {
@@ -466,8 +472,13 @@ export const TutoringManager: React.FC = () => {
     if (filterDate) {
       result = result.filter(t => t.scheduledDate === filterDate);
     }
+    // Filter by branch - look up class branch from className
+    if (filterBranch) {
+      const branchClasses = allClasses.filter(c => c.branch === filterBranch).map(c => c.name);
+      result = result.filter(t => branchClasses.includes(t.className));
+    }
     return result;
-  }, [tutoringList, filterStatus, filterDate]);
+  }, [tutoringList, filterStatus, filterDate, filterBranch, allClasses]);
 
   // Count for today
   const todayCount = tutoringList.filter(t => t.scheduledDate === new Date().toISOString().split('T')[0]).length;
@@ -625,6 +636,23 @@ export const TutoringManager: React.FC = () => {
 
       {/* Filter */}
       <div className="flex flex-wrap items-center gap-3 bg-white p-4 rounded-xl border border-gray-100">
+        {/* Branch Filter */}
+        {branches.length > 0 && (
+          <>
+            <select
+              value={filterBranch}
+              onChange={(e) => setFilterBranch(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 min-w-[140px]"
+            >
+              <option value="">Tất cả cơ sở</option>
+              {branches.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <div className="w-px h-6 bg-gray-200" />
+          </>
+        )}
+
         {/* Date Filter */}
         <div className="flex items-center gap-2">
           <Calendar size={16} className="text-gray-400" />

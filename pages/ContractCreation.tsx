@@ -28,15 +28,37 @@ import { SearchableSelect, SelectOption } from '../components/SearchableSelect';
 import { db } from '../src/config/firebase';
 import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 
+// Center Info for Invoice
+interface CenterInfo {
+  centerName: string;
+  representative: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
+const DEFAULT_CENTER_INFO: CenterInfo = {
+  centerName: 'TRUNG TÂM ANH NGỮ BRISKY',
+  representative: 'Nguyễn Văn A - Giám đốc',
+  address: 'Tây Mỗ, Nam Từ Liêm, Hà Nội',
+  phone: '0912.345.678',
+  email: 'contact@brisky.edu.vn',
+};
+
 // Contract Preview Component
 interface ContractPreviewProps {
   contract: Partial<Contract>;
   onClose: () => void;
   onPrint: () => void;
+  centerInfo: CenterInfo;
+  onCenterInfoChange: (info: CenterInfo) => void;
 }
 
-const ContractPreview: React.FC<ContractPreviewProps> = ({ contract, onClose, onPrint }) => {
+const ContractPreview: React.FC<ContractPreviewProps> = ({
+  contract, onClose, onPrint, centerInfo, onCenterInfoChange
+}) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -108,9 +130,9 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ contract, onClose, on
           <div ref={printRef}>
             {/* Company Header */}
             <div className="header text-center mb-8">
-              <h1 className="text-2xl font-bold text-indigo-800">TRUNG TÂM ANH NGỮ BRISKY</h1>
-              <p className="text-gray-600">Địa chỉ: Tây Mỗ, Nam Từ Liêm, Hà Nội</p>
-              <p className="text-gray-600">Hotline: 0912.345.678 | Email: contact@brisky.edu.vn</p>
+              <h1 className="text-2xl font-bold text-indigo-800">{centerInfo.centerName}</h1>
+              <p className="text-gray-600">Địa chỉ: {centerInfo.address}</p>
+              <p className="text-gray-600">Hotline: {centerInfo.phone} | Email: {centerInfo.email}</p>
             </div>
 
             {/* Contract Title */}
@@ -120,14 +142,84 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({ contract, onClose, on
               <p className="text-gray-600">Ngày: {new Date(contract.contractDate || '').toLocaleDateString('vi-VN')}</p>
             </div>
 
-            {/* Party A - Center */}
+            {/* Party A - Center (Editable) */}
             <div className="section mb-6">
-              <div className="section-title font-bold border-b border-gray-300 pb-2 mb-3">BÊN A: TRUNG TÂM ANH NGỮ BRISKY</div>
-              <div className="space-y-1 text-sm">
-                <p><strong>Đại diện:</strong> Nguyễn Văn A - Giám đốc</p>
-                <p><strong>Địa chỉ:</strong> Tây Mỗ, Nam Từ Liêm, Hà Nội</p>
-                <p><strong>Điện thoại:</strong> 0912.345.678</p>
+              <div className="section-title font-bold border-b border-gray-300 pb-2 mb-3 flex items-center justify-between">
+                <span>BÊN A: {centerInfo.centerName}</span>
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-normal flex items-center gap-1 print:hidden"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    Sửa
+                  </button>
+                )}
               </div>
+
+              {isEditing ? (
+                <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200 print:hidden">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Tên trung tâm</label>
+                      <input
+                        type="text"
+                        value={centerInfo.centerName}
+                        onChange={(e) => onCenterInfoChange({ ...centerInfo, centerName: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Đại diện</label>
+                      <input
+                        type="text"
+                        value={centerInfo.representative}
+                        onChange={(e) => onCenterInfoChange({ ...centerInfo, representative: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Địa chỉ</label>
+                      <input
+                        type="text"
+                        value={centerInfo.address}
+                        onChange={(e) => onCenterInfoChange({ ...centerInfo, address: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Điện thoại</label>
+                      <input
+                        type="text"
+                        value={centerInfo.phone}
+                        onChange={(e) => onCenterInfoChange({ ...centerInfo, phone: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border rounded"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs text-gray-600 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={centerInfo.email}
+                        onChange={(e) => onCenterInfoChange({ ...centerInfo, email: e.target.value })}
+                        className="w-full px-2 py-1 text-sm border rounded"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                  >
+                    Xong
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1 text-sm">
+                  <p><strong>Đại diện:</strong> {centerInfo.representative}</p>
+                  <p><strong>Địa chỉ:</strong> {centerInfo.address}</p>
+                  <p><strong>Điện thoại:</strong> {centerInfo.phone}</p>
+                </div>
+              )}
             </div>
 
             {/* Party B - Customer */}
@@ -260,6 +352,7 @@ export const ContractCreation: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [createdContract, setCreatedContract] = useState<Partial<Contract> | null>(null);
+  const [centerInfo, setCenterInfo] = useState<CenterInfo>(DEFAULT_CENTER_INFO);
   const [showPartialPaymentModal, setShowPartialPaymentModal] = useState(false);
   const [partialPaidAmount, setPartialPaidAmount] = useState<number>(0);
   const [partialPaymentDate, setPartialPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -1223,6 +1316,8 @@ export const ContractCreation: React.FC = () => {
             navigate('/finance/contracts');
           }}
           onPrint={() => {}}
+          centerInfo={centerInfo}
+          onCenterInfoChange={setCenterInfo}
         />
       )}
     </div>

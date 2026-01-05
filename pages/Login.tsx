@@ -3,24 +3,40 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, ArrowRight, BookOpen } from 'lucide-react';
 import { useAuth } from '../src/hooks/useAuth';
 
+const REMEMBER_ME_KEY = 'brisky_remember_email';
+
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
+  // Initialize email from localStorage if "remember me" was used
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem(REMEMBER_ME_KEY) || '';
+  });
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    return !!localStorage.getItem(REMEMBER_ME_KEY);
+  });
   const { signIn, error } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       return;
     }
 
     try {
       setIsLoading(true);
+
+      // Save or remove email based on "remember me" checkbox
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_ME_KEY, email);
+      } else {
+        localStorage.removeItem(REMEMBER_ME_KEY);
+      }
+
       await signIn(email, password);
       navigate('/');
     } catch (err) {
@@ -205,6 +221,8 @@ export const Login: React.FC = () => {
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-[#FF6B5A] border-gray-300 rounded focus:ring-[#FF6B5A] cursor-pointer accent-[#FF6B5A]"
                   />
                   <span className="text-gray-700 group-hover:text-[#1A1F3A] transition-colors">

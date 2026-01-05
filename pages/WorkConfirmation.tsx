@@ -127,6 +127,10 @@ export const WorkConfirmation: React.FC = () => {
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // State for staff dropdown in edit modal
+  const [showEditStaffDropdown, setShowEditStaffDropdown] = useState(false);
+  const [editStaffSearchTerm, setEditStaffSearchTerm] = useState('');
+
   // Filter sessions và tự động đánh dấu "Nghỉ" cho GV được thay
   const filteredSessions = useMemo(() => {
     // Tìm tất cả công dạy thay để biết GV nào nghỉ
@@ -185,20 +189,37 @@ export const WorkConfirmation: React.FC = () => {
       });
   }, [sessions, statusFilter, positionFilter, searchTerm, isTeacher, staffData, staffId]);
 
+  // Bulk confirm modal state
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+  const [bulkConfirmLoading, setBulkConfirmLoading] = useState(false);
+  const [pendingToConfirm, setPendingToConfirm] = useState<WorkSession[]>([]);
+
   // Confirm all pending (không xác nhận công đã bị thay)
-  const handleConfirmAll = async () => {
-    const pending = filteredSessions.filter(s => 
+  const handleConfirmAll = () => {
+    const pending = filteredSessions.filter(s =>
       s.status === 'Chờ xác nhận' && !(s as any).isSubstituted
     );
     if (pending.length === 0) {
       alert('Không có công nào cần xác nhận');
       return;
     }
-    
+    // Show confirmation modal instead of immediate action
+    setPendingToConfirm(pending);
+    setShowBulkConfirmModal(true);
+  };
+
+  // Execute bulk confirmation
+  const executeBulkConfirm = async () => {
+    setBulkConfirmLoading(true);
     try {
-      await confirmMultiple(pending);
+      await confirmMultiple(pendingToConfirm);
+      setShowBulkConfirmModal(false);
+      setPendingToConfirm([]);
+      alert(`Đã xác nhận ${pendingToConfirm.length} công thành công!`);
     } catch (err: any) {
       alert(`Lỗi: ${err.message}`);
+    } finally {
+      setBulkConfirmLoading(false);
     }
   };
 
@@ -866,21 +887,81 @@ export const WorkConfirmation: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên nhân viên</label>
-                  <input
-                    type="text"
-                    value={editForm.staffName}
-                    onChange={(e) => setEditForm({ ...editForm, staffName: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Nhập hoặc chọn nhân viên..."
+                      value={editForm.staffName}
+                      onChange={(e) => {
+                        setEditForm({ ...editForm, staffName: e.target.value });
+                        setEditStaffSearchTerm(e.target.value);
+                        setShowEditStaffDropdown(true);
+                      }}
+                      onFocus={() => setShowEditStaffDropdown(true)}
+                      className="w-full px-3 py-2 pr-8 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditStaffDropdown(!showEditStaffDropdown)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded"
+                    >
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showEditStaffDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Staff Dropdown */}
+                    {showEditStaffDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {staffList
+                          .filter(s => s.name && s.name.toLowerCase().includes(editStaffSearchTerm.toLowerCase()))
+                          .map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setEditForm({
+                                  ...editForm,
+                                  staffName: s.name,
+                                  position: s.position || s.role
+                                });
+                                setShowEditStaffDropdown(false);
+                                setEditStaffSearchTerm('');
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center gap-2 border-b border-gray-50 last:border-0"
+                            >
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                                {s.name?.charAt(0)?.toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-800">{s.name}</div>
+                                <div className="text-xs text-gray-500">{s.position || s.role}</div>
+                              </div>
+                            </button>
+                          ))
+                        }
+                        {staffList.filter(s => s.name && s.name.toLowerCase().includes(editStaffSearchTerm.toLowerCase())).length === 0 && (
+                          <div className="px-3 py-2 text-sm text-gray-400 text-center">Không tìm thấy</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Click outside to close */}
+                    {showEditStaffDropdown && (
+                      <div className="fixed inset-0 z-40" onClick={() => setShowEditStaffDropdown(false)} />
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vị trí</label>
-                  <input
-                    type="text"
+                  <select
                     value={editForm.position}
                     onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
+                  >
+                    <option value="Giáo viên Việt">Giáo viên Việt</option>
+                    <option value="Giáo viên Nước ngoài">Giáo viên Nước ngoài</option>
+                    <option value="Trợ giảng">Trợ giảng</option>
+                  </select>
                 </div>
               </div>
               
@@ -986,20 +1067,20 @@ export const WorkConfirmation: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div className="p-3 bg-red-50 rounded-lg text-sm text-red-700">
-                <strong>Cảnh báo:</strong> Bạn đang xóa công của <strong>{selectedSession.staffName}</strong> 
+                <strong>Cảnh báo:</strong> Bạn đang xóa công của <strong>{selectedSession.staffName}</strong>
                 ngày <strong>{selectedSession.date}</strong>. Hành động này sẽ được ghi lại trong lịch sử.
               </div>
-              
+
               <div className="p-3 bg-gray-50 rounded-lg text-sm">
                 <div><strong>Nhân viên:</strong> {selectedSession.staffName}</div>
                 <div><strong>Thời gian:</strong> {selectedSession.date} {selectedSession.timeStart} - {selectedSession.timeEnd}</div>
                 <div><strong>Lớp:</strong> {selectedSession.className || '-'}</div>
                 <div><strong>Kiểu:</strong> {selectedSession.type}</div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Lý do xóa <span className="text-red-500">*</span>
@@ -1012,7 +1093,7 @@ export const WorkConfirmation: React.FC = () => {
                   className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setDeleteModalOpen(false)}
@@ -1028,6 +1109,89 @@ export const WorkConfirmation: React.FC = () => {
                   {actionLoading ? 'Đang xóa...' : 'Xác nhận xóa'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác nhận hàng loạt */}
+      {showBulkConfirmModal && pendingToConfirm.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-green-500 text-white rounded-t-xl">
+              <h3 className="font-bold flex items-center gap-2">
+                <CheckCircle size={18} />
+                Xác nhận hàng loạt ({pendingToConfirm.length} công)
+              </h3>
+              <button onClick={() => setShowBulkConfirmModal(false)} className="hover:bg-green-600 p-1 rounded">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="p-3 bg-yellow-50 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
+                <span className="text-yellow-600 font-bold text-lg">⚠</span>
+                <div>
+                  <strong>Xác nhận trước khi thực hiện:</strong>
+                  <br />
+                  Bạn sẽ xác nhận <strong>{pendingToConfirm.length}</strong> công trong danh sách dưới đây.
+                  Sau khi xác nhận, số công sẽ tự động chuyển sang báo cáo lương.
+                </div>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Nhân viên</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Ngày</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Lớp</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Loại</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pendingToConfirm.map((session, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 font-medium">{session.staffName}</td>
+                        <td className="px-3 py-2 text-gray-600">{session.date}</td>
+                        <td className="px-3 py-2 text-gray-600">{session.className || '-'}</td>
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{session.type}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t bg-gray-50 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBulkConfirmModal(false);
+                  setPendingToConfirm([]);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={executeBulkConfirm}
+                disabled={bulkConfirmLoading}
+                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 font-bold flex items-center justify-center gap-2"
+              >
+                {bulkConfirmLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    Đang xác nhận...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={18} />
+                    Xác nhận {pendingToConfirm.length} công
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

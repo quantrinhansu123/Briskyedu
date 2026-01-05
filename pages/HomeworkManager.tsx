@@ -70,6 +70,7 @@ export const HomeworkManager: React.FC = () => {
   // State
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedSessionId, setSelectedSessionId] = useState<string>('');
+  const [filterBranch, setFilterBranch] = useState<string>('');  // Branch filter
   const [sessions, setSessions] = useState<any[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   
@@ -95,21 +96,33 @@ export const HomeworkManager: React.FC = () => {
   const [newStatusColor, setNewStatusColor] = useState('bg-gray-500');
 
 
+  // Get unique branches from classes
+  const branches = useMemo(() => {
+    return [...new Set(classes.map(c => c.branch).filter(Boolean))].sort() as string[];
+  }, [classes]);
+
   // Filter classes for teachers
   const filteredClasses = useMemo(() => {
     const onlyOwn = shouldShowOnlyOwnClasses('homework');
     const excludeStatuses = ['Đã kết thúc', 'Đã hủy', 'Kết thúc'];
-    
-    if (!onlyOwn || !staffData) {
-      return classes.filter(c => !excludeStatuses.includes(c.status || ''));
+
+    let result = classes.filter(c => !excludeStatuses.includes(c.status || ''));
+
+    // Filter by branch
+    if (filterBranch) {
+      result = result.filter(c => c.branch === filterBranch);
     }
-    
-    const myName = staffData.name;
-    return classes.filter(cls => 
-      !excludeStatuses.includes(cls.status || '') &&
-      (cls.teacher === myName || cls.assistant === myName || cls.foreignTeacher === myName)
-    );
-  }, [classes, shouldShowOnlyOwnClasses, staffData]);
+
+    // Filter by own classes for teachers
+    if (onlyOwn && staffData) {
+      const myName = staffData.name;
+      result = result.filter(cls =>
+        cls.teacher === myName || cls.assistant === myName || cls.foreignTeacher === myName
+      );
+    }
+
+    return result;
+  }, [classes, shouldShowOnlyOwnClasses, staffData, filterBranch]);
 
   // Get students in selected class
   const studentsInClass = useMemo(() => {
@@ -523,21 +536,45 @@ export const HomeworkManager: React.FC = () => {
         </div>
         
         {/* Class Selector */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp học</label>
-          <select
-            value={selectedClassId}
-            onChange={(e) => {
-              setSelectedClassId(e.target.value);
-              setSelectedSessionId('');
-            }}
-            className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">-- Chọn lớp --</option>
-            {filteredClasses.map(cls => (
-              <option key={cls.id} value={cls.id}>{cls.name}</option>
-            ))}
-          </select>
+        <div className="mb-4 flex flex-wrap gap-4 items-end">
+          {/* Branch Filter */}
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cơ sở</label>
+              <select
+                value={filterBranch}
+                onChange={(e) => {
+                  setFilterBranch(e.target.value);
+                  setSelectedClassId('');
+                  setSelectedSessionId('');
+                }}
+                className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Tất cả cơ sở</option>
+                {branches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Class Selector */}
+          <div className="flex-1 min-w-[300px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp học</label>
+            <select
+              value={selectedClassId}
+              onChange={(e) => {
+                setSelectedClassId(e.target.value);
+                setSelectedSessionId('');
+              }}
+              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">-- Chọn lớp --</option>
+              {filteredClasses.map(cls => (
+                <option key={cls.id} value={cls.id}>{cls.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -568,10 +605,16 @@ export const HomeworkManager: React.FC = () => {
             <select
               value={selectedSessionId}
               onChange={(e) => setSelectedSessionId(e.target.value)}
-              disabled={loadingSessions}
+              disabled={loadingSessions || sessions.length === 0}
               className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
             >
-              <option value="">-- Chọn buổi học --</option>
+              <option value="">
+                {loadingSessions
+                  ? 'Đang tải...'
+                  : sessions.length === 0
+                  ? 'Không có buổi học'
+                  : '-- Chọn buổi học --'}
+              </option>
               {sessions.map(session => {
                 const holidayName = isHoliday(session.date);
                 return (
@@ -582,6 +625,22 @@ export const HomeworkManager: React.FC = () => {
                 );
               })}
             </select>
+
+            {/* No sessions warning */}
+            {!loadingSessions && sessions.length === 0 && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2 text-yellow-800">
+                  <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <strong>Lớp này chưa có buổi học nào.</strong>
+                    <p className="mt-1 text-yellow-700">
+                      Vui lòng vào <strong>Đào tạo → Quản lý lớp học → Chi tiết lớp</strong> để tạo lịch buổi học,
+                      hoặc liên hệ quản lý để được hỗ trợ.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Holiday Warning */}
             {selectedSessionId && (() => {

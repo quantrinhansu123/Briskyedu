@@ -34,6 +34,9 @@ export interface StudentExpiring {
   fullName: string;
   className: string;
   remainingSessions: number;
+  expectedEndDate?: string;  // Calculated expected end date
+  contractStartDate?: string;  // Latest contract start date
+  sessionsPerWeek?: number;  // For calculation reference
 }
 
 // Checklist item

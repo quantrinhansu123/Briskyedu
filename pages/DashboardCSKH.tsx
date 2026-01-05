@@ -40,7 +40,14 @@ interface CSKHStats {
   // Work days
   myWorkDays: number;
   // Lists
-  studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number }[];
+  studentsExpiringSoon: {
+    id: string;
+    fullName: string;
+    className: string;
+    remainingSessions: number;
+    expectedEndDate?: string;
+    contractStartDate?: string;
+  }[];
   studentsWithDebt: { id: string; fullName: string; className: string; status: string }[];
   // Birthdays
   staffBirthdays: BirthdayPerson[];
@@ -202,6 +209,34 @@ export const DashboardCSKH: React.FC = () => {
 
         // Students expiring soon (remainingSessions <= 5)
         const EXPIRY_THRESHOLD = 5;
+
+        // Helper to calculate expected end date
+        const calculateExpectedEndDate = (remainingSessions: number, classId?: string): string => {
+          if (!remainingSessions || remainingSessions <= 0) return '-';
+
+          // Find the class to determine sessions per week
+          const studentClass = classId ? classes.find((c: any) => c.id === classId) : null;
+          let sessionsPerWeek = 2; // Default: 2 sessions per week
+
+          if (studentClass?.schedule) {
+            // Count days in schedule (e.g., "Thứ 2, 4, 6" = 3 sessions/week)
+            const dayMatches = studentClass.schedule.match(/Th[ứử]\s*\d/gi);
+            if (dayMatches) {
+              sessionsPerWeek = dayMatches.length;
+            }
+          }
+
+          // Calculate weeks needed
+          const weeksNeeded = Math.ceil(remainingSessions / sessionsPerWeek);
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + (weeksNeeded * 7));
+
+          // Format as DD/MM
+          const day = String(endDate.getDate()).padStart(2, '0');
+          const month = String(endDate.getMonth() + 1).padStart(2, '0');
+          return `${day}/${month}`;
+        };
+
         const studentsExpiringSoon = students
           .filter((s: any) =>
             s.status === 'Đang học' &&
@@ -214,6 +249,8 @@ export const DashboardCSKH: React.FC = () => {
             fullName: s.fullName || s.name || '',
             className: s.currentClassName || s.className || s.class || '-',
             remainingSessions: s.remainingSessions,
+            expectedEndDate: calculateExpectedEndDate(s.remainingSessions, s.classId || s.classIds?.[0]),
+            contractStartDate: s.enrollmentDate || s.startDate || '-',
           }))
           .sort((a: any, b: any) => a.remainingSessions - b.remainingSessions);
 

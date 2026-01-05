@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { MapPin } from 'lucide-react';
 import { collection, getDocs, query, where, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { usePermissions } from '../src/hooks/usePermissions';
@@ -86,6 +87,7 @@ export const DashboardCSKH: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [centers, setCenters] = useState<Center[]>([]);
   const [giftStatus, setGiftStatus] = useState<Record<string, GiftStatus>>({});
+  const [selectedBranch, setSelectedBranch] = useState('all');
 
   // Fetch centers
   useEffect(() => {
@@ -155,17 +157,39 @@ export const DashboardCSKH: React.FC = () => {
         const currentYear = now.getFullYear();
         const thisMonth = currentMonth + 1;
 
+        // Branch filter helper
+        const filterByBranch = (items: any[], branchFields = ['branch', 'center', 'centerName']) => {
+          if (selectedBranch === 'all') return items;
+          if (selectedBranch === 'unassigned') {
+            return items.filter(item => {
+              for (const field of branchFields) {
+                if (item[field] && item[field].trim() !== '') return false;
+              }
+              return true;
+            });
+          }
+          return items.filter(item => {
+            for (const field of branchFields) {
+              if (item[field] && item[field] === selectedBranch) return true;
+            }
+            return false;
+          });
+        };
+
         // Fetch students
         const studentsSnap = await getDocs(collection(db, 'students'));
-        const students = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allStudents = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const students = filterByBranch(allStudents);
 
         // Fetch classes
         const classesSnap = await getDocs(collection(db, 'classes'));
-        const classes = classesSnap.docs.map(d => d.data());
+        const allClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const classes = filterByBranch(allClasses);
 
         // Fetch staff
         const staffSnap = await getDocs(collection(db, 'staff'));
-        const staffList = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allStaff = staffSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const staffList = filterByBranch(allStaff);
 
         // Fetch work sessions
         const workSessionsSnap = await getDocs(collection(db, 'workSessions'));
@@ -207,34 +231,119 @@ export const DashboardCSKH: React.FC = () => {
           );
         }).length;
 
-        // Students expiring soon (remainingSessions <= 5)
-        const EXPIRY_THRESHOLD = 5;
+        // Fetch contracts for latest contract date (filtered by student branch)
+        const contractsSnap = await getDocs(collection(db, 'contracts'));
+        const allContracts = contractsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const studentIds = new Set(students.map((s: any) => s.id));
+        const contracts = selectedBranch === 'all'
+          ? allContracts
+          : allContracts.filter((c: any) => studentIds.has(c.studentId));
 
-        // Helper to calculate expected end date
-        const calculateExpectedEndDate = (remainingSessions: number, classId?: string): string => {
-          if (!remainingSessions || remainingSessions <= 0) return '-';
+        // Build student -> latest contract map
+        const studentLatestContract: Record<string, { startDate: string; category: string }> = {};
+        contracts.forEach((c: any) => {
+          if (!c.studentId || c.status === 'Đã hủy') return;
 
-          // Find the class to determine sessions per week
-          const studentClass = classId ? classes.find((c: any) => c.id === classId) : null;
-          let sessionsPerWeek = 2; // Default: 2 sessions per week
-
-          if (studentClass?.schedule) {
-            // Count days in schedule (e.g., "Thứ 2, 4, 6" = 3 sessions/week)
-            const dayMatches = studentClass.schedule.match(/Th[ứử]\s*\d/gi);
-            if (dayMatches) {
-              sessionsPerWeek = dayMatches.length;
+          // Get contract start date from items or contract level
+          let contractStartDate = c.createdAt || '';
+          if (c.items && c.items.length > 0) {
+            // Find the most recent item start date
+            const itemDates = c.items
+              .filter((item: any) => item.startDate)
+              .map((item: any) => item.startDate);
+            if (itemDates.length > 0) {
+              contractStartDate = itemDates.sort().pop() || contractStartDate;
             }
           }
 
-          // Calculate weeks needed
-          const weeksNeeded = Math.ceil(remainingSessions / sessionsPerWeek);
-          const endDate = new Date();
-          endDate.setDate(endDate.getDate() + (weeksNeeded * 7));
+          const existing = studentLatestContract[c.studentId];
+          if (!existing || contractStartDate > existing.startDate) {
+            studentLatestContract[c.studentId] = {
+              startDate: contractStartDate,
+              category: c.category || 'Hợp đồng mới',
+            };
+          }
+        });
 
-          // Format as DD/MM
+        // Students expiring soon (remainingSessions <= 5)
+        const EXPIRY_THRESHOLD = 5;
+
+        // Helper to get class days from schedule
+        const getClassDaysOfWeek = (classData: any): number[] => {
+          const days: number[] = [];
+
+          // Try scheduleDetails first (more accurate)
+          if (classData?.scheduleDetails && classData.scheduleDetails.length > 0) {
+            classData.scheduleDetails.forEach((detail: any) => {
+              const dayNum = parseInt(detail.dayOfWeek);
+              if (!isNaN(dayNum)) {
+                // Convert: 2=Mon(1), 3=Tue(2), ... 7=Sat(6), CN=Sun(0)
+                days.push(dayNum === 7 ? 6 : dayNum - 1);
+              } else if (detail.dayOfWeek === 'CN') {
+                days.push(0);
+              }
+            });
+            return days;
+          }
+
+          // Fallback to schedule string
+          if (classData?.schedule) {
+            const dayMap: Record<string, number> = {
+              '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6,
+            };
+            const matches = classData.schedule.match(/\d/g);
+            if (matches) {
+              matches.forEach((d: string) => {
+                if (dayMap[d] !== undefined) days.push(dayMap[d]);
+              });
+            }
+          }
+
+          return days.length > 0 ? days : [1, 3]; // Default: Mon, Wed
+        };
+
+        // Helper to calculate expected end date based on class schedule
+        const calculateExpectedEndDate = (remainingSessions: number, classId?: string): string => {
+          if (!remainingSessions || remainingSessions <= 0) return '-';
+
+          const studentClass = classId ? classes.find((c: any) => c.id === classId) : null;
+          const classDays = getClassDaysOfWeek(studentClass);
+
+          // Calculate by counting actual class days
+          let sessionsCount = 0;
+          const endDate = new Date();
+          const maxDays = 365; // Safety limit
+          let dayCount = 0;
+
+          while (sessionsCount < remainingSessions && dayCount < maxDays) {
+            endDate.setDate(endDate.getDate() + 1);
+            dayCount++;
+            const dayOfWeek = endDate.getDay();
+            if (classDays.includes(dayOfWeek)) {
+              sessionsCount++;
+            }
+          }
+
+          // Format as DD/MM/YYYY for clarity
           const day = String(endDate.getDate()).padStart(2, '0');
           const month = String(endDate.getMonth() + 1).padStart(2, '0');
-          return `${day}/${month}`;
+          const year = endDate.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+
+        // Helper to format contract start date
+        const formatContractDate = (dateStr: string | undefined): string => {
+          if (!dateStr) return '-';
+          try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '-';
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+          } catch {
+            return '-';
+          }
         };
 
         const studentsExpiringSoon = students
@@ -244,14 +353,17 @@ export const DashboardCSKH: React.FC = () => {
             s.remainingSessions <= EXPIRY_THRESHOLD &&
             s.remainingSessions > 0
           )
-          .map((s: any) => ({
-            id: s.id,
-            fullName: s.fullName || s.name || '',
-            className: s.currentClassName || s.className || s.class || '-',
-            remainingSessions: s.remainingSessions,
-            expectedEndDate: calculateExpectedEndDate(s.remainingSessions, s.classId || s.classIds?.[0]),
-            contractStartDate: s.enrollmentDate || s.startDate || '-',
-          }))
+          .map((s: any) => {
+            const latestContract = studentLatestContract[s.id];
+            return {
+              id: s.id,
+              fullName: s.fullName || s.name || '',
+              className: s.currentClassName || s.className || s.class || '-',
+              remainingSessions: s.remainingSessions,
+              expectedEndDate: calculateExpectedEndDate(s.remainingSessions, s.classId || s.classIds?.[0]),
+              contractStartDate: formatContractDate(latestContract?.startDate || s.enrollmentDate || s.startDate),
+            };
+          })
           .sort((a: any, b: any) => a.remainingSessions - b.remainingSessions);
 
         // Students with debt
@@ -351,7 +463,7 @@ export const DashboardCSKH: React.FC = () => {
     };
 
     fetchData();
-  }, [isCSKHLeader, staffId, user?.uid]);
+  }, [isCSKHLeader, staffId, user?.uid, selectedBranch]);
 
   if (loading) {
     return (
@@ -377,7 +489,7 @@ export const DashboardCSKH: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Work Days */}
+      {/* Header with Work Days and Branch Filter */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Dashboard CSKH</h1>
@@ -385,7 +497,26 @@ export const DashboardCSKH: React.FC = () => {
             {isCSKHLeader ? 'Trưởng nhóm CSKH' : 'Nhân viên CSKH'}
           </p>
         </div>
-        <WorkDaysWidget workDays={stats.myWorkDays} />
+        <div className="flex items-center gap-4">
+          {/* Branch Filter */}
+          <div className="flex items-center gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full px-3 py-1.5">
+            <MapPin className="text-white/80" size={14} />
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="bg-white/20 backdrop-blur-md text-white border border-white/30 rounded-full px-3 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer hover:bg-white/30 transition-all appearance-none pr-6"
+            >
+              <option value="all" className="text-gray-800">Tất cả cơ sở</option>
+              <option value="unassigned" className="text-gray-800">Chưa gán cơ sở</option>
+              {centers.map(center => (
+                <option key={center.id} value={center.name} className="text-gray-800">
+                  {center.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <WorkDaysWidget workDays={stats.myWorkDays} />
+        </div>
       </div>
 
       {/* Row 1: Student Stats + Charts (Leader only) */}

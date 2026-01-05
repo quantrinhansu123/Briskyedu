@@ -2,19 +2,19 @@
 
 EduManager Pro is a comprehensive web-based application for Vietnamese language learning centers. Built with React 19, TypeScript, and Firebase, it manages students, classes, attendance, staff, contracts, and financials with real-time synchronization across 35+ Firestore collections.
 
-**Status**: v1.0 Stable | Active Codebase Review Phase | 6.5/10 Quality Score
+**Status**: v1.0.1 Stable | Multi-Module Bug Fixes Complete (Jan 5, 2026) | 6.5/10 Quality Score
 
 ## Quick Stats
 
 | Metric | Value | Location |
 |--------|-------|----------|
-| **Pages** | 37 | 8 domains |
-| **Services** | 37 | Static class methods |
-| **Hooks** | 35 | Real-time listeners |
-| **Collections** | 36+ | Firestore |
-| **Cloud Functions** | 11 | Serverless triggers + utilities |
-| **Test Coverage** | 294 tests | Unit, integration, permissions |
-| **Feature Modules** | 7 | Encapsulated domain logic |
+| **Pages** | 40 | 8 domains + dashboards |
+| **Services** | 37 | Static class methods (CRUD + logic) |
+| **Hooks** | 35+ | Real-time listeners (onSnapshot) |
+| **Collections** | 37+ | Firestore (NoSQL) |
+| **Cloud Functions** | 15+ | Event-driven triggers + utilities |
+| **Test Coverage** | 294+ | Unit, integration, permissions, dashboards |
+| **Feature Modules** | 7 | Encapsulated domain-specific logic |
 
 ## Key Features
 
@@ -96,15 +96,15 @@ This pattern ensures clean separation of concerns and maintainable code.
 
 For detailed architecture documentation, refer to `docs/system-architecture.md`.
 
-## Recent Changes (December 31, 2025)
+## Recent Changes (January 5, 2026)
 
-- **Permission System**: Fixed CSKH/CM/Sale Staff over-permissioned modules (classes, schedule, holidays)
-- **Role-Based Dashboards**:
-  - Office Dashboard: Enhanced with 4 new CSKH/Sale widgets (Work Days, Expiring Fees, Debt List, Checklist)
-  - Teacher Dashboard: Complete GV/TG implementation with 7 widgets for class management and salary tracking
-- **Test Coverage**: Increased to 294 tests (from 226) with comprehensive permission and dashboard tests
+**Multi-Module Bug Fixes** ✅
+- **Training**: Fixed attendance sessions, schedule room conflicts, tutoring reserves, homework filters
+- **Customer**: Fixed modal scroll issues, trial student filtering, contract class/discount selection
+- **HR**: Fixed staff 18+ age validation, salary custom buttons, work confirmation saves/filters, leave request validations, salary report edits
+- **Test Coverage**: 294+ tests covering all modules and recent fixes
 - **Build Status**: All tests passing, production build successful
-- **Commits**: f607592 (GV Dashboard), 643445f (CSKH Widgets), 7959e41 (Permission fixes)
+- **Commit**: b0faa06 (Multi-module bug fixes)
 
 ## Development
 

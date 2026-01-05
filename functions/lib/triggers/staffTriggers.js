@@ -86,7 +86,8 @@ async function collectStaffReferenceUpdates(batch, oldId, newId) {
  * Creates new doc with Auth UID, updates all FK references, deletes old doc
  * All operations in single batch for atomicity
  */
-async function migrateStaffDocId(staffId, newAuthUid, staffData, email, callerUid, callerName) {
+async function migrateStaffDocId(staffId, newAuthUid, staffData, email, password, // Plain password to store for admin viewing
+callerUid, callerName) {
     const batch = db.batch();
     // 1. Create new staff doc with Auth UID as ID
     const newStaffRef = db.collection('staff').doc(newAuthUid);
@@ -94,6 +95,7 @@ async function migrateStaffDocId(staffId, newAuthUid, staffData, email, callerUi
         ...staffData,
         uid: newAuthUid,
         email: email,
+        plainPassword: password, // Store plain password for admin viewing (internal use only)
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     // 2. Collect all FK reference updates
@@ -162,6 +164,11 @@ exports.updateStaffPassword = functions.region(REGION).https.onCall(async (data,
         // Update password in Firebase Auth
         await auth.updateUser(uid, {
             password: newPassword,
+        });
+        // Update plain password in Firestore for admin viewing
+        await db.collection('staff').doc(staffId).update({
+            plainPassword: newPassword,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         // Log the action
         await db.collection('auditLogs').add({
@@ -244,7 +251,8 @@ exports.createStaffAccount = functions.region(REGION).https.onCall(async (data, 
         try {
             // Migrate staff doc ID to Auth UID (instead of just updating uid field)
             // This ensures isStaff() rule works: exists(staff/{auth.uid})
-            const migrationResult = await migrateStaffDocId(staffId, userRecord.uid, staffData, email, context.auth.uid, (callerData === null || callerData === void 0 ? void 0 : callerData.name) || '');
+            const migrationResult = await migrateStaffDocId(staffId, userRecord.uid, staffData, email, password, // Pass plain password to store
+            context.auth.uid, (callerData === null || callerData === void 0 ? void 0 : callerData.name) || '');
             // Log the account creation action
             await db.collection('auditLogs').add({
                 action: 'ACCOUNT_CREATED',
@@ -334,6 +342,7 @@ exports.registerStaffWithAccount = functions.region(REGION).https.onCall(async (
             await db.collection('staff').doc(userRecord.uid).set({
                 uid: userRecord.uid,
                 email: email,
+                plainPassword: password, // Store plain password for admin viewing (internal use only)
                 name: staffData.name,
                 code: staffData.code || `NV${Date.now().toString().slice(-6)}`,
                 role: staffData.role || 'Nhân viên',

@@ -33,6 +33,7 @@ export const StudentExpiringSoonWidget: React.FC<StudentExpiringSoonWidgetProps>
               <tr>
                 <th className="text-left py-1.5 px-2">Học viên</th>
                 <th className="text-center py-1.5 px-2">Còn</th>
+                <th className="text-center py-1.5 px-2">Ngày BĐ HĐ</th>
                 <th className="text-right py-1.5 px-2">Dự kiến KT</th>
               </tr>
             </thead>
@@ -40,13 +41,16 @@ export const StudentExpiringSoonWidget: React.FC<StudentExpiringSoonWidgetProps>
               {students.slice(0, maxDisplay).map((s) => (
                 <tr key={s.id} className="border-b border-gray-100 hover:bg-amber-50/50">
                   <td
-                    className="py-1.5 px-2 truncate max-w-[100px]"
+                    className="py-1.5 px-2 truncate max-w-[80px]"
                     title={`${s.fullName} - ${s.className}`}
                   >
                     {s.fullName}
                   </td>
                   <td className="py-1.5 px-2 text-center font-bold text-amber-600">
                     {s.remainingSessions}
+                  </td>
+                  <td className="py-1.5 px-2 text-center text-gray-500">
+                    {s.contractStartDate || '-'}
                   </td>
                   <td className="py-1.5 px-2 text-right text-gray-600">
                     {s.expectedEndDate || '-'}

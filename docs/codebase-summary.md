@@ -1,6 +1,6 @@
 # EduManager Pro Codebase Summary
 
-**Last Updated**: January 3, 2026
+**Last Updated**: January 5, 2026
 
 ## 🎯 Project Overview
 
@@ -12,38 +12,43 @@ EduManager Pro is a comprehensive education center management system designed fo
 -   **Backend**: Firebase (Authentication, Firestore, Cloud Functions, Storage, Hosting)
 -   **Routing**: react-router-dom 7 with HashRouter
 
-## 📊 Codebase Statistics (Latest Audit: Dec 31, 2025)
+## 📊 Codebase Statistics (Latest Audit: Jan 5, 2026)
 
 | Component | Count | Location |
 |-----------|-------|----------|
 | **Pages** | 40 | `/pages/` (8 domains + dashboard router) |
 | **Services** | 37 | `/src/services/` (static class methods) |
-| **Hooks** | 39 | `/src/hooks/` (real-time listeners + salary hooks) |
-| **Utilities** | 12 | `/src/utils/` |
+| **Hooks** | 35+ | `/src/hooks/` (real-time listeners + salary hooks) |
+| **Utilities** | 12 | `/src/utils/` (date, status, validators, firestore, batch, currency, excel, schedule) |
 | **Shared Components** | 17 | `/components/` (6 root + 11 dashboard widgets) |
 | **Cloud Functions** | 15+ | `/functions/src/triggers/` + utilities |
 | **Feature Modules** | 7 | `/src/features/` (students, classes, attendance, contracts, reports, debt, inventory) |
-| **Firestore Collections** | 37+ | Multiple domains |
+| **Firestore Collections** | 37+ | Multiple domains (students, classes, staff, contracts, attendance, etc.) |
 | **TypeScript Interfaces** | 50+ | `types.ts` (single source of truth) |
 | **TypeScript Enums** | 7 | `types.ts` (StudentStatus, ClassStatus, AttendanceStatus, ContractType/Category/Status, StaffRole) |
 | **Test Files** | 294+ | Unit, integration, permissions, dashboards, debt settlement |
 | **Maintenance Scripts** | 18+ | `/scripts/` (data seeding, consistency checks, migrations) |
 
-## 🧩 Domain-Based Module Structure
+## 🧩 Domain-Based Module Structure (40 Pages)
 
-The application is organized into 8 functional domains with 37 pages distributed across them:
+The application is organized into 8 functional domains with 40 pages distributed across them:
 
-| Domain | Pages | Key Features |
+| Domain | Pages (10) | Key Features |
 |--------|-------|--------------|
-| **Training** | 7 | Classes, Schedule, Attendance, Tutoring, Homework, Holidays, AttendanceHistory |
-| **Customers** | 7 | Students, StudentDetail, Parents, Feedback, Trial, Database, EnrollmentHistory |
-| **Business** | 2 | Campaigns, CRM |
-| **HR** | 7 | Staff, SalaryConfig, WorkConfirmation, SalaryReports (Teacher/Staff), LeaveRequests, Rewards, Penalties |
-| **Finance** | 6 | ContractList, ContractCreate, Invoices, Debt, Revenue, Enrollment |
-| **Reports** | 2 | Training, Monthly |
-| **Settings** | 5 | Products, Rooms, Curriculum, Center, Inventory |
-| **Core** | 4 | Dashboard (main), DashboardRouter, DashboardGV (teachers), DashboardCSKH (CSKH staff), Login |
+| **Auth/Dashboard** | 4 | Login, Dashboard (main), DashboardRouter, DashboardCSKH, DashboardGV |
+| **Training** | 7 | ClassManager, Schedule, Attendance, TutoringManager, HomeworkManager, HolidayManager, AttendanceHistory |
+| **Customers** | 7 | StudentManager, StudentDetail, ParentManager, FeedbackManager, TrialStudents, CustomerDatabase, EnrollmentHistory |
+| **Business** | 2 | CampaignManager, LeadManagement (CRM) |
+| **HR** | 7 | StaffManager, SalaryConfig, WorkConfirmation, SalaryReportTeacher, SalaryReportStaff, LeaveRequestManager, StaffRewardPenalty, CenterSettings |
+| **Finance** | 6 | ContractList, ContractCreation, InvoiceManager, DebtManager, DebtManagement, RevenueReport |
+| **Reports** | 2 | TrainingReport, MonthlyReport |
+| **Settings** | 5 | RoomManager, ProductManager, CurriculumManager, HolidayManager, InventoryManager |
 | **Total** | **40** | |
+
+**Recent Fixes (Jan 5, 2026)**:
+- Training: Attendance sessions, schedule room conflict, tutoring reserve, homework filter
+- Customers: Modal scroll issues, trial student filter, contract class/discount selection
+- HR: Staff 18+ age validation, salary custom button, work confirmation save/filter, leave request validations, salary report edit
 
 **Architecture Pattern**: Each domain has corresponding services in `/src/services/` (37 total) for CRUD operations and hooks in `/src/hooks/` (39 total) for real-time listeners. Complex features use `/src/features/` modules for encapsulated domain logic (7 feature modules: students, classes, attendance, contracts, reports, debt, inventory).
 
@@ -116,15 +121,16 @@ Serverless functions in `/functions/src/triggers/` and utilities for automation 
 
 ## ⚠️ Recent Changes & Quality Assessment
 
--   **Quality Score**: 6.5/10 (as of Dec 31, 2025)
--   **Latest Work**: Dashboard Phase 4 completion & Monthly Salary implementation (January 3, 2026)
-     - Dashboard Phase 1 (✅): Reusable dashboard widgets extraction
-     - Dashboard Phase 2 (✅): DashboardRouter for role-based routing
-     - Dashboard Phase 3 (✅): DashboardCSKH with 4 CSKH/Sale widgets
-     - Dashboard Phase 4 (✅): DashboardGV with 7 teacher/TG widgets
+-   **Quality Score**: 6.5/10 (as of Dec 2025)
+-   **Latest Work**: Multi-module bug fixes across Training, Customer, and HR (January 5, 2026)
+     - Training Module: Fixed attendance sessions, schedule room conflicts, tutoring reserves, homework filters
+     - Customer Module: Fixed modal scroll issues, trial student filtering, contract class/discount selection
+     - HR Module: Fixed staff age validation (18+), salary custom buttons, work confirmation saves/filters, leave request validations, salary report edits
+     - Test Coverage: 294+ tests covering all fixes (unit, integration, permissions, dashboards, debt settlement)
+-   **Previous Work (Jan 3, 2026)**:
+     - Dashboard Phase 1-4 (✅): Reusable widgets, DashboardRouter, DashboardCSKH, DashboardGV
      - Monthly Salary (✅): Unified salary calculation with Cloud Function triggers
      - Settlement Invoices (✅): Debt settlement tracking and PDF generation
-     - Test Coverage: 294+ tests (unit, integration, permissions, dashboards, debt settlement)
 -   **Security**: P0 priority issues identified in Firestore rules and missing permission checks (in progress)
 -   **Code Quality Issues**:
      - DRY violations in timestamp conversion and Firestore query building

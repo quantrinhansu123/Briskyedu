@@ -113,7 +113,7 @@ interface DashboardStats {
   revenueByClass: { name: string; value: number }[]; // Doanh thu theo lớp
   // Phase 3: New widgets data
   myWorkDays: number; // Số ngày công tháng này
-  studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number }[]; // DS sắp hết phí
+  studentsExpiringSoon: { id: string; fullName: string; className: string; remainingSessions: number; expectedEndDate?: string; contractStartDate?: string }[]; // DS sắp hết phí
   studentsWithDebt: { id: string; fullName: string; className: string; status: string }[]; // DS nợ phí
   // Phase 4: GV Dashboard data
   myClasses: { id: string; name: string; studentCount: number; scheduleDay: string; scheduleTime: string }[];
@@ -624,8 +624,83 @@ export const Dashboard: React.FC = () => {
         );
       }).length;
 
+      // Build student -> latest contract map (reusing contracts from earlier fetch)
+      const studentLatestContract: Record<string, { startDate: string; category: string }> = {};
+      contracts.forEach((c: any) => {
+        if (!c.studentId || c.status === 'Đã hủy') return;
+        let contractStartDate = c.createdAt || '';
+        if (c.items && c.items.length > 0) {
+          const itemDates = c.items
+            .filter((item: any) => item.startDate)
+            .map((item: any) => item.startDate);
+          if (itemDates.length > 0) {
+            contractStartDate = itemDates.sort().pop() || contractStartDate;
+          }
+        }
+        const existing = studentLatestContract[c.studentId];
+        if (!existing || contractStartDate > existing.startDate) {
+          studentLatestContract[c.studentId] = {
+            startDate: contractStartDate,
+            category: c.category || 'Hợp đồng mới',
+          };
+        }
+      });
+
       // Widget 2: DS Học Sinh sắp hết phí (remainingSessions <= 5)
       const EXPIRY_THRESHOLD = 5;
+
+      // Helper to get class days from schedule
+      const getClassDaysOfWeek = (classData: any): number[] => {
+        const days: number[] = [];
+        if (classData?.scheduleDetails && classData.scheduleDetails.length > 0) {
+          classData.scheduleDetails.forEach((detail: any) => {
+            const dayNum = parseInt(detail.dayOfWeek);
+            if (!isNaN(dayNum)) {
+              days.push(dayNum === 7 ? 6 : dayNum - 1);
+            } else if (detail.dayOfWeek === 'CN') {
+              days.push(0);
+            }
+          });
+          return days;
+        }
+        if (classData?.schedule) {
+          const dayMap: Record<string, number> = { '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6 };
+          const matches = classData.schedule.match(/\d/g);
+          if (matches) {
+            matches.forEach((d: string) => {
+              if (dayMap[d] !== undefined) days.push(dayMap[d]);
+            });
+          }
+        }
+        return days.length > 0 ? days : [1, 3];
+      };
+
+      // Helper to calculate expected end date
+      const calculateExpectedEndDate = (remainingSessions: number, classId?: string): string => {
+        if (!remainingSessions || remainingSessions <= 0) return '-';
+        const studentClass = classId ? classes.find((c: any) => c.id === classId) : null;
+        const classDays = getClassDaysOfWeek(studentClass);
+        let sessionsCount = 0;
+        const endDate = new Date();
+        let dayCount = 0;
+        while (sessionsCount < remainingSessions && dayCount < 365) {
+          endDate.setDate(endDate.getDate() + 1);
+          dayCount++;
+          if (classDays.includes(endDate.getDay())) sessionsCount++;
+        }
+        return `${String(endDate.getDate()).padStart(2, '0')}/${String(endDate.getMonth() + 1).padStart(2, '0')}/${endDate.getFullYear()}`;
+      };
+
+      // Helper to format date
+      const formatContractDate = (dateStr: string | undefined): string => {
+        if (!dateStr) return '-';
+        try {
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return '-';
+          return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        } catch { return '-'; }
+      };
+
       const studentsExpiringSoon = students
         .filter((s: any) =>
           s.status === 'Đang học' &&
@@ -633,12 +708,17 @@ export const Dashboard: React.FC = () => {
           s.remainingSessions <= EXPIRY_THRESHOLD &&
           s.remainingSessions > 0
         )
-        .map((s: any) => ({
-          id: s.id,
-          fullName: s.fullName || s.name || '',
-          className: s.currentClassName || s.className || s.class || '-',
-          remainingSessions: s.remainingSessions,
-        }))
+        .map((s: any) => {
+          const latestContract = studentLatestContract[s.id];
+          return {
+            id: s.id,
+            fullName: s.fullName || s.name || '',
+            className: s.currentClassName || s.className || s.class || '-',
+            remainingSessions: s.remainingSessions,
+            expectedEndDate: calculateExpectedEndDate(s.remainingSessions, s.classId || s.classIds?.[0]),
+            contractStartDate: formatContractDate(latestContract?.startDate || s.enrollmentDate || s.startDate),
+          };
+        })
         .sort((a: any, b: any) => a.remainingSessions - b.remainingSessions);
 
       // Widget 3: DS Học Sinh Nợ Phí
@@ -1729,14 +1809,18 @@ export const Dashboard: React.FC = () => {
                   <thead className="bg-amber-50 sticky top-0">
                     <tr>
                       <th className="text-left py-1.5 px-2">Học viên</th>
-                      <th className="text-right py-1.5 px-2">Còn</th>
+                      <th className="text-center py-1.5 px-2">Còn</th>
+                      <th className="text-center py-1.5 px-2">Ngày BĐ HĐ</th>
+                      <th className="text-right py-1.5 px-2">Dự kiến KT</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.studentsExpiringSoon.slice(0, 10).map(s => (
                       <tr key={s.id} className="border-b border-gray-100 hover:bg-amber-50/50">
-                        <td className="py-1.5 px-2 truncate max-w-[120px]" title={s.fullName}>{s.fullName}</td>
-                        <td className="py-1.5 px-2 text-right font-bold text-amber-600">{s.remainingSessions}</td>
+                        <td className="py-1.5 px-2 truncate max-w-[80px]" title={s.fullName}>{s.fullName}</td>
+                        <td className="py-1.5 px-2 text-center font-bold text-amber-600">{s.remainingSessions}</td>
+                        <td className="py-1.5 px-2 text-center text-gray-500">{s.contractStartDate || '-'}</td>
+                        <td className="py-1.5 px-2 text-right text-gray-600">{s.expectedEndDate || '-'}</td>
                       </tr>
                     ))}
                   </tbody>

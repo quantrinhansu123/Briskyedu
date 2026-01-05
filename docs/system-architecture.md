@@ -1,15 +1,15 @@
 # EduManager Pro - System Architecture
 
-**Last Updated**: January 3, 2026
+**Last Updated**: January 5, 2026
 
 ## Overview
 
 EduManager Pro uses a strict 3-layer architecture (Services → Hooks → Pages) with Firebase as the backend. This is a Single Page Application (SPA) with client-side rendering and real-time data synchronization. The system manages 37+ Firestore collections across 8 domains via:
 - **37 Services**: Static class methods for CRUD operations
-- **39 Hooks**: Real-time listeners with onSnapshot pattern
-- **40 Pages**: Domain-organized UI components + 3 dashboard pages + router
+- **35+ Hooks**: Real-time listeners with onSnapshot pattern (includes useMonthlySalary, useSettlementInvoices, useAutoWorkSessions)
+- **40 Pages**: Domain-organized UI components (auth, training, customers, business, HR, finance, reports, settings) + 3 dashboard pages + router
 - **7 Feature Modules**: Encapsulated domain-specific logic (students, classes, attendance, contracts, reports, debt, inventory)
-- **15+ Cloud Functions**: Event-driven triggers and background jobs
+- **15+ Cloud Functions**: Event-driven triggers and background jobs (class, student, contract, attendance, salary, settlements)
 
 ## High-Level Architecture
 

@@ -218,7 +218,8 @@ export const StaffManager: React.FC = () => {
       roles: staffMember.roles || (staffMember.role ? [staffMember.role] : []),
       startDate: staffMember.startDate || '',
       contractLink: '',
-      username: '',
+      // Populate email from existing account if available
+      username: (staffMember as any).email || '',
       password: '',
       status: staffMember.status || 'Active',
       branch: staffMember.branch || '',
@@ -258,7 +259,7 @@ export const StaffManager: React.FC = () => {
       const staffCode = editingStaff?.code || `NV${Date.now().toString().slice(-6)}`;
 
       if (editingStaff) {
-        // Update existing staff (Firestore only)
+        // Update existing staff
         const staffData = {
           name: formData.name,
           dob: formData.dob,
@@ -272,7 +273,40 @@ export const StaffManager: React.FC = () => {
           branch: formData.branch,
         };
         await updateStaff(editingStaff.id, staffData);
-        alert('Đã cập nhật thông tin nhân viên!');
+
+        // Handle account creation/update
+        const hasExistingAccount = !!(editingStaff as any).uid;
+
+        if (hasExistingAccount && formData.password) {
+          // Staff has account - update password if provided
+          if (formData.password.length < 6) {
+            alert('Đã cập nhật thông tin. Mật khẩu phải có ít nhất 6 ký tự nên chưa được đổi!');
+          } else {
+            try {
+              await AuthService.updateStaffPassword(editingStaff.id, formData.password);
+              alert('Đã cập nhật thông tin và mật khẩu mới!');
+            } catch (pwErr: any) {
+              alert('Đã cập nhật thông tin. Lỗi đổi mật khẩu: ' + pwErr.message);
+            }
+          }
+        } else if (!hasExistingAccount && formData.username && formData.password) {
+          // Staff doesn't have account - create one if credentials provided
+          if (formData.password.length < 6) {
+            alert('Đã cập nhật thông tin. Mật khẩu phải có ít nhất 6 ký tự nên chưa tạo tài khoản!');
+          } else {
+            try {
+              const email = formData.username.includes('@')
+                ? formData.username
+                : `${formData.username}@edumanager.local`;
+              await AuthService.createStaffAccount(editingStaff.id, email, formData.password);
+              alert('Đã cập nhật thông tin và tạo tài khoản đăng nhập!');
+            } catch (accErr: any) {
+              alert('Đã cập nhật thông tin. Lỗi tạo tài khoản: ' + accErr.message);
+            }
+          }
+        } else {
+          alert('Đã cập nhật thông tin nhân viên!');
+        }
       } else {
         // Create new staff
         if (formData.username && formData.password) {
@@ -778,25 +812,44 @@ export const StaffManager: React.FC = () => {
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Thông tin đăng nhập</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email đăng nhập</label>
-                    <input
-                      type="email"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="email@example.com"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Để trống nếu chưa cần tài khoản</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email đăng nhập
+                      {editingStaff && (editingStaff as any).uid && (
+                        <span className="ml-2 text-xs text-green-600 font-normal">(Đã có tài khoản)</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                          editingStaff && (editingStaff as any).uid ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        placeholder="email@example.com"
+                        readOnly={!!(editingStaff && (editingStaff as any).uid)}
+                      />
+                      {editingStaff && (editingStaff as any).uid && (
+                        <Key size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {editingStaff && (editingStaff as any).uid
+                        ? 'Email không thể thay đổi sau khi tạo tài khoản'
+                        : 'Để trống nếu chưa cần tài khoản'}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {editingStaff && (editingStaff as any).uid ? 'Mật khẩu mới' : 'Mật khẩu'}
+                    </label>
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        placeholder="••••••••"
+                        placeholder={editingStaff && (editingStaff as any).uid ? 'Nhập để đổi mật khẩu...' : '••••••••'}
                       />
                       <button
                         type="button"
@@ -806,6 +859,9 @@ export const StaffManager: React.FC = () => {
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {editingStaff && (editingStaff as any).uid && (
+                      <p className="text-xs text-gray-500 mt-1">Để trống nếu không muốn đổi mật khẩu</p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-2 bg-yellow-50 text-yellow-800 text-xs p-2 rounded flex items-center gap-2">

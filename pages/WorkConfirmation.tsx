@@ -194,28 +194,150 @@ export const WorkConfirmation: React.FC = () => {
   const [bulkConfirmLoading, setBulkConfirmLoading] = useState(false);
   const [pendingToConfirm, setPendingToConfirm] = useState<WorkSession[]>([]);
 
-  // Confirm all pending (không xác nhận công đã bị thay)
+  // Checkbox selection state for bulk operations
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
+
+  // Work status for each session: 'Đi làm' | 'Đi muộn' | 'Nghỉ'
+  const [sessionWorkStatus, setSessionWorkStatus] = useState<Record<string, 'Đi làm' | 'Đi muộn' | 'Nghỉ'>>({});
+
+  // Cover teacher for sessions with "Nghỉ" status
+  const [sessionCoverTeacher, setSessionCoverTeacher] = useState<Record<string, string>>({});
+
+  // Toggle single session selection
+  const toggleSessionSelection = (sessionKey: string) => {
+    setSelectedSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionKey)) {
+        newSet.delete(sessionKey);
+      } else {
+        newSet.add(sessionKey);
+      }
+      return newSet;
+    });
+  };
+
+  // Toggle all sessions selection
+  const toggleSelectAll = () => {
+    const pendingSessions = filteredSessions.filter(s =>
+      s.status === 'Chờ xác nhận' && !(s as any).isSubstituted
+    );
+    if (selectedSessions.size === pendingSessions.length) {
+      setSelectedSessions(new Set());
+    } else {
+      const allKeys = pendingSessions.map(s => `${s.date}|${s.staffName}|${s.timeStart}`);
+      setSelectedSessions(new Set(allKeys));
+    }
+  };
+
+  // Get session key for identification
+  const getSessionKey = (session: WorkSession) => `${session.date}|${session.staffName}|${session.timeStart}`;
+
+  // Confirm selected sessions (or all pending if none selected)
   const handleConfirmAll = () => {
     const pending = filteredSessions.filter(s =>
       s.status === 'Chờ xác nhận' && !(s as any).isSubstituted
     );
-    if (pending.length === 0) {
-      alert('Không có công nào cần xác nhận');
+
+    // If no selections, use all pending
+    let toConfirm: WorkSession[];
+    if (selectedSessions.size === 0) {
+      toConfirm = pending;
+    } else {
+      toConfirm = pending.filter(s => selectedSessions.has(getSessionKey(s)));
+    }
+
+    if (toConfirm.length === 0) {
+      alert('Không có công nào được chọn hoặc cần xác nhận');
       return;
     }
-    // Show confirmation modal instead of immediate action
-    setPendingToConfirm(pending);
+
+    // Initialize work status to "Đi làm" for all selected sessions
+    const initialStatus: Record<string, 'Đi làm' | 'Đi muộn' | 'Nghỉ'> = {};
+    toConfirm.forEach(s => {
+      const key = getSessionKey(s);
+      if (!sessionWorkStatus[key]) {
+        initialStatus[key] = 'Đi làm';
+      }
+    });
+    setSessionWorkStatus(prev => ({ ...prev, ...initialStatus }));
+
+    // Show confirmation modal
+    setPendingToConfirm(toConfirm);
     setShowBulkConfirmModal(true);
   };
 
-  // Execute bulk confirmation
+  // Execute bulk confirmation with work status
   const executeBulkConfirm = async () => {
+    // Validate: sessions with "Nghỉ" must have cover teacher
+    for (const session of pendingToConfirm) {
+      const key = getSessionKey(session);
+      const status = sessionWorkStatus[key] || 'Đi làm';
+      if (status === 'Nghỉ' && !sessionCoverTeacher[key]) {
+        alert(`Vui lòng chọn giáo viên cover cho ${session.staffName} (${session.date})`);
+        return;
+      }
+    }
+
     setBulkConfirmLoading(true);
     try {
-      await confirmMultiple(pendingToConfirm);
+      // Separate sessions by work status
+      const toConfirm = pendingToConfirm.filter(s => {
+        const key = getSessionKey(s);
+        const status = sessionWorkStatus[key] || 'Đi làm';
+        return status !== 'Nghỉ'; // Only confirm Đi làm and Đi muộn
+      });
+
+      // For "Nghỉ" sessions, we need to create cover records
+      const absentSessions = pendingToConfirm.filter(s => {
+        const key = getSessionKey(s);
+        return sessionWorkStatus[key] === 'Nghỉ';
+      });
+
+      // Confirm working sessions (Đi làm / Đi muộn)
+      if (toConfirm.length > 0) {
+        // Add workStatus to each session before confirming
+        const sessionsWithStatus = toConfirm.map(s => ({
+          ...s,
+          workStatus: sessionWorkStatus[getSessionKey(s)] || 'Đi làm'
+        }));
+        await confirmMultiple(sessionsWithStatus);
+      }
+
+      // Create cover sessions for absent staff
+      for (const session of absentSessions) {
+        const key = getSessionKey(session);
+        const coverTeacher = sessionCoverTeacher[key];
+        if (coverTeacher) {
+          // Add manual session for cover teacher
+          await addManualSession({
+            staffName: coverTeacher,
+            position: session.position,
+            date: session.date,
+            timeStart: session.timeStart,
+            timeEnd: session.timeEnd || '',
+            className: session.className || '',
+            type: 'Dạy thay',
+            status: 'Chờ xác nhận',
+            substituteForStaffName: session.staffName,
+            substituteReason: 'Nghỉ' as SubstituteReason,
+          });
+        }
+      }
+
+      // Clear states
       setShowBulkConfirmModal(false);
       setPendingToConfirm([]);
-      alert(`Đã xác nhận ${pendingToConfirm.length} công thành công!`);
+      setSelectedSessions(new Set());
+      setSessionWorkStatus({});
+      setSessionCoverTeacher({});
+
+      const confirmedCount = toConfirm.length;
+      const absentCount = absentSessions.length;
+      let message = `Đã xác nhận ${confirmedCount} công thành công!`;
+      if (absentCount > 0) {
+        message += ` Đã tạo ${absentCount} công dạy thay.`;
+      }
+      alert(message);
     } catch (err: any) {
       alert(`Lỗi: ${err.message}`);
     } finally {
@@ -502,6 +624,16 @@ export const WorkConfirmation: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-green-500 text-white">
+                  {/* Checkbox column */}
+                  <th className="px-2 py-3 text-center w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedSessions.size > 0 && selectedSessions.size === filteredSessions.filter(s => s.status === 'Chờ xác nhận' && !(s as any).isSubstituted).length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-white text-green-600 focus:ring-green-500"
+                      title="Chọn tất cả"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase w-12">STT</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase">Tên nhân viên</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase">Thời gian</th>
@@ -510,9 +642,10 @@ export const WorkConfirmation: React.FC = () => {
                   <th className="px-4 py-3 text-center">
                     <button
                       onClick={handleConfirmAll}
-                      className="text-xs font-bold text-white uppercase px-3 py-1.5 border border-white rounded hover:bg-green-600"
+                      className="text-xs font-bold text-white uppercase px-3 py-1.5 border border-white rounded hover:bg-green-600 flex items-center gap-1 mx-auto"
                     >
-                      Xác nhận hàng loạt
+                      <CheckCircle size={14} />
+                      {selectedSessions.size > 0 ? `Xác nhận (${selectedSessions.size})` : 'Xác nhận hàng loạt'}
                     </button>
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase w-24">Thao tác</th>
@@ -521,18 +654,18 @@ export const WorkConfirmation: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-gray-500">
+                    <td colSpan={8} className="text-center py-12 text-gray-500">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
                       Đang tải...
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-red-500">{error}</td>
+                    <td colSpan={8} className="text-center py-12 text-red-500">{error}</td>
                   </tr>
                 ) : filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-gray-400">
+                    <td colSpan={8} className="text-center py-12 text-gray-400">
                       Không có dữ liệu
                     </td>
                   </tr>
@@ -542,12 +675,26 @@ export const WorkConfirmation: React.FC = () => {
                     const substitutedBy = (session as any).substitutedBy;
                     const substitutedReason = (session as any).substitutedReason;
                     const onLeave = isOnLeave(session.staffId || session.staffName, session.date);
+                    const sessionKey = getSessionKey(session);
+                    const isPending = session.status === 'Chờ xác nhận' && !isSubstituted;
+                    const isSelected = selectedSessions.has(sessionKey);
 
                     return (
                       <tr
                         key={session.id || `${session.staffName}-${session.date}-${idx}`}
-                        className={isSubstituted ? 'bg-red-50 opacity-60' : onLeave ? 'bg-purple-50' : 'hover:bg-gray-50'}
+                        className={`${isSubstituted ? 'bg-red-50 opacity-60' : onLeave ? 'bg-purple-50' : 'hover:bg-gray-50'} ${isSelected ? 'bg-green-50' : ''}`}
                       >
+                        {/* Checkbox cell */}
+                        <td className="px-2 py-4 text-center">
+                          {isPending && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSessionSelection(sessionKey)}
+                              className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                          )}
+                        </td>
                         <td className="px-4 py-4 text-gray-500">{idx + 1}</td>
                         <td className="px-4 py-4 font-medium text-gray-900">
                           {session.staffName}
@@ -1114,10 +1261,10 @@ export const WorkConfirmation: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Xác nhận hàng loạt */}
+      {/* Modal Xác nhận hàng loạt với trạng thái công */}
       {showBulkConfirmModal && pendingToConfirm.length > 0 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b bg-green-500 text-white rounded-t-xl">
               <h3 className="font-bold flex items-center gap-2">
                 <CheckCircle size={18} />
@@ -1129,37 +1276,113 @@ export const WorkConfirmation: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div className="p-3 bg-yellow-50 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
-                <span className="text-yellow-600 font-bold text-lg">⚠</span>
-                <div>
-                  <strong>Xác nhận trước khi thực hiện:</strong>
-                  <br />
-                  Bạn sẽ xác nhận <strong>{pendingToConfirm.length}</strong> công trong danh sách dưới đây.
-                  Sau khi xác nhận, số công sẽ tự động chuyển sang báo cáo lương.
+              <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                <strong>Hướng dẫn:</strong> Chọn trạng thái cho từng công. Nếu chọn "Nghỉ", cần chọn giáo viên cover.
+              </div>
+
+              {/* Work status legend */}
+              <div className="flex gap-4 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                  <span>Đi làm</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                  <span>Đi muộn</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                  <span>Nghỉ (cần chọn GV cover)</span>
                 </div>
               </div>
 
-              <div className="max-h-60 overflow-y-auto border rounded-lg">
+              <div className="max-h-[400px] overflow-y-auto border rounded-lg">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Nhân viên</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Ngày</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Lớp</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Loại</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Ngày / Lớp</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600">Trạng thái</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">GV Cover (nếu Nghỉ)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {pendingToConfirm.map((session, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium">{session.staffName}</td>
-                        <td className="px-3 py-2 text-gray-600">{session.date}</td>
-                        <td className="px-3 py-2 text-gray-600">{session.className || '-'}</td>
-                        <td className="px-3 py-2">
-                          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{session.type}</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {pendingToConfirm.map((session, idx) => {
+                      const key = getSessionKey(session);
+                      const currentStatus = sessionWorkStatus[key] || 'Đi làm';
+                      const currentCover = sessionCoverTeacher[key] || '';
+
+                      return (
+                        <tr key={idx} className={`${currentStatus === 'Nghỉ' ? 'bg-red-50' : currentStatus === 'Đi muộn' ? 'bg-yellow-50' : ''}`}>
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{session.staffName}</div>
+                            <div className="text-xs text-gray-500">{session.position}</div>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">
+                            <div>{session.date}</div>
+                            <div className="text-xs">{session.className || '-'} ({session.timeStart})</div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                type="button"
+                                onClick={() => setSessionWorkStatus(prev => ({ ...prev, [key]: 'Đi làm' }))}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                  currentStatus === 'Đi làm'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-green-100'
+                                }`}
+                              >
+                                Đi làm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSessionWorkStatus(prev => ({ ...prev, [key]: 'Đi muộn' }))}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                  currentStatus === 'Đi muộn'
+                                    ? 'bg-yellow-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-yellow-100'
+                                }`}
+                              >
+                                Đi muộn
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSessionWorkStatus(prev => ({ ...prev, [key]: 'Nghỉ' }))}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                  currentStatus === 'Nghỉ'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-red-100'
+                                }`}
+                              >
+                                Nghỉ
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            {currentStatus === 'Nghỉ' ? (
+                              <select
+                                value={currentCover}
+                                onChange={(e) => setSessionCoverTeacher(prev => ({ ...prev, [key]: e.target.value }))}
+                                className={`w-full px-2 py-1 border rounded text-xs ${
+                                  !currentCover ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                                }`}
+                              >
+                                <option value="">-- Chọn GV cover --</option>
+                                {staffList
+                                  .filter(s => s.name !== session.staffName && (s.position?.includes('Giáo viên') || s.role?.includes('Giáo viên')))
+                                  .map(s => (
+                                    <option key={s.id} value={s.name}>{s.name}</option>
+                                  ))
+                                }
+                              </select>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

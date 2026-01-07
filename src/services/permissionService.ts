@@ -144,8 +144,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: true },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #1: Xem lương của mình
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // CSKH Lead không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
     revenue: { view: true, create: false, edit: false, delete: false }, // CAN SEE REVENUE
@@ -184,8 +184,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: false }, // Cannot approve
     leave_request: { view: true, create: true, edit: true, delete: false, approve: false },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #2: Xem lương của mình
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // CSKH Staff không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
     revenue: { view: false, create: false, edit: false, delete: false }, // CANNOT SEE REVENUE
@@ -224,8 +224,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: true },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #4: View own salary
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // CM Lead không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
     invoices: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
     revenue: { view: false, create: false, edit: false, delete: false }, // Gap #5: Hide Tài Chính
@@ -264,8 +264,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: false },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: false },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #10: View own salary
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // CM Staff không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
     invoices: { view: false, create: false, edit: false, delete: false }, // Gap #11: Hide Tài Chính
     revenue: { view: false, create: false, edit: false, delete: false }, // CANNOT SEE REVENUE
@@ -304,8 +304,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: true },
     leave_request: { view: true, create: true, edit: true, delete: false, approve: true },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #1: View own salary
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // Sale Lead không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
     revenue: { view: true, create: false, edit: false, delete: false }, // CAN SEE REVENUE
@@ -344,8 +344,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     salary_config: { view: false, create: false, edit: false, delete: false },
     work_confirmation: { view: true, create: true, edit: true, delete: false, approve: false }, // Cannot approve
     leave_request: { view: true, create: true, edit: true, delete: false, approve: false },
-    salary_teacher: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Gap #5: View own salary
-    salary_staff: { view: false, create: false, edit: false, delete: false },
+    salary_teacher: { view: false, create: false, edit: false, delete: false }, // Sale Staff không phải GV/TG
+    salary_staff: { view: true, create: false, edit: false, delete: false, onlyOwnData: true }, // Xem lương NV của mình
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
     revenue: { view: false, create: false, edit: false, delete: false }, // CANNOT SEE REVENUE

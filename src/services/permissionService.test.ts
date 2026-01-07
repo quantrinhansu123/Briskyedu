@@ -121,11 +121,11 @@ describe('Permission Service', () => {
       expect(canView(role, 'salary_config')).toBe(false);
     });
 
-    it('should view own salary_teacher but not salary_staff', () => {
-      // Gap #1 fix: cskh_lead can now view salary_teacher (own data only)
-      expect(canView(role, 'salary_teacher')).toBe(true);
-      expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
-      expect(canView(role, 'salary_staff')).toBe(false);
+    it('should view own salary_staff but not salary_teacher', () => {
+      // Staff roles (not teachers) view their salary in salary_staff report
+      expect(canView(role, 'salary_teacher')).toBe(false);
+      expect(canView(role, 'salary_staff')).toBe(true);
+      expect(shouldShowOnlyOwnData(role, 'salary_staff')).toBe(true);
     });
 
     it('should require approval for invoice deletion', () => {
@@ -358,23 +358,25 @@ describe('Permission Service', () => {
       expect(items).toContain('salary_config');
     });
 
-    it('should hide salary_config but show salary_teacher for cskh_staff', () => {
+    it('should hide salary_config and salary_teacher, show salary_staff for cskh_staff', () => {
       const items = getVisibleMenuItems('cskh_staff');
       expect(items).toContain('dashboard');
       expect(items).toContain('classes');
       expect(items).not.toContain('salary_config');
-      expect(items).toContain('salary_teacher'); // Gap #2 fix: can view own salary
+      expect(items).not.toContain('salary_teacher'); // Staff roles use salary_staff instead
+      expect(items).toContain('salary_staff'); // Staff roles see their salary in NV report
       expect(items).not.toContain('settings');
       expect(items).not.toContain('revenue'); // Staff cannot see revenue
       expect(items).not.toContain('staff'); // Gap #3 fix: staff hidden
     });
 
-    it('should show revenue and salary_teacher for cskh_lead', () => {
+    it('should show revenue and salary_staff for cskh_lead', () => {
       const items = getVisibleMenuItems('cskh_lead');
       expect(items).toContain('dashboard');
       expect(items).toContain('classes');
       expect(items).toContain('revenue'); // Lead CAN see revenue
-      expect(items).toContain('salary_teacher'); // Gap #1 fix: can view own salary
+      expect(items).not.toContain('salary_teacher'); // Staff roles use salary_staff instead
+      expect(items).toContain('salary_staff'); // Staff roles see their salary in NV report
       expect(items).not.toContain('salary_config');
       expect(items).not.toContain('settings');
     });
@@ -483,17 +485,17 @@ describe('Permission Service', () => {
   // Based on spec analysis: 251230-cskh-permission-gaps-analysis.md
   // ========================================
   describe('CSKH Permission Gaps Fix', () => {
-    describe('Gap #1-2: salary_teacher with onlyOwnData', () => {
-      it('cskh_lead can view salary_teacher with onlyOwnData', () => {
-        expect(canView('cskh_lead', 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData('cskh_lead', 'salary_teacher')).toBe(true);
-        expect(canCreate('cskh_lead', 'salary_teacher')).toBe(false);
+    describe('Gap #1-2: salary_staff with onlyOwnData (staff roles use NV report)', () => {
+      it('cskh_lead can view salary_staff with onlyOwnData', () => {
+        expect(canView('cskh_lead', 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData('cskh_lead', 'salary_staff')).toBe(true);
+        expect(canView('cskh_lead', 'salary_teacher')).toBe(false); // Not a teacher
       });
 
-      it('cskh_staff can view salary_teacher with onlyOwnData', () => {
-        expect(canView('cskh_staff', 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData('cskh_staff', 'salary_teacher')).toBe(true);
-        expect(canCreate('cskh_staff', 'salary_teacher')).toBe(false);
+      it('cskh_staff can view salary_staff with onlyOwnData', () => {
+        expect(canView('cskh_staff', 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData('cskh_staff', 'salary_staff')).toBe(true);
+        expect(canView('cskh_staff', 'salary_teacher')).toBe(false); // Not a teacher
       });
     });
 
@@ -563,10 +565,11 @@ describe('Permission Service', () => {
       });
     });
 
-    describe('Gap #4: salary_teacher with onlyOwnData', () => {
-      it('should view salary_teacher with onlyOwnData', () => {
-        expect(canView(role, 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+    describe('Gap #4: salary_staff with onlyOwnData (CM Lead is staff, not teacher)', () => {
+      it('should view salary_staff with onlyOwnData', () => {
+        expect(canView(role, 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_staff')).toBe(true);
+        expect(canView(role, 'salary_teacher')).toBe(false); // Not a teacher
       });
     });
 
@@ -614,10 +617,11 @@ describe('Permission Service', () => {
       });
     });
 
-    describe('Gap #10: salary_teacher with onlyOwnData', () => {
-      it('should view salary_teacher with onlyOwnData', () => {
-        expect(canView(role, 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+    describe('Gap #10: salary_staff with onlyOwnData (CM Staff is staff, not teacher)', () => {
+      it('should view salary_staff with onlyOwnData', () => {
+        expect(canView(role, 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_staff')).toBe(true);
+        expect(canView(role, 'salary_teacher')).toBe(false); // Not a teacher
       });
     });
 
@@ -697,10 +701,11 @@ describe('Permission Service', () => {
   describe('SALE_LEAD Permission Gaps Fix', () => {
     const role: UserRole = 'sale_lead';
 
-    describe('Gap #1: salary_teacher with onlyOwnData', () => {
-      it('should view salary_teacher with onlyOwnData', () => {
-        expect(canView(role, 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+    describe('Gap #1: salary_staff with onlyOwnData (Sale Lead is staff, not teacher)', () => {
+      it('should view salary_staff with onlyOwnData', () => {
+        expect(canView(role, 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_staff')).toBe(true);
+        expect(canView(role, 'salary_teacher')).toBe(false); // Not a teacher
       });
     });
   });
@@ -735,10 +740,11 @@ describe('Permission Service', () => {
       });
     });
 
-    describe('Gap #5: salary_teacher with onlyOwnData', () => {
-      it('should view salary_teacher with onlyOwnData', () => {
-        expect(canView(role, 'salary_teacher')).toBe(true);
-        expect(shouldShowOnlyOwnData(role, 'salary_teacher')).toBe(true);
+    describe('Gap #5: salary_staff with onlyOwnData (Sale Staff is staff, not teacher)', () => {
+      it('should view salary_staff with onlyOwnData', () => {
+        expect(canView(role, 'salary_staff')).toBe(true);
+        expect(shouldShowOnlyOwnData(role, 'salary_staff')).toBe(true);
+        expect(canView(role, 'salary_teacher')).toBe(false); // Not a teacher
       });
     });
   });

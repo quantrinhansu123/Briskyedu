@@ -189,16 +189,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // ========================================
-    // FINANCE - canSeeFinance() = Admin, KeToan, CSKH, Sale (NOT CM, NOT Teachers)
-    // ========================================
-
     // Contracts collection
     match /contracts/{contractId} {
-      allow read: if canSeeFinance();
-      allow create: if canSeeFinance();
-      allow update: if canSeeFinance();
-      allow delete: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Leads collection (Customer Database)
@@ -215,10 +209,8 @@ service cloud.firestore {
     
     // Invoices collection
     match /invoices/{invoiceId} {
-      allow read: if canSeeFinance();
-      allow create: if canSeeFinance();
-      allow update: if canSeeFinance();
-      allow delete: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Feedback collection
@@ -280,10 +272,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // Financial Transactions (Revenue) - stricter: canSeeRevenue() = Admin, KeToan, TeamLeads only
+    // Financial Transactions collection
     match /financialTransactions/{transactionId} {
-      allow read: if canSeeRevenue();
-      allow write: if canSeeRevenue();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Salary related collections
@@ -394,12 +386,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
-    // Settlement Invoices collection (hóa đơn tất toán nợ phí) - FINANCE
+    // Settlement Invoices collection (hóa đơn tất toán nợ phí)
     match /settlementInvoices/{invoiceId} {
-      allow read: if canSeeFinance();
-      allow create: if canSeeFinance();
-      allow update: if canSeeFinance();
-      allow delete: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     // Leave Requests collection (đơn xin nghỉ)

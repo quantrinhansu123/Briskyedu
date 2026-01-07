@@ -4,12 +4,13 @@
  * Hỗ trợ điều chỉnh lương thực tế khi GV dạy thay tiết cho nhau
  */
 
-import React, { useState, useEffect } from 'react';
-import { Info, DollarSign, Users, X, Edit2, Save, Check } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Info, DollarSign, Users, X, Edit2, Save, Check, ShieldAlert } from 'lucide-react';
 import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { usePermissions } from '../src/hooks/usePermissions';
 
 interface ActualSalary {
   staffId: string;
@@ -26,14 +27,29 @@ export const SalaryReportTeacher: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedStaffIdx, setSelectedStaffIdx] = useState(0);
   const [editingSession, setEditingSession] = useState<any>(null);
-  
+
   // State for actual salary editing
   const [actualSalaries, setActualSalaries] = useState<Record<string, number>>({});
   const [editingActualSalary, setEditingActualSalary] = useState<string | null>(null);
   const [tempActualSalary, setTempActualSalary] = useState<number>(0);
   const [savingActual, setSavingActual] = useState(false);
 
-  const { summaries, loading, error, totalSalary, refresh } = useSalaryReport(selectedMonth, selectedYear);
+  // Permission check: Only Admin/KeToan can see ALL salaries
+  const { canSeeAllSalaries, staffId: currentStaffId } = usePermissions();
+
+  const { summaries: allSummaries, loading, error, totalSalary: allTotalSalary, refresh } = useSalaryReport(selectedMonth, selectedYear);
+
+  // Filter summaries based on permission - if not Admin/KeToan, only show own salary
+  const summaries = useMemo(() => {
+    if (canSeeAllSalaries) return allSummaries;
+    // Only show own salary data
+    return allSummaries.filter(s => s.staffId === currentStaffId);
+  }, [allSummaries, canSeeAllSalaries, currentStaffId]);
+
+  // Recalculate total for filtered data
+  const totalSalary = useMemo(() => {
+    return summaries.reduce((sum, s) => sum + s.estimatedSalary, 0);
+  }, [summaries]);
 
   // Load actual salaries from Firebase
   useEffect(() => {
@@ -148,11 +164,21 @@ export const SalaryReportTeacher: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Permission Notice - shown when user can only see own salary */}
+      {!canSeeAllSalaries && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-3">
+          <ShieldAlert className="text-amber-600" size={20} />
+          <span className="text-sm text-amber-800">
+            Bạn chỉ có thể xem thông tin lương của chính mình. Liên hệ Admin hoặc Kế toán để xem báo cáo đầy đủ.
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-bold text-gray-800 bg-cyan-300 px-3 py-1 rounded-sm shadow-sm">
-            Báo cáo lương GV/TG
+            {canSeeAllSalaries ? 'Báo cáo lương GV/TG' : 'Lương của tôi'}
           </h2>
           <div className="flex gap-3 text-sm">
             <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium flex items-center gap-1">
@@ -252,7 +278,7 @@ export const SalaryReportTeacher: React.FC = () => {
                         {formatCurrency(staff.kpiBonus || 0)}
                       </td>
                       <td className="px-3 py-3 border-r border-gray-200 text-right" onClick={(e) => e.stopPropagation()}>
-                        {isEditing ? (
+                        {isEditing && canSeeAllSalaries ? (
                           <div className="flex items-center justify-end gap-1">
                             <input
                               type="number"
@@ -284,13 +310,16 @@ export const SalaryReportTeacher: React.FC = () => {
                             <span className={`font-bold ${actualValue !== staff.estimatedSalary ? 'text-green-600' : 'text-gray-600'}`}>
                               {formatCurrency(actualValue)}
                             </span>
-                            <button
-                              onClick={() => startEditActual(staff.staffId, actualValue)}
-                              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                              title="Chỉnh sửa lương thực tế"
-                            >
-                              <Edit2 size={14} />
-                            </button>
+                            {/* Only Admin/KeToan can edit actual salary */}
+                            {canSeeAllSalaries && (
+                              <button
+                                onClick={() => startEditActual(staff.staffId, actualValue)}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                title="Chỉnh sửa lương thực tế"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -371,12 +400,14 @@ export const SalaryReportTeacher: React.FC = () => {
                           {formatCurrency(item.salary)}
                         </td>
                         <td className="border border-gray-300 px-2 py-2">
-                          <button 
-                            onClick={() => handleEditSession(item)}
-                            className="text-gray-500 hover:text-blue-600 underline text-sm"
-                          >
-                            Sửa
-                          </button>
+                          {canSeeAllSalaries ? (
+                            <button
+                              onClick={() => handleEditSession(item)}
+                              className="text-gray-500 hover:text-blue-600 underline text-sm"
+                            >
+                              Sửa
+                            </button>
+                          ) : '-'}
                         </td>
                       </tr>
                     )) : (

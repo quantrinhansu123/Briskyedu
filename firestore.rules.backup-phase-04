@@ -298,40 +298,30 @@ service cloud.firestore {
       allow write: if canSeeRevenue();
     }
     
-    // ========================================
-    // SALARY - onlyOwnData unless admin/ketoan
-    // ========================================
-
-    // #12 Staff Salaries - self or admin/ketoan
+    // Salary related collections
     match /staffSalaries/{salaryId} {
-      allow read: if isAdmin() || isKeToan() ||
-        resource.data.staffId == request.auth.uid;
-      allow write: if isAdmin() || isKeToan();
+      allow read: if isStaff();
+      allow write: if isAdmin();
     }
-
-    // #13 Actual Salaries - self or admin/ketoan
-    match /actualSalaries/{docId} {
-      allow read: if isAdmin() || isKeToan() ||
-        resource.data.staffId == request.auth.uid;
-      allow write: if isAdmin() || isKeToan();
-    }
-
-    // #14 Monthly Salary Summary - self or admin/ketoan
-    match /monthlySalarySummary/{docId} {
-      allow read: if isAdmin() || isKeToan() ||
-        resource.data.staffId == request.auth.uid;
-      allow write: if isAdmin() || isKeToan();
-    }
-
-    // #15 Salary Rules - admin/ketoan only
+    
     match /salaryRules/{ruleId} {
-      allow read: if isAdmin() || isKeToan();
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+    
+    match /actualSalaries/{docId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+    
+    match /salaryRanges/{rangeId} {
+      allow read: if isStaff();
       allow write: if isAdmin();
     }
 
-    // #16 Salary Ranges - admin/ketoan only
-    match /salaryRanges/{rangeId} {
-      allow read: if isAdmin() || isKeToan();
+    // Monthly Salary Summary - unified salary calculations
+    match /monthlySalarySummary/{docId} {
+      allow read: if isStaff();
       allow write: if isAdmin();
     }
 

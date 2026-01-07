@@ -50,17 +50,43 @@ const STAFF_COLLECTION = 'staff';
 // Get staff salaries by month/year - JOIN với staff collection
 export const getStaffSalaries = async (month: number, year: number): Promise<StaffSalaryRecord[]> => {
   // 1. Lấy danh sách nhân viên văn phòng từ staff collection (source of truth)
+  // Bao gồm: Văn phòng, Điều hành, Team Leads, và các vị trí hành chính
   const staffSnapshot = await getDocs(collection(db, STAFF_COLLECTION));
   const officeStaff = staffSnapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter((s: any) => 
-      s.department === 'Văn phòng' || 
-      s.department === 'Điều hành' ||
-      s.position === 'Kế toán' ||
-      s.position === 'Lễ tân' ||
-      s.position === 'Tư vấn viên' ||
-      s.position === 'Quản lý'
-    );
+    .filter((s: any) => {
+      // Exclude teachers/teaching assistants - họ có báo cáo riêng (GV/TG)
+      const teacherPositions = [
+        'Giáo viên Việt', 'Giáo Viên Việt', 'Giáo viên Nước ngoài', 'Giáo Viên Nước Ngoài',
+        'Trợ giảng', 'Trợ Giảng'
+      ];
+      if (teacherPositions.includes(s.position)) return false;
+
+      // Include: Văn phòng, Điều hành departments
+      if (s.department === 'Văn phòng' || s.department === 'Điều hành') return true;
+
+      // Include: Team Leads (CSKH, Sale, CM)
+      const leadPositions = [
+        'Trưởng nhóm Chuyên môn', 'Trưởng Nhóm Chuyên Môn', 'Trưởng nhóm CM',
+        'Trưởng nhóm CSKH', 'Trưởng Nhóm CSKH',
+        'Trưởng nhóm Sale', 'Trưởng Nhóm Sale',
+        'Quản lý', 'Quản Lý'
+      ];
+      if (leadPositions.includes(s.position)) return true;
+
+      // Include: Other office positions
+      const officePositions = [
+        'Kế toán', 'Kế Toán',
+        'Lễ tân', 'Lễ Tân',
+        'Tư vấn viên', 'Tư Vấn Viên',
+        'Nhân viên CSKH', 'Nhân Viên CSKH',
+        'Nhân viên Sale', 'Nhân Viên Sale',
+        'Nhân viên Chuyên môn', 'Nhân Viên Chuyên Môn'
+      ];
+      if (officePositions.includes(s.position)) return true;
+
+      return false;
+    });
 
   // 2. Lấy dữ liệu lương đã có trong tháng này
   const salaryQuery = query(

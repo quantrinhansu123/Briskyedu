@@ -1,6 +1,6 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2026-01-07 15:50
+**Last Updated:** 2026-01-07 21:35
 
 ---
 
@@ -22,11 +22,11 @@
 | Metric | Value |
 |--------|-------|
 | **Branch** | main |
-| **Quality Score** | 6.5/10 (Multi-module bug fixes complete) |
-| **Progress** | v1.0.1 Stable, 40 pages, 294+ tests |
-| **Last Commit** | `a329d08` feat(debt-management): add contract start date and expected end date columns |
-| **Active Plans** | Post-1.0.1 Feature Enhancements ✅ | Dashboard Phases 1-4 ✅ | Monthly Salary ✅ |
-| **Next Priority** | v1.1 security hardening, code quality improvements |
+| **Quality Score** | 7.0/10 (Security hardening complete) |
+| **Progress** | v1.1 Security Release, 40 pages, 294+ tests |
+| **Last Commit** | `d4a4382` fix(permissions): staff roles see salary_staff, not salary_teacher |
+| **Active Plans** | Security Hardening ✅ | Permission Fixes ✅ |
+| **Deploy** | https://edumanager-pro-6180f.web.app |
 
 ---
 
@@ -96,32 +96,31 @@
 
 ## Recent Activity (Last 10 Tasks)
 
-**2026-01-07 (Current Session)**
-- 🔄 Context restored - reviewing recent commits since 01/05
+**2026-01-07 (Current Session) - Security Hardening**
+- ✅ **Firestore Security Rules** - 6-phase hardening completed
+  - Phase 1-4: Training, Customer, Business, HR collections
+  - Phase 5-6: Salary/Finance collections with `onlyOwnData` pattern
+  - Added helper functions: `hasPosition()`, `isTeacher()`, `canSeeFinance()`, `isOnlyOwnData()`
+- ✅ **Permission Service Fix** - CM Lead salary visibility bug
+  - Added `canSeeAllSalaries()` function (Admin/KeToan only)
+  - Removed `cm_lead` from `canSeeRevenue()`
+  - Staff roles use `salary_staff` module instead of `salary_teacher`
+- ✅ **Salary Report Pages** - Permission filtering
+  - `SalaryReportTeacher.tsx`: Non-admin sees only own data
+  - `SalaryReportStaff.tsx`: Non-admin sees only own data
+  - `Dashboard.tsx`: Split revenue/salary widgets with permission gates
+- ✅ **Staff Salary Service** - Include Team Leads in NV report
+- ✅ **Deployed** to https://edumanager-pro-6180f.web.app
 
-**2026-01-06 - 01/07 (Recent Work)**
-1. ✅ **Debt Management Enhancement** - Added contract start/expected end date columns
-2. ✅ **Work Confirmation Improvements** - Branch/center filter, checkbox selection, work status options
-3. ✅ **Dashboard Enhancement** - Contract dates, branch filter
-4. ✅ **Staff Account Management** - Store/display plain password for admin viewing, credential saving fixes
-5. ✅ **Business Logic Fixes** - 10 bug fixes + invoice editing
-
-**2026-01-05 (Previous Session)**
-1. ✅ **Multi-Module Bug Fixes** - Fixed 12+ bugs across 3 modules
-   - Training: Attendance sessions, schedule room conflict, tutoring reserve, homework filter
-   - Customer: Modal scroll (StudentDetail, Feedback), trial filter, contract class/discount
-   - HR: Staff 18+ age, salary buttons, work confirmation save/filter, leave validations, salary edit
-   - Deployed to Firebase: https://edumanager-pro-6180f.web.app
-
-**Recent Commits**
-1. `a329d08` feat(debt-management): add contract start date and expected end date columns
-2. `74f25e1` feat(work-confirmation): add branch/center filter
-3. `f407ed9` feat(dashboard): add contract start date, expected end date columns and branch filter
-4. `2a76c41` feat(work-confirmation): add checkbox selection and work status options
-5. `e14a520` feat: store and display plain password for admin viewing
-6. `90304f5` fix: show email/password info for existing staff accounts
-7. `f5a1b41` fix: staff edit form now saves login credentials
-8. `1a6f8da` fix: resolve 10 business logic bugs and add invoice editing
+**Recent Commits (01/07)**
+1. `d4a4382` fix(permissions): staff roles see salary_staff, not salary_teacher
+2. `cddbdde` fix(salary): include team leads in staff salary report
+3. `e58bf29` fix(security): filter SalaryReportStaff by canSeeAllSalaries permission
+4. `532be0c` fix(security): filter SalaryReportTeacher by canSeeAllSalaries permission
+5. `5c90357` fix(security): restrict salary data visibility to Admin/KeToan only
+6. `ddd7d25` feat(security): phase 6 - customer + settings collections (FINAL)
+7. `32a4108` feat(security): phase 5 - salary collections with onlyOwnData
+8. `57d684c` feat(security): phase 4 - HR collections with approval logic
 
 ---
 
@@ -157,26 +156,23 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Current Session (2026-01-07 15:50)
-- 🔄 Context restored from project-memory.md
-- Reviewing 8 new commits since 01/05
+### Current Session (2026-01-07 21:35)
+- ✅ Security Hardening Complete (v1.1)
+- ✅ Firestore rules hardened (6 phases)
+- ✅ Permission fixes deployed
+- ✅ Documentation updated
 
-### Previous Sessions (2026-01-05 - 01/07)
-- ✅ Debt Management: contract start/end date columns
-- ✅ Work Confirmation: branch filter, checkbox selection, work status
-- ✅ Dashboard: contract dates, branch filter
-- ✅ Staff Management: plain password storage for admin, credential fixes
-- ✅ Business Logic: 10 bug fixes + invoice editing
-
-### Previous Session (2026-01-05)
-- ✅ Multi-Module Bug Fixes (12+ issues across Training, Customer, HR)
-- ✅ Documentation Update (`/docs:update`)
-- ✅ Committed: `b0faa06`, Pushed, Deployed
+### Key Achievements (v1.1 Security Release)
+- 6-phase Firestore security rules hardening
+- `canSeeAllSalaries()` function for salary data access control
+- Staff roles properly separated (salary_staff vs salary_teacher)
+- Team Leads included in NV salary report
+- All permission tests passing (130 tests)
 
 ### Next Priority
-- v1.1: Security Hardening (P0) - Firestore rules, permission checks
 - Code Quality: DRY violations, hook consistency
-- See `plans/251226-2134-codebase-review/phases/phase-01-security.md`
+- Performance: Dashboard memoization
+- Feature: New feature requests from users
 
 ### Recommended Skills
 - `frontend-development` - React/TypeScript patterns
@@ -189,12 +185,14 @@ firebase deploy          # Deploy to Firebase
 
 | File | Updated |
 |------|---------|
-| `docs/codebase-summary.md` | 2026-01-03 |
-| `docs/system-architecture.md` | 2026-01-03 |
-| `docs/code-standards.md` | 2026-01-03 |
-| `docs/project-roadmap.md` | 2026-01-03 |
-| `docs/project-overview-pdr.md` | 2026-01-03 (NEW) |
-| `README.md` | 2025-12-31 |
+| `docs/PERMISSION_MATRIX.md` | 2026-01-07 (NEW) |
+| `docs/DASHBOARD_SPECS.md` | 2026-01-07 (NEW) |
+| `docs/FIRESTORE_SCHEMA.md` | 2026-01-07 |
+| `docs/codebase-summary.md` | 2026-01-05 |
+| `docs/system-architecture.md` | 2026-01-05 |
+| `docs/code-standards.md` | 2026-01-05 |
+| `docs/project-roadmap.md` | 2026-01-05 |
+| `project-memory.md` | 2026-01-07 |
 
 ---
 
@@ -204,4 +202,4 @@ firebase deploy          # Deploy to Firebase
 - Uses HashRouter (hash-based routing)
 - Multi-class support: students can enroll in multiple classes
 - Path alias: `@/*` maps to project root
-- 8 ADRs documented in `docs/decisions/`
+- 9 ADRs documented in `docs/decisions/`

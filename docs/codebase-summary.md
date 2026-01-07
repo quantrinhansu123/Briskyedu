@@ -1,6 +1,6 @@
 # EduManager Pro Codebase Summary
 
-**Last Updated**: January 5, 2026
+**Last Updated**: January 7, 2026
 
 ## 🎯 Project Overview
 
@@ -88,6 +88,29 @@ The application strictly follows a 3-layer pattern for clear separation of conce
 -   **Lazy Loading**: All page components are lazy-loaded to optimize performance
 -   **Single Source of Truth**: All types in `types.ts` (27 interfaces, 9 enums)
 
+### Permission System (RBAC)
+
+The system implements Role-Based Access Control with 11 user roles:
+
+| Role | Description | Salary Report |
+|------|-------------|---------------|
+| `admin` | Full access | All salaries |
+| `ketoan` | Accountant | All salaries |
+| `cskh_lead` | CSKH Team Lead | Own salary (NV) |
+| `cskh_staff` | CSKH Staff | Own salary (NV) |
+| `sale_lead` | Sale Team Lead | Own salary (NV) |
+| `sale_staff` | Sale Staff | Own salary (NV) |
+| `cm_lead` | CM Team Lead | Own salary (NV) |
+| `cm_staff` | CM Staff | Own salary (NV) |
+| `gv_viet` | Vietnamese Teacher | Own salary (GV/TG) |
+| `gv_nuocngoai` | Foreign Teacher | Own salary (GV/TG) |
+| `tro_giang` | Teaching Assistant | Own salary (GV/TG) |
+
+**Key Permission Functions:**
+- `canSeeAllSalaries(role)` - Admin/KeToan only (see all salary data)
+- `canSeeRevenue(role)` - Admin/KeToan/CSKH Lead/Sale Lead (see revenue metrics)
+- `shouldShowOnlyOwnData(role, module)` - Filter data to user's own records
+
 ## ☁️ Cloud Functions (15+ Total)
 
 Serverless functions in `/functions/src/triggers/` and utilities for automation and backend operations:
@@ -121,17 +144,19 @@ Serverless functions in `/functions/src/triggers/` and utilities for automation 
 
 ## ⚠️ Recent Changes & Quality Assessment
 
--   **Quality Score**: 6.5/10 (as of Dec 2025)
--   **Latest Work**: Multi-module bug fixes across Training, Customer, and HR (January 5, 2026)
+-   **Quality Score**: 7.0/10 (as of Jan 2026)
+-   **Latest Work (January 7, 2026)**: Security Hardening & Permission Fixes
+     - **Firestore Rules**: 6-phase security hardening completed (role-based access for all collections)
+     - **Permission Service**: Added `canSeeAllSalaries()` function, fixed CM Lead salary visibility bug
+     - **Salary Reports**: Staff roles now use `salary_staff` module, teachers use `salary_teacher`
+     - **Dashboard**: Split revenue/salary widgets with proper permission gates
+     - **Staff Salary Filter**: Team Leads (CM, CSKH, Sale) included in NV salary report
+-   **Previous Work (Jan 5, 2026)**:
      - Training Module: Fixed attendance sessions, schedule room conflicts, tutoring reserves, homework filters
      - Customer Module: Fixed modal scroll issues, trial student filtering, contract class/discount selection
-     - HR Module: Fixed staff age validation (18+), salary custom buttons, work confirmation saves/filters, leave request validations, salary report edits
+     - HR Module: Fixed staff age validation (18+), salary custom buttons, work confirmation saves/filters
      - Test Coverage: 294+ tests covering all fixes (unit, integration, permissions, dashboards, debt settlement)
--   **Previous Work (Jan 3, 2026)**:
-     - Dashboard Phase 1-4 (✅): Reusable widgets, DashboardRouter, DashboardCSKH, DashboardGV
-     - Monthly Salary (✅): Unified salary calculation with Cloud Function triggers
-     - Settlement Invoices (✅): Debt settlement tracking and PDF generation
--   **Security**: P0 priority issues identified in Firestore rules and missing permission checks (in progress)
+-   **Security Status**: ✅ Firestore rules hardened, frontend permission checks implemented
 -   **Code Quality Issues**:
      - DRY violations in timestamp conversion and Firestore query building
      - Inconsistent hook patterns (mix of onSnapshot vs getDocs approaches)

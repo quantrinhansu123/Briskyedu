@@ -201,24 +201,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // ========================================
-    // BUSINESS - canSeeKinhDoanh() = Admin, CSKH, Sale (NOT CM, NOT Teachers, NOT KeToan)
-    // ========================================
-
     // Leads collection (Customer Database)
     match /leads/{leadId} {
-      allow read: if canSeeKinhDoanh();
-      allow create: if canSeeKinhDoanh();
-      allow update: if canSeeKinhDoanh();
-      allow delete: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
-
-    // Campaigns collection - stricter: only team leads can create/update
+    
+    // Campaigns collection
     match /campaigns/{campaignId} {
-      allow read: if canSeeKinhDoanh();
-      allow create: if isTeamLead() || isAdmin();
-      allow update: if isTeamLead() || isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Invoices collection

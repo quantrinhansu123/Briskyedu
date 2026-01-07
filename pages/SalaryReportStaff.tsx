@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Info, Calendar, DollarSign, Clock, Users, Plus } from 'lucide-react';
+import { Info, Calendar, DollarSign, Clock, Users, Plus, ShieldAlert } from 'lucide-react';
 import { useStaffSalary, useStaffAttendance } from '../src/hooks/useStaffSalary';
 import { useStaff } from '../src/hooks/useStaff';
+import { usePermissions } from '../src/hooks/usePermissions';
 
 export const SalaryReportStaff: React.FC = () => {
   const now = new Date();
@@ -10,12 +11,26 @@ export const SalaryReportStaff: React.FC = () => {
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'attendance' | 'commission'>('attendance');
 
+  // Permission check: Only Admin/KeToan can see ALL salaries
+  const { canSeeAllSalaries, staffId: currentStaffId } = usePermissions();
+
   // Fetch staff salary data
-  const { salaries, loading, error, totalSalary } = useStaffSalary(selectedMonth, selectedYear);
-  
+  const { salaries: allSalaries, loading, error, totalSalary: allTotalSalary } = useStaffSalary(selectedMonth, selectedYear);
+
+  // Filter salaries based on permission
+  const salaries = useMemo(() => {
+    if (canSeeAllSalaries) return allSalaries;
+    return allSalaries.filter(s => s.staffId === currentStaffId);
+  }, [allSalaries, canSeeAllSalaries, currentStaffId]);
+
+  // Recalculate total for filtered data
+  const totalSalary = useMemo(() => {
+    return salaries.reduce((sum, s) => sum + s.totalSalary, 0);
+  }, [salaries]);
+
   // Fetch staff list for dropdown (Văn phòng department only)
   const { staff: allStaff } = useStaff();
-  const officeStaff = useMemo(() => 
+  const officeStaff = useMemo(() =>
     allStaff.filter(s => s.department === 'Văn phòng' || s.department === 'Điều hành'),
     [allStaff]
   );
@@ -65,11 +80,21 @@ export const SalaryReportStaff: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Permission Notice */}
+      {!canSeeAllSalaries && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-3">
+          <ShieldAlert className="text-amber-600" size={20} />
+          <span className="text-sm text-amber-800">
+            Bạn chỉ có thể xem thông tin lương của chính mình. Liên hệ Admin hoặc Kế toán để xem báo cáo đầy đủ.
+          </span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-bold text-gray-900 bg-cyan-300 px-4 py-1.5 shadow-sm border border-gray-200">
-            Báo cáo lương Nhân viên
+            {canSeeAllSalaries ? 'Báo cáo lương Nhân viên' : 'Lương của tôi'}
           </h2>
           <div className="flex gap-3 text-sm">
             <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium flex items-center gap-1">

@@ -163,14 +163,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
     
-    // ========================================
-    // CUSTOMER - hideParentPhone, hide enrollments from teachers
-    // ========================================
-
-    // #17 Parents - office only (hide from teachers)
+    // Parents collection
     match /parents/{parentId} {
-      allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Attendance collection
@@ -248,10 +244,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // #18 Enrollments - office only
+    // Enrollments collection
     match /enrollments/{enrollmentId} {
-      allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Class Sessions collection
@@ -266,20 +262,16 @@ service cloud.firestore {
       allow write: if isOfficeStaff() || isAdmin();
     }
     
-    // ========================================
-    // SETTINGS - All staff read, Admin write
-    // ========================================
-
-    // #20a Settings
+    // Settings collection
     match /settings/{settingId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
     
-    // #20e Curriculums
+    // Curriculums collection
     match /curriculums/{curriculumId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
     
     // Rooms collection
@@ -294,10 +286,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // #20d Centers
+    // Centers collection (cơ sở)
     match /centers/{centerId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
     
     // Financial Transactions (Revenue) - stricter: canSeeRevenue() = Admin, KeToan, TeamLeads only
@@ -361,16 +353,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // #20b Products
+    // Products collection
     match /products/{productId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
     
-    // #20c Discounts
+    // Discounts collection (ưu đãi)
     match /discounts/{discountId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
     
     // Homework Records collection
@@ -379,10 +371,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // #19 Monthly Comments - office only
+    // Monthly Comments collection (nhận xét cuối tháng)
     match /monthlyComments/{commentId} {
-      allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Birthday Gifts collection (tracking quà sinh nhật)

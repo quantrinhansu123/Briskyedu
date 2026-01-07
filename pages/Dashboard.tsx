@@ -132,8 +132,8 @@ interface DashboardStats {
 }
 
 export const Dashboard: React.FC = () => {
-  // Permission check for revenue visibility
-  const { canSeeRevenue, isTeacher, staffId } = usePermissions();
+  // Permission check for revenue and salary visibility
+  const { canSeeRevenue, canSeeAllSalaries, isTeacher, staffId } = usePermissions();
   const { user } = useAuth();
 
   const [stats, setStats] = useState<DashboardStats>({
@@ -183,10 +183,20 @@ export const Dashboard: React.FC = () => {
   // State cho bảng thống kê
   const [statsMonth, setStatsMonth] = useState(new Date().getMonth() + 1);
   const [statsYear, setStatsYear] = useState(new Date().getFullYear());
-  const [statsCategory, setStatsCategory] = useState<'salary' | 'students' | 'revenue'>('salary');
+  const [statsCategory, setStatsCategory] = useState<'salary' | 'students' | 'revenue'>('students'); // Default to students for safety
   const [statsSortOrder, setStatsSortOrder] = useState('asc'); // asc = thấp đến cao
   const [statsLimit, setStatsLimit] = useState(5);
-  
+
+  // Fallback logic: reset category if user loses permission
+  useEffect(() => {
+    if (statsCategory === 'salary' && !canSeeAllSalaries) {
+      setStatsCategory('students');
+    }
+    if (statsCategory === 'revenue' && !canSeeRevenue) {
+      setStatsCategory('students');
+    }
+  }, [canSeeAllSalaries, canSeeRevenue, statsCategory]);
+
   // Fetch salary report data
   const { summaries: salaryReportData } = useSalaryReport(statsMonth, statsYear);
   
@@ -1496,12 +1506,13 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Revenue-only Section - Lead/Admin/Ketoan can see salary & health metrics */}
+        {/* Revenue-only Section - Lead/Admin/Ketoan can see revenue & health metrics */}
         {canSeeRevenue && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Left Column - Salary & Health */}
+          {/* Left Column - Salary (Admin/KeToan only) & Health */}
           <div className="space-y-6">
-            {/* Dự báo lương */}
+            {/* Dự báo lương - ONLY Admin/KeToan can see ALL salary data */}
+            {canSeeAllSalaries && (
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-emerald-100/30 transition-all duration-300">
               <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4">
                 <div className="flex justify-between items-center">
@@ -1531,6 +1542,7 @@ export const Dashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+            )}
 
             {/* Chỉ số sức khỏe doanh nghiệp */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-slate-200/50 border border-white/60 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
@@ -1623,7 +1635,7 @@ export const Dashboard: React.FC = () => {
                       onChange={(e) => setStatsCategory(e.target.value as 'salary' | 'students' | 'revenue')}
                       className="text-teal-600 font-semibold bg-transparent border-none text-right cursor-pointer focus:outline-none"
                     >
-                      <option value="salary">Lương nhân viên</option>
+                      {canSeeAllSalaries && <option value="salary">Lương nhân viên</option>}
                       <option value="students">Số lượng học sinh</option>
                       <option value="revenue">Doanh thu</option>
                     </select>

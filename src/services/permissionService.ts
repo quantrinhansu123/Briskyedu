@@ -597,7 +597,14 @@ export const isTeamLead = (role: UserRole): boolean => {
 };
 
 export const canSeeRevenue = (role: UserRole): boolean => {
-  return ['admin', 'cskh_lead', 'cm_lead', 'sale_lead', 'ketoan'].includes(role);
+  // CM Lead should NOT see revenue (per spec Image 1)
+  return ['admin', 'cskh_lead', 'sale_lead', 'ketoan'].includes(role);
+};
+
+// Can see ALL salary data (not just own)
+// Only Admin and KeToan have this privilege (per spec)
+export const canSeeAllSalaries = (role: UserRole): boolean => {
+  return ['admin', 'ketoan'].includes(role);
 };
 
 export const isTeacher = (role: UserRole): boolean => {

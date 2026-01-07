@@ -28,6 +28,7 @@ import {
   // Role helper functions
   isTeamLead as isTeamLeadCheck,
   canSeeRevenue as canSeeRevenueCheck,
+  canSeeAllSalaries as canSeeAllSalariesCheck,
   isTeacher as isTeacherCheck,
   isOfficeStaff as isOfficeStaffCheck,
   isCSKH as isCSKHCheck,
@@ -63,11 +64,12 @@ interface UsePermissionsReturn {
   isAdmin: boolean;
   isTeacher: boolean;
   isOfficeStaff: boolean;
-  isTeamLead: boolean;      // Trưởng nhóm (admin, cskh_lead, cm_lead)
-  canSeeRevenue: boolean;   // Có thể xem doanh thu
-  isCSKH: boolean;          // CSKH staff (cskh_lead or cskh_staff)
-  isCSKHLeader: boolean;    // CSKH leader only
-  isKeToan: boolean;        // Kế toán
+  isTeamLead: boolean;        // Trưởng nhóm (admin, cskh_lead, cm_lead)
+  canSeeRevenue: boolean;     // Có thể xem doanh thu (NOT cm_lead)
+  canSeeAllSalaries: boolean; // Có thể xem lương TẤT CẢ nhân viên (admin, ketoan only)
+  isCSKH: boolean;            // CSKH staff (cskh_lead or cskh_staff)
+  isCSKHLeader: boolean;      // CSKH leader only
+  isKeToan: boolean;          // Kế toán
 }
 
 export const usePermissions = (): UsePermissionsReturn => {
@@ -130,6 +132,7 @@ export const usePermissions = (): UsePermissionsReturn => {
     isOfficeStaff: isOfficeStaffCheck(role),
     isTeamLead: isTeamLeadCheck(role),
     canSeeRevenue: canSeeRevenueCheck(role),
+    canSeeAllSalaries: canSeeAllSalariesCheck(role),
     isCSKH: isCSKHCheck(role),
     isCSKHLeader: isCSKHLeaderCheck(role),
     isKeToan: isKeToanCheck(role),

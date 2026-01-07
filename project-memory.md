@@ -1,6 +1,6 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2026-01-05 19:48
+**Last Updated:** 2026-01-07 15:50
 
 ---
 
@@ -24,9 +24,9 @@
 | **Branch** | main |
 | **Quality Score** | 6.5/10 (Multi-module bug fixes complete) |
 | **Progress** | v1.0.1 Stable, 40 pages, 294+ tests |
-| **Last Commit** | `b0faa06` fix: resolve multi-module bugs across Training, Customer, and HR modules |
-| **Active Plans** | Multi-module Bug Fixes ✅ | Dashboard Phases 1-4 ✅ | Monthly Salary ✅ |
-| **Next Priority** | Production stabilization, v1.1 security hardening |
+| **Last Commit** | `a329d08` feat(debt-management): add contract start date and expected end date columns |
+| **Active Plans** | Post-1.0.1 Feature Enhancements ✅ | Dashboard Phases 1-4 ✅ | Monthly Salary ✅ |
+| **Next Priority** | v1.1 security hardening, code quality improvements |
 
 ---
 
@@ -96,27 +96,32 @@
 
 ## Recent Activity (Last 10 Tasks)
 
-**2026-01-05 (Current Session)**
+**2026-01-07 (Current Session)**
+- 🔄 Context restored - reviewing recent commits since 01/05
+
+**2026-01-06 - 01/07 (Recent Work)**
+1. ✅ **Debt Management Enhancement** - Added contract start/expected end date columns
+2. ✅ **Work Confirmation Improvements** - Branch/center filter, checkbox selection, work status options
+3. ✅ **Dashboard Enhancement** - Contract dates, branch filter
+4. ✅ **Staff Account Management** - Store/display plain password for admin viewing, credential saving fixes
+5. ✅ **Business Logic Fixes** - 10 bug fixes + invoice editing
+
+**2026-01-05 (Previous Session)**
 1. ✅ **Multi-Module Bug Fixes** - Fixed 12+ bugs across 3 modules
    - Training: Attendance sessions, schedule room conflict, tutoring reserve, homework filter
    - Customer: Modal scroll (StudentDetail, Feedback), trial filter, contract class/discount
    - HR: Staff 18+ age, salary buttons, work confirmation save/filter, leave validations, salary edit
    - Deployed to Firebase: https://edumanager-pro-6180f.web.app
 
-2. ✅ **Documentation Update** - Full codebase sync
-   - Updated 6 docs files (PDR, codebase-summary, code-standards, architecture, roadmap, README)
-   - Scout reports for pages (40), src (37 services, 35+ hooks), components (7+10 widgets)
-
-**2025-12-31 (Previous Session)**
-1. ✅ **Staff Role/Position Conflict Fix** - Expanded Văn phòng positions
-2. ✅ **Permission & Dashboard Completion** - All 5 phases complete (v1.0.1)
-
 **Recent Commits**
-1. `b0faa06` fix: resolve multi-module bugs across Training, Customer, and HR modules
-2. `2dceea5` feat(dashboard): implement DashboardGV for teachers (Phase 4)
-3. `53c5be2` feat(dashboard): implement DashboardCSKH for CSKH staff (Phase 3)
-4. `a75fe80` feat(dashboard): implement Dashboard Router for role-based routing (Phase 2)
-5. `8f8fa54` feat(dashboard): extract reusable dashboard widgets for Phase 1
+1. `a329d08` feat(debt-management): add contract start date and expected end date columns
+2. `74f25e1` feat(work-confirmation): add branch/center filter
+3. `f407ed9` feat(dashboard): add contract start date, expected end date columns and branch filter
+4. `2a76c41` feat(work-confirmation): add checkbox selection and work status options
+5. `e14a520` feat: store and display plain password for admin viewing
+6. `90304f5` fix: show email/password info for existing staff accounts
+7. `f5a1b41` fix: staff edit form now saves login credentials
+8. `1a6f8da` fix: resolve 10 business logic bugs and add invoice editing
 
 ---
 
@@ -152,28 +157,25 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Current Session (2026-01-05 19:00 - 19:48)
-- ✅ Multi-Module Bug Fixes (12+ issues)
-  - Training: Attendance add session, schedule room conflict, tutoring reserve, homework filter
-  - Customer: Modal scroll fixes, trial student filter, contract class/discount selection
-  - HR: Staff 18+ age validation, salary custom button, work confirmation save, leave validations
-- ✅ Committed: `b0faa06`, Pushed to origin, Deployed to Firebase
+### Current Session (2026-01-07 15:50)
+- 🔄 Context restored from project-memory.md
+- Reviewing 8 new commits since 01/05
+
+### Previous Sessions (2026-01-05 - 01/07)
+- ✅ Debt Management: contract start/end date columns
+- ✅ Work Confirmation: branch filter, checkbox selection, work status
+- ✅ Dashboard: contract dates, branch filter
+- ✅ Staff Management: plain password storage for admin, credential fixes
+- ✅ Business Logic: 10 bug fixes + invoice editing
+
+### Previous Session (2026-01-05)
+- ✅ Multi-Module Bug Fixes (12+ issues across Training, Customer, HR)
 - ✅ Documentation Update (`/docs:update`)
-  - Spawned 3 scout agents for pages (40), src (37 services, 35+ hooks), components
-  - Updated 6 docs files via docs-manager agent
-  - Synced project-memory.md
-
-### Previous Session (2026-01-03 15:43 - 15:58)
-- ✅ Full Documentation Update - 6 scout agents, 5 docs updated
-- Version: v1.0.1 with Dashboard Phases 1-4 complete
-
-### Previous Session (2025-12-31 12:15 - 12:50)
-- ✅ Staff Role/Position Conflict Fix
-- ✅ Permission & Dashboard plan fully complete (5/5 phases)
+- ✅ Committed: `b0faa06`, Pushed, Deployed
 
 ### Next Priority
-- Production stabilization and monitoring
 - v1.1: Security Hardening (P0) - Firestore rules, permission checks
+- Code Quality: DRY violations, hook consistency
 - See `plans/251226-2134-codebase-review/phases/phase-01-security.md`
 
 ### Recommended Skills

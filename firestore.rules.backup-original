@@ -1,142 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ========================================
-    // CORE HELPER FUNCTIONS
-    // ========================================
-
-    // Basic auth check
+    
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-
-    // Check if user is staff (has staff document)
-    function isStaff() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
-    }
-
-    // Get staff document data
-    function getStaffData() {
-      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data;
-    }
-
-    // Get staff position
-    function getPosition() {
-      return getStaffData().position;
-    }
-
-    // Check if user has specific position(s)
-    function hasPosition(positions) {
-      return isStaff() && getPosition() in positions;
-    }
-
-    // ========================================
-    // ROLE CHECK FUNCTIONS
-    // ========================================
-
-    // Admin check (full access) - position-based
+    
     function isAdmin() {
-      return hasPosition(['Quản lý (Admin)', 'Quản trị viên', 'Quản lý', 'Admin']);
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['Quản trị viên', 'Quản lý'];
     }
-
-    // Teacher roles (Đào Tạo)
-    function isTeacher() {
-      return hasPosition([
-        'Giáo Viên Việt', 'Giáo viên Việt', 'GV Việt', 'Giáo viên',
-        'Giáo Viên Nước Ngoài', 'Giáo viên nước ngoài', 'GV Ngoại', 'GV NN', 'GVNN',
-        'Trợ Giảng', 'Trợ giảng', 'TG'
-      ]);
-    }
-
-    // Office staff (Văn Phòng) - CSKH
-    function isCSKH() {
-      return hasPosition([
-        'Trưởng Nhóm CSKH', 'NV CSKH', 'Tư vấn viên', 'Lễ tân', 'CSKH', 'Nhân viên'
-      ]);
-    }
-
-    // Office staff (Văn Phòng) - CM (Chuyên Môn)
-    function isCM() {
-      return hasPosition([
-        'Trưởng Nhóm CM', 'Trưởng Nhóm Học Thuật', 'Trưởng Nhóm Chuyên Môn', 'CM Leader',
-        'NV CM', 'NV Chuyên Môn'
-      ]);
-    }
-
-    // Office staff (Văn Phòng) - Sale
-    function isSale() {
-      return hasPosition([
-        'Trưởng Nhóm Sale', 'NV Sale', 'Sale'
-      ]);
-    }
-
-    // Accountant (Kế Toán)
-    function isKeToan() {
-      return hasPosition(['Kế toán', 'Kế Toán']);
-    }
-
-    // Team Lead check (can approve)
-    function isTeamLead() {
-      return hasPosition([
-        'Quản lý (Admin)', 'Quản trị viên', 'Quản lý', 'Admin',
-        'Trưởng Nhóm CSKH', 'Trưởng Nhóm CM', 'Trưởng Nhóm Sale'
-      ]);
-    }
-
-    // ========================================
-    // PERMISSION CHECK FUNCTIONS
-    // ========================================
-
-    // Can see finance data (contracts, invoices, revenue, debt)
-    // Note: CM staff CANNOT see finance
-    function canSeeFinance() {
-      return isAdmin() || isKeToan() || isCSKH() || isSale();
-    }
-
-    // Can see revenue data - Only admin, ketoan, and team leads
-    function canSeeRevenue() {
-      return isAdmin() || isKeToan() || isTeamLead();
-    }
-
-    // Can manage staff
-    function canManageStaff() {
-      return isAdmin();
-    }
-
-    // Can manage settings
-    function canManageSettings() {
-      return isAdmin();
-    }
-
-    // Can see leads/campaigns (Kinh Doanh)
-    // Note: CM staff CANNOT see Kinh Doanh
-    function canSeeKinhDoanh() {
-      return isAdmin() || isCSKH() || isSale();
-    }
-
-    // Office staff (non-teacher)
-    function isOfficeStaff() {
-      return isCSKH() || isCM() || isSale() || isKeToan();
-    }
-
-    // ========================================
-    // DATA ISOLATION HELPERS
-    // ========================================
-
-    // Check if teacher owns class (for onlyOwnClasses)
-    function teacherOwnsClass(classId) {
-      let classDoc = get(/databases/$(database)/documents/classes/$(classId)).data;
-      let staffId = request.auth.uid;
-      return classDoc.teacherId == staffId ||
-             classDoc.assistantId == staffId ||
-             (classDoc.teacherIds != null && staffId in classDoc.teacherIds);
-    }
-
-    // Check if accessing own data
-    function isOwnData(docStaffId) {
-      return request.auth.uid == docStaffId;
+    
+    function isStaff() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
     }
     
     // Students collection

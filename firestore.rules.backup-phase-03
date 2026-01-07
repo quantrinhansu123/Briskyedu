@@ -151,16 +151,12 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // ========================================
-    // HR - Mostly office staff or self-access
-    // ========================================
-
-    // #7 Staff - self or admin/teamlead only
+    // Staff collection
     match /staff/{staffId} {
-      // Allow user to read own doc (for auth) + admin/teamlead can read all
-      allow read: if isAuthenticated() &&
-        (request.auth.uid == staffId || isAdmin() || isTeamLead());
-      allow create, update, delete: if isAdmin();
+      // Allow user to read their own staff doc (for auth check) + other staff can read all
+      allow read: if isAuthenticated() && (request.auth.uid == staffId || isStaff());
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
     }
     
     // Parents collection
@@ -256,10 +252,10 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // #8 Work Sessions - office only (teachers don't do work confirmation)
+    // Work Sessions collection
     match /workSessions/{sessionId} {
-      allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Settings collection
@@ -331,10 +327,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // #9 Staff Attendance - office only
+    // Staff Attendance collection
     match /staffAttendance/{docId} {
-      allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
     
     // Holidays collection
@@ -414,21 +410,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // #10 Leave Requests - all create own, teamlead approve
+    // Leave Requests collection (đơn xin nghỉ)
     match /leaveRequests/{requestId} {
       allow read: if isStaff();
-      allow create: if isStaff();
-      // Can update if: teamlead/admin OR own request while pending
-      allow update: if isTeamLead() || isAdmin() ||
-        (resource.data.staffId == request.auth.uid &&
-         resource.data.status == 'Chờ duyệt');
-      allow delete: if isAdmin();
+      allow write: if isStaff();
     }
 
-    // #11 Leave Balances - self or admin
+    // Leave Balances collection (số dư ngày phép)
     match /leaveBalances/{balanceId} {
-      allow read: if isAdmin() || resource.data.staffId == request.auth.uid;
-      allow write: if isAdmin();
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     // Default: deny all other collections

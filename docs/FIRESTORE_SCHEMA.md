@@ -1,8 +1,35 @@
 # Firestore Database Schema - EduManager Pro
 
+**Last Updated:** 2026-01-07  
+**Permission Reference:** [PERMISSION_MATRIX.md](./PERMISSION_MATRIX.md)
+
+---
+
+## Permission Legend
+
+| Icon | Meaning |
+|------|---------|
+| 🔓 | All authenticated staff |
+| 🔒 | Restricted by role |
+| 👤 | Data isolation (own data only) |
+| 🛡️ | Admin only |
+
+---
+
 ## Collections Structure
 
 ### 1. **students** (Collection)
+
+**Permissions:**
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Office Staff | ✅ All | ✅ Create/Edit |
+| GV/TG | 👤 Own classes only | ❌ |
+| Kế Toán | ✅ All | ❌ View only |
+
+**Firestore Rule:** `isStaff()` (frontend filters for GV)
+
 ```typescript
 {
   id: string (auto-generated)
@@ -40,6 +67,18 @@
 ```
 
 ### 2. **classes** (Collection)
+
+**Permissions:**
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Team Leads (CSKH/CM) | ✅ All | ✅ Create/Edit |
+| Staff (NV) | ✅ All | ❌ View only |
+| GV/TG | 👤 Own classes only | ❌ |
+| Kế Toán | ✅ All | ✅ Create/Edit |
+
+**Firestore Rule:** `isStaff()` (frontend filters for GV via `onlyOwnClasses`)
+
 ```typescript
 {
   id: string (auto-generated)
@@ -77,6 +116,18 @@
 ```
 
 ### 3. **staff** (Collection)
+
+**Permissions:**
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Team Leads | ✅ View only | ❌ |
+| Kế Toán | ✅ View only | ❌ |
+| Other Staff | ❌ Hidden | ❌ |
+| GV/TG | ❌ Hidden | ❌ |
+
+**Firestore Rule:** `canManageStaff()` for write, `isOfficeStaff()` for read
+
 ```typescript
 {
   id: string (auto-generated)
@@ -106,6 +157,18 @@
 ```
 
 ### 4. **attendance** (Collection)
+
+**Permissions:**
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Office Staff | ✅ All | ✅ Create/Edit |
+| GV/TG | 👤 Own classes only | ✅ Own classes |
+| Kế Toán | ✅ All | ✅ Create/Edit |
+| Sale | ✅ View only | ❌ |
+
+**Firestore Rule:** `isStaff()` (frontend filters via `onlyOwnClasses`)
+
 ```typescript
 {
   id: string (auto-generated)
@@ -130,6 +193,17 @@
 ```
 
 ### 5. **tutoring** (Collection) - Lịch Bồi Bài
+
+**Permissions:**
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Office Staff | ✅ All | ✅ Create/Edit |
+| GV/TG | 👤 Own classes only | ✅ Own classes |
+| Sale | ✅ View only | ❌ |
+
+**Firestore Rule:** `isStaff()` (frontend filters via `onlyOwnClasses`)
+
 ```typescript
 {
   id: string (auto-generated)
@@ -228,6 +302,18 @@
 ```
 
 ### 9. **contracts** (Collection)
+
+**Permissions:** 🔒 Finance module - CM hidden
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| CSKH/Sale | ✅ All | ✅ Create/Edit |
+| Kế Toán | ✅ All | ✅ Create/Edit |
+| CM | ❌ Hidden | ❌ |
+| GV/TG | ❌ Hidden | ❌ |
+
+**Firestore Rule:** `canSeeFinance()` - excludes CM and GV roles
+
 ```typescript
 {
   id: string (auto-generated)
@@ -265,6 +351,17 @@
 ```
 
 ### 10. **salaryRules** (Collection)
+
+**Permissions:** 🔒 Salary module - Data isolation
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Kế Toán | ✅ All | ✅ Create/Edit |
+| GV/TG | 👤 Own data only | ❌ |
+| Other Staff | ❌ Hidden | ❌ |
+
+**Firestore Rule:** `isKeToan() || isOwnData(staffId)`
+
 ```typescript
 {
   id: string (auto-generated)
@@ -286,6 +383,18 @@
 ```
 
 ### 11. **workSessions** (Collection)
+
+**Permissions:** 🔒 HR module - Approval required
+| Role | Read | Write | Approve |
+|------|------|-------|---------|
+| Admin | ✅ All | ✅ All | ✅ |
+| Team Leads | ✅ All | ✅ Create/Edit | ✅ |
+| Staff | ✅ All | ✅ Create/Edit | ❌ |
+| Kế Toán | ✅ View only | ❌ | ❌ |
+| GV/TG | ❌ Hidden | ❌ | ❌ |
+
+**Firestore Rule:** `isOfficeStaff()`, `isTeamLead()` for approval
+
 ```typescript
 {
   id: string (auto-generated)
@@ -308,6 +417,17 @@
 ```
 
 ### 12. **parents** (Collection)
+
+**Permissions:** 🔒 GV hidden, phone masked
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| Office Staff | ✅ All | ✅ Create/Edit |
+| Kế Toán | ✅ View only | ❌ |
+| GV/TG | ❌ Hidden (hideParentPhone) | ❌ |
+
+**Firestore Rule:** `isOfficeStaff()` - teachers blocked
+
 ```typescript
 {
   id: string (auto-generated)
@@ -362,6 +482,19 @@
 ```
 
 ### 14. **campaigns** (Collection) - Marketing/Sales campaigns
+
+**Permissions:** 🔒 Business module - CM hidden
+| Role | Read | Write |
+|------|------|-------|
+| Admin | ✅ All | ✅ All |
+| CSKH Lead / Sale Lead | ✅ All | ✅ Create/Edit |
+| CSKH Staff / Sale Staff | ✅ View only | ❌ |
+| CM | ❌ Hidden | ❌ |
+| GV/TG | ❌ Hidden | ❌ |
+| Kế Toán | ❌ Hidden | ❌ |
+
+**Firestore Rule:** `canSeeKinhDoanh()` - excludes CM, GV, KeToan
+
 ```typescript
 {
   id: string (auto-generated)
@@ -401,58 +534,92 @@
 
 ## Security Rules (firestore.rules)
 
+**Reference:** See full rules in `/firestore.rules`
+
+### Helper Functions (15+)
+
 ```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['Quản trị viên', 'Quản lý'];
-    }
-    
-    function isStaff() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/staff/$(request.auth.uid));
-    }
-    
-    // Students - All staff can read, only admin can write
-    match /students/{studentId} {
-      allow read: if isStaff();
-      allow write: if isAdmin();
-    }
-    
-    // Classes - All staff can read, only admin can write
-    match /classes/{classId} {
-      allow read: if isStaff();
-      allow write: if isAdmin();
-    }
-    
-    // Staff - Only admin can access
-    match /staff/{staffId} {
-      allow read: if isStaff();
-      allow write: if isAdmin();
-    }
-    
-    // Attendance - Teachers and admin can write
-    match /attendance/{attendanceId} {
-      allow read: if isStaff();
-      allow write: if isStaff();
-    }
-    
-    // Everything else - Staff can read, admin can write
-    match /{document=**} {
-      allow read: if isStaff();
-      allow write: if isAdmin();
-    }
-  }
+// ═══════════════════════════════════════════════════════════════
+// CORE AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════
+function isAuthenticated() { return request.auth != null; }
+function isStaff() { return isAuthenticated() && exists(/databases/$(database)/documents/staff/$(request.auth.uid)); }
+function getStaffData() { return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data; }
+function getPosition() { return getStaffData().position; }
+
+// ═══════════════════════════════════════════════════════════════
+// ROLE CHECKS (Position-based)
+// ═══════════════════════════════════════════════════════════════
+function isAdmin() { 
+  return hasPosition(['Quản lý (Admin)', 'Quản trị viên', 'Quản lý', 'Admin']); 
+}
+function isTeacher() { 
+  return hasPosition(['Giáo Viên Việt', 'GV Việt', 'GV Nước Ngoài', 'Trợ Giảng', 'TG']); 
+}
+function isCSKH() { 
+  return hasPosition(['Trưởng Nhóm CSKH', 'TN CSKH', 'NV CSKH', 'CSKH', 'Nhân viên']); 
+}
+function isCM() { 
+  return hasPosition(['Trưởng Nhóm CM', 'TN CM', 'NV CM', 'Chuyên Môn']); 
+}
+function isSale() { 
+  return hasPosition(['Trưởng Nhóm Sale', 'TN Sale', 'NV Sale', 'Sale']); 
+}
+function isKeToan() { 
+  return hasPosition(['Kế Toán', 'Kế toán', 'Accountant']); 
+}
+function isTeamLead() { 
+  return hasPosition(['Trưởng Nhóm CSKH', 'TN CSKH', 'Trưởng Nhóm CM', 'TN CM', 'Trưởng Nhóm Sale', 'TN Sale']); 
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PERMISSION HELPERS
+// ═══════════════════════════════════════════════════════════════
+function canSeeFinance() { 
+  // Finance: Admin, CSKH, Sale, KeToan (NOT CM, NOT GV)
+  return isAdmin() || isCSKH() || isSale() || isKeToan(); 
+}
+function canSeeRevenue() { 
+  // Revenue: Admin, KeToan, Team Leads only
+  return isAdmin() || isKeToan() || isTeamLead(); 
+}
+function canSeeKinhDoanh() { 
+  // Business: Admin, CSKH, Sale only (NOT CM, NOT KeToan, NOT GV)
+  return isAdmin() || isCSKH() || isSale(); 
+}
+function isOfficeStaff() { 
+  // Office: Everyone except GV/TG
+  return isStaff() && !isTeacher(); 
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA ISOLATION
+// ═══════════════════════════════════════════════════════════════
+function teacherOwnsClass(classId) {
+  let classData = get(/databases/$(database)/documents/classes/$(classId)).data;
+  let currentStaffId = request.auth.uid;
+  return classData.teacherId == currentStaffId || 
+         classData.assistantId == currentStaffId ||
+         (classData.teacherIds != null && currentStaffId in classData.teacherIds);
+}
+function isOwnData(docStaffId) {
+  return request.auth.uid == docStaffId;
 }
 ```
+
+### Collection Rules Summary
+
+| Collection | Read | Write |
+|------------|------|-------|
+| students, classes | `isStaff()` | `isOfficeStaff()` |
+| attendance, tutoring, homework | `isStaff()` | `isStaff()` |
+| staff | `isOfficeStaff()` | `isAdmin()` |
+| contracts, invoices, debt | `canSeeFinance()` | `canSeeFinance()` |
+| revenue | `canSeeRevenue()` | `isAdmin() \|\| isKeToan()` |
+| leads, campaigns | `canSeeKinhDoanh()` | `canSeeKinhDoanh()` |
+| salaryRules, workSessions | `isKeToan() \|\| isOwnData()` | `isAdmin() \|\| isKeToan()` |
+| parents, enrollments | `isOfficeStaff()` | `isOfficeStaff()` |
+| settings, products, rooms | `isStaff()` | `isAdmin()` |
 
 ## Notes
 
@@ -461,3 +628,11 @@ service cloud.firestore {
 3. **Indexes**: Cần tạo composite indexes trong Firebase Console
 4. **Subcollections**: Có thể tách `careHistory`, `enrollmentHistory` thành subcollections nếu data lớn
 5. **Real-time listeners**: Dùng `onSnapshot` cho dashboard và danh sách cần real-time update
+
+---
+
+## Permission References
+
+- [PERMISSION_MATRIX.md](./PERMISSION_MATRIX.md) - Full permission matrix
+- [DASHBOARD_SPECS.md](./DASHBOARD_SPECS.md) - Dashboard widget specs
+- [ADR-009](./decisions/ADR-009-rbac-permission-system.md) - RBAC implementation + Requirements baseline

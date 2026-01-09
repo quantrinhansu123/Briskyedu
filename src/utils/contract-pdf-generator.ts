@@ -48,104 +48,78 @@ export function generateContractHTML(
   const itemsHTML = (contract.items || [])
     .map((item, idx) => `
       <tr>
-        <td style="border: 1px solid #333; padding: 8px;">${idx + 1}</td>
-        <td style="border: 1px solid #333; padding: 8px;">${item.name}</td>
-        <td style="border: 1px solid #333; padding: 8px; text-align: right;">${formatCurrency(item.unitPrice || 0)}</td>
-        <td style="border: 1px solid #333; padding: 8px; text-align: center;">${item.quantity}</td>
-        <td style="border: 1px solid #333; padding: 8px; text-align: right;">${formatCurrency(item.finalPrice || 0)}</td>
+        <td style="border: 1px solid #333; padding: 4px 6px;">${idx + 1}</td>
+        <td style="border: 1px solid #333; padding: 4px 6px;">${item.name}</td>
+        <td style="border: 1px solid #333; padding: 4px 6px; text-align: right;">${formatCurrency(item.unitPrice || 0)}</td>
+        <td style="border: 1px solid #333; padding: 4px 6px; text-align: center;">${item.quantity}</td>
+        <td style="border: 1px solid #333; padding: 4px 6px; text-align: right;">${formatCurrency(item.finalPrice || 0)}</td>
       </tr>
     `)
     .join('');
 
   return `
     <!-- Company Header -->
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h1 style="font-size: 24px; margin: 0; text-transform: uppercase; color: #4338ca;">${centerInfo.centerName}</h1>
-      <p style="margin: 5px 0; color: #666;">Địa chỉ: ${centerInfo.address}</p>
-      <p style="margin: 5px 0; color: #666;">Hotline: ${centerInfo.phone} | Email: ${centerInfo.email}</p>
+    <div style="text-align: center; margin-bottom: 15px;">
+      <h1 style="font-size: 18px; margin: 0; text-transform: uppercase; color: #4338ca;">${centerInfo.centerName}</h1>
+      <p style="margin: 2px 0; color: #666; font-size: 12px;">Địa chỉ: ${centerInfo.address} | Hotline: ${centerInfo.phone} | Email: ${centerInfo.email}</p>
     </div>
 
     <!-- Contract Title -->
-    <div style="text-align: center; margin: 30px 0;">
-      <h2 style="font-size: 20px; text-transform: uppercase; margin: 0;">HỢP ĐỒNG ĐĂNG KÝ KHÓA HỌC</h2>
-      <p style="margin: 5px 0; color: #666;">Số: <strong>${contract.code || 'N/A'}</strong></p>
-      <p style="margin: 5px 0; color: #666;">Ngày: ${contractDate}</p>
+    <div style="text-align: center; margin: 15px 0;">
+      <h2 style="font-size: 16px; text-transform: uppercase; margin: 0;">HỢP ĐỒNG ĐĂNG KÝ KHÓA HỌC</h2>
+      <p style="margin: 3px 0; color: #666; font-size: 12px;">Số: <strong>${contract.code || 'N/A'}</strong> | Ngày: ${contractDate}</p>
     </div>
 
-    <!-- Party A - Center -->
-    <div style="margin: 20px 0;">
-      <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-        BÊN A: ${centerInfo.centerName}
+    <!-- Two columns: Party A and Party B -->
+    <div style="display: flex; gap: 20px; margin: 10px 0; font-size: 12px;">
+      <div style="flex: 1;">
+        <div style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px;">BÊN A: ${centerInfo.centerName}</div>
+        <p style="margin: 2px 0;"><strong>Đại diện:</strong> ${centerInfo.representative}</p>
+        <p style="margin: 2px 0;"><strong>Địa chỉ:</strong> ${centerInfo.address}</p>
+        <p style="margin: 2px 0;"><strong>Điện thoại:</strong> ${centerInfo.phone}</p>
       </div>
-      <div style="font-size: 14px; line-height: 1.8;">
-        <p style="margin: 4px 0;"><strong>Đại diện:</strong> ${centerInfo.representative}</p>
-        <p style="margin: 4px 0;"><strong>Địa chỉ:</strong> ${centerInfo.address}</p>
-        <p style="margin: 4px 0;"><strong>Điện thoại:</strong> ${centerInfo.phone}</p>
-      </div>
-    </div>
-
-    <!-- Party B - Customer -->
-    <div style="margin: 20px 0;">
-      <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-        BÊN B: PHỤ HUYNH / HỌC VIÊN
-      </div>
-      <div style="font-size: 14px; line-height: 1.8;">
-        <p style="margin: 4px 0;"><strong>Học viên:</strong> ${contract.studentName || '---'}</p>
-        <p style="margin: 4px 0;"><strong>Ngày sinh:</strong> ${studentDOB}</p>
-        <p style="margin: 4px 0;"><strong>Phụ huynh:</strong> ${contract.parentName || '---'}</p>
-        <p style="margin: 4px 0;"><strong>Điện thoại:</strong> ${contract.parentPhone || '---'}</p>
+      <div style="flex: 1;">
+        <div style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px;">BÊN B: PHỤ HUYNH / HỌC VIÊN</div>
+        <p style="margin: 2px 0;"><strong>Học viên:</strong> ${contract.studentName || '---'} (${studentDOB})</p>
+        <p style="margin: 2px 0;"><strong>Phụ huynh:</strong> ${contract.parentName || '---'}</p>
+        <p style="margin: 2px 0;"><strong>Điện thoại:</strong> ${contract.parentPhone || '---'}</p>
       </div>
     </div>
 
     <!-- Contract Items -->
-    <div style="margin: 20px 0;">
-      <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-        NỘI DUNG HỢP ĐỒNG
-      </div>
-      <table style="width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px;">
+    <div style="margin: 10px 0;">
+      <div style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px; font-size: 13px;">NỘI DUNG HỢP ĐỒNG</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
         <thead>
           <tr style="background: #f0f0f0;">
-            <th style="border: 1px solid #333; padding: 8px; text-align: left;">STT</th>
-            <th style="border: 1px solid #333; padding: 8px; text-align: left;">Nội dung</th>
-            <th style="border: 1px solid #333; padding: 8px; text-align: right;">Đơn giá</th>
-            <th style="border: 1px solid #333; padding: 8px; text-align: center;">SL</th>
-            <th style="border: 1px solid #333; padding: 8px; text-align: right;">Thành tiền</th>
+            <th style="border: 1px solid #333; padding: 4px 6px; text-align: center; width: 30px;">STT</th>
+            <th style="border: 1px solid #333; padding: 4px 6px; text-align: left;">Nội dung</th>
+            <th style="border: 1px solid #333; padding: 4px 6px; text-align: right;">Đơn giá</th>
+            <th style="border: 1px solid #333; padding: 4px 6px; text-align: center; width: 30px;">SL</th>
+            <th style="border: 1px solid #333; padding: 4px 6px; text-align: right;">Thành tiền</th>
           </tr>
         </thead>
         <tbody>
           ${itemsHTML}
           <tr style="font-weight: bold; background: #f9f9f9;">
-            <td colspan="4" style="border: 1px solid #333; padding: 8px; text-align: right;">TỔNG CỘNG:</td>
-            <td style="border: 1px solid #333; padding: 8px; text-align: right; color: #4338ca;">${formatCurrency(contract.totalAmount || 0)}</td>
+            <td colspan="4" style="border: 1px solid #333; padding: 4px 6px; text-align: right;">TỔNG CỘNG:</td>
+            <td style="border: 1px solid #333; padding: 4px 6px; text-align: right; color: #4338ca;">${formatCurrency(contract.totalAmount || 0)}</td>
           </tr>
         </tbody>
       </table>
-      ${contract.totalAmountInWords ? `
-        <div style="font-style: italic; background: #eef2ff; padding: 10px; margin: 10px 0; border-radius: 4px;">
-          <strong>Bằng chữ:</strong> <em>${contract.totalAmountInWords}</em>
-        </div>
-      ` : ''}
+      ${contract.totalAmountInWords ? `<p style="font-size: 11px; font-style: italic; margin: 5px 0;"><strong>Bằng chữ:</strong> ${contract.totalAmountInWords}</p>` : ''}
     </div>
 
-    <!-- Payment Info -->
-    <div style="margin: 20px 0;">
-      <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-        THÔNG TIN THANH TOÁN
-      </div>
-      <div style="font-size: 14px; line-height: 1.8;">
-        <p style="margin: 4px 0;"><strong>Hình thức:</strong> ${contract.paymentMethod || '---'}</p>
-        <p style="margin: 4px 0;"><strong>Trạng thái:</strong> <span style="${statusClass}">${contract.status}</span></p>
-        <p style="margin: 4px 0;"><strong>Đã thanh toán:</strong> ${formatCurrency(contract.paidAmount || 0)}</p>
-        <p style="margin: 4px 0;"><strong>Còn lại:</strong> ${formatCurrency(contract.remainingAmount || 0)}</p>
-      </div>
+    <!-- Payment Info - Compact -->
+    <div style="margin: 10px 0; font-size: 12px;">
+      <div style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px; font-size: 13px;">THÔNG TIN THANH TOÁN</div>
+      <p style="margin: 2px 0;"><strong>Hình thức:</strong> ${contract.paymentMethod || '---'} | <strong>Trạng thái:</strong> <span style="${statusClass}">${contract.status}</span> | <strong>Đã TT:</strong> ${formatCurrency(contract.paidAmount || 0)} | <strong>Còn lại:</strong> ${formatCurrency(contract.remainingAmount || 0)}</p>
     </div>
 
-    <!-- Terms -->
-    <div style="margin: 20px 0;">
-      <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
-        ĐIỀU KHOẢN HỢP ĐỒNG
-      </div>
-      <ol style="font-size: 14px; line-height: 1.8; padding-left: 20px;">
+    <!-- Terms - Compact -->
+    <div style="margin: 10px 0; font-size: 11px;">
+      <div style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 5px; font-size: 13px;">ĐIỀU KHOẢN HỢP ĐỒNG</div>
+      <ol style="margin: 0; padding-left: 18px; line-height: 1.4;">
         <li>Bên B cam kết thanh toán đầy đủ học phí theo thỏa thuận.</li>
         <li>Bên A cam kết cung cấp dịch vụ giảng dạy theo chương trình đã đăng ký.</li>
         <li>Học phí đã đóng không được hoàn trả, trừ trường hợp bất khả kháng.</li>
@@ -154,33 +128,35 @@ export function generateContractHTML(
       </ol>
     </div>
 
-    <!-- Signatures -->
-    <div style="display: flex; justify-content: space-between; margin-top: 50px;">
-      <div style="text-align: center; width: 200px;">
-        <p style="font-weight: bold; margin: 0;">ĐẠI DIỆN BÊN A</p>
-        <p style="font-size: 12px; color: #666; margin: 5px 0;">(Ký, ghi rõ họ tên)</p>
-        <div style="border-top: 1px solid #333; margin-top: 60px; padding-top: 5px;"></div>
+    <!-- Signatures - Compact -->
+    <div style="display: flex; justify-content: space-between; margin-top: 25px;">
+      <div style="text-align: center; width: 180px;">
+        <p style="font-weight: bold; margin: 0; font-size: 12px;">ĐẠI DIỆN BÊN A</p>
+        <p style="font-size: 10px; color: #666; margin: 3px 0;">(Ký, ghi rõ họ tên)</p>
+        <div style="border-top: 1px solid #333; margin-top: 45px; padding-top: 3px;"></div>
       </div>
-      <div style="text-align: center; width: 200px;">
-        <p style="font-weight: bold; margin: 0;">ĐẠI DIỆN BÊN B</p>
-        <p style="font-size: 12px; color: #666; margin: 5px 0;">(Ký, ghi rõ họ tên)</p>
-        <div style="border-top: 1px solid #333; margin-top: 60px; padding-top: 5px;"></div>
+      <div style="text-align: center; width: 180px;">
+        <p style="font-weight: bold; margin: 0; font-size: 12px;">ĐẠI DIỆN BÊN B</p>
+        <p style="font-size: 10px; color: #666; margin: 3px 0;">(Ký, ghi rõ họ tên)</p>
+        <div style="border-top: 1px solid #333; margin-top: 45px; padding-top: 3px;"></div>
       </div>
     </div>
   `;
 }
 
-/** CSS styles for contract PDF */
+/** CSS styles for contract PDF - Optimized for single A4 page */
 const CONTRACT_PDF_STYLES = `
   body {
     font-family: 'Times New Roman', serif;
-    padding: 40px;
+    padding: 20px 30px;
     max-width: 800px;
     margin: 0 auto;
-    line-height: 1.6;
+    line-height: 1.4;
+    font-size: 12px;
   }
   @media print {
-    body { padding: 20px; }
+    body { padding: 15px 25px; }
+    @page { margin: 10mm; }
   }
 `;
 
@@ -231,17 +207,18 @@ export async function downloadContractAsPdf(
     import('html2canvas'),
   ]);
 
-  // Create temporary container for rendering
+  // Create temporary container for rendering - A4 optimized
   const container = document.createElement('div');
   container.style.cssText = `
     position: absolute;
     left: -9999px;
     top: 0;
     width: 794px;
-    padding: 40px;
+    padding: 20px 30px;
     background: white;
     font-family: 'Times New Roman', serif;
-    line-height: 1.6;
+    line-height: 1.4;
+    font-size: 12px;
   `;
   container.innerHTML = generateContractHTML(contract, centerInfo);
   document.body.appendChild(container);

@@ -18,7 +18,9 @@ export interface TransferClassModalProps {
 
 export const TransferClassModal: React.FC<TransferClassModalProps> = ({ student, classes, staffData, onClose, onSubmit }) => {
   const [newClassId, setNewClassId] = useState('');
-  const [sessions, setSessions] = useState(student.registeredSessions || 0);
+  // Calculate remaining sessions (registered - attended) for transfer
+  const remainingSessions = Math.max(0, (student.registeredSessions || 0) - (student.attendedSessions || 0));
+  const [sessions, setSessions] = useState(remainingSessions);
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
 
@@ -82,15 +84,20 @@ export const TransferClassModal: React.FC<TransferClassModalProps> = ({ student,
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Số buổi chuyển</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Số buổi chuyển <span className="text-xs font-normal text-green-600">(còn lại: {remainingSessions})</span>
+            </label>
             <input
               type="number"
               min={0}
+              max={remainingSessions}
               value={sessions}
               onChange={(e) => setSessions(parseInt(e.target.value) || 0)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
-            <p className="text-xs text-gray-500 mt-1">Số buổi còn lại sẽ được chuyển sang lớp mới</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Mặc định chuyển {remainingSessions} buổi còn lại (ĐK: {student.registeredSessions || 0} - Đã học: {student.attendedSessions || 0})
+            </p>
           </div>
 
           <div>

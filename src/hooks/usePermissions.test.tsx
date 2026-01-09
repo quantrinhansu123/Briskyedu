@@ -168,12 +168,11 @@ describe('usePermissions Hook', () => {
       expect(result.current.isOfficeStaff).toBe(true);
     });
 
-    it('should not see salary_config but CAN see salary_teacher (own data)', () => {
-      // Gap #2 fix: cskh_staff can now view salary_teacher (own data only)
+    it('should not see salary_config and salary_teacher (CSKH is not teacher)', () => {
+      // CSKH Staff không phải GV/TG nên không thấy salary_teacher
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canView('salary_config')).toBe(false);
-      expect(result.current.canView('salary_teacher')).toBe(true);
-      // Note: shouldShowOnlyOwnData will be added in Phase B
+      expect(result.current.canView('salary_teacher')).toBe(false);
     });
 
     it('should require approval for invoice delete', () => {

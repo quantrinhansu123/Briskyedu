@@ -27,6 +27,7 @@ import {
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect';
 import { db } from '../src/config/firebase';
 import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { getCenters, Center } from '../src/services/centerService';
 
 // Center Info for Invoice
 interface CenterInfo {
@@ -373,6 +374,29 @@ export const ContractCreation: React.FC = () => {
       setDiscounts(data);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Fetch main center info for contract
+  useEffect(() => {
+    const loadCenterInfo = async () => {
+      try {
+        const centers = await getCenters();
+        const mainCenter = centers.find(c => c.isMain) || centers[0];
+        if (mainCenter) {
+          setCenterInfo({
+            centerName: mainCenter.name || DEFAULT_CENTER_INFO.centerName,
+            representative: mainCenter.manager || DEFAULT_CENTER_INFO.representative,
+            address: mainCenter.address || DEFAULT_CENTER_INFO.address,
+            phone: mainCenter.phone || DEFAULT_CENTER_INFO.phone,
+            email: mainCenter.email || DEFAULT_CENTER_INFO.email,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading center info:', error);
+        // Keep default if error
+      }
+    };
+    loadCenterInfo();
   }, []);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
 

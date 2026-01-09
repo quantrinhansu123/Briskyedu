@@ -189,7 +189,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     contracts: { view: true, create: true, edit: true, delete: false },
     invoices: { view: true, create: true, edit: true, delete: false, requireApproval: true },
     revenue: { view: false, create: false, edit: false, delete: false }, // CANNOT SEE REVENUE
-    debt: { view: true, create: true, edit: true, delete: false },
+    debt: { view: false, create: false, edit: false, delete: false }, // Ẩn công nợ khỏi CSKH Staff
     reports_training: { view: true, create: false, edit: false, delete: false },
     reports_finance: { view: false, create: false, edit: false, delete: false }, // No finance reports
     reports_learning: { view: true, create: false, edit: false, delete: false },

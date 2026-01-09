@@ -8,10 +8,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Clock, CreditCard, Phone, Calendar, ChevronDown, ChevronUp, User, BookOpen, RefreshCw, History } from 'lucide-react';
+import { AlertTriangle, Clock, CreditCard, Phone, Calendar, ChevronDown, ChevronUp, User, BookOpen, RefreshCw, History, ShieldOff } from 'lucide-react';
 import { useStudents } from '../src/hooks/useStudents';
 import { useClasses } from '../src/hooks/useClasses';
 import { useSettlementInvoices } from '../src/hooks/useSettlementInvoices';
+import { usePermissions } from '../src/hooks/usePermissions';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { doc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
@@ -32,6 +33,7 @@ const formatDate = (dateStr: string | undefined): string => {
 
 export const DebtManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { canView } = usePermissions();
   const { students, loading } = useStudents();
   const { classes } = useClasses({});
 
@@ -330,6 +332,23 @@ export const DebtManagement: React.FC = () => {
       {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
     </button>
   );
+
+  // Permission check - after all hooks
+  if (!canView('debt')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500">
+        <ShieldOff className="w-16 h-16 mb-4 text-red-400" />
+        <h2 className="text-xl font-semibold mb-2">Không có quyền truy cập</h2>
+        <p className="text-gray-400">Bạn không có quyền xem trang Quản lý công nợ.</p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Về trang chủ
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

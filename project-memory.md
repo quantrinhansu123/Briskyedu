@@ -1,6 +1,7 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2026-01-07 21:35
+**Last Updated:** 2026-01-09 15:55
+**Context Version:** 2.2
 
 ---
 
@@ -11,137 +12,124 @@
 | **Name** | EduManager Pro |
 | **Type** | Education Center Management System (Vietnamese) |
 | **Stack** | React 19 + TypeScript + Firebase + Vite 7 |
-| **Framework** | Firebase (Auth, Firestore, Cloud Functions, Hosting) |
-| **UI** | TailwindCSS + lucide-react icons + Recharts |
-| **Language** | Vietnamese (all UI, enums, statuses) |
-
----
-
-## Current State
-
-| Metric | Value |
-|--------|-------|
-| **Branch** | main |
-| **Quality Score** | 7.0/10 (Security hardening complete) |
-| **Progress** | v1.1 Security Release, 40 pages, 294+ tests |
-| **Last Commit** | `d4a4382` fix(permissions): staff roles see salary_staff, not salary_teacher |
-| **Active Plans** | Security Hardening ✅ | Permission Fixes ✅ |
+| **Status** | Production (v1.1 Security Release) |
 | **Deploy** | https://edumanager-pro-6180f.web.app |
 
 ---
 
-## Architecture Quick Ref
+## Current State Snapshot
 
-### Structure (Non-standard Vite)
+### Progress Metrics
+- **Overall Completion:** 85%
+- **Current Milestone:** v1.1 Security Release Complete
+- **Active Phase:** Code Quality & Performance (P1)
+- **Quality Score:** 7.2/10 (per Ultrathink Review)
+
+### Git State
+```
+Branch: main
+Uncommitted: Yes - 6 files
+Last Commit: 9295a02 - fix: Firestore Schema Update
+Ahead/Behind: Up to date with origin/main
+```
+
+### Recent Achievements (This Session - 01/09/2026)
+1. [x] Ultrathink Codebase Review complete (15 reports generated)
+2. [x] CSKH Staff debt view permission disabled
+3. [x] DashboardCSKH and DebtManagement minor updates
+
+### Recent Achievements (01/07-01/09)
+| Date | Achievement |
+|------|-------------|
+| 01/09 | Ultrathink codebase review - 7.2/10 score |
+| 01/09 | Firestore Schema Update (commit 9295a02) |
+| 01/07 | Security hardening v1.1 complete |
+| 01/07 | canSeeAllSalaries() implementation |
+| 01/07 | RBAC helper functions in Firestore rules |
+
+### Active Work
+- **Current Focus:** Uncommitted changes review
+- **Active Plan:** None
+- **Next Priority:** Commit pending changes, Code Quality refactoring
+
+### Known Blockers & Issues
+| Issue | Severity | Notes |
+|-------|----------|-------|
+| 6 uncommitted files | Low | Need commit |
+| 232 `any` types | High | Type safety concern |
+| Dashboard.tsx 2,562 lines | High | Needs split |
+| 66 console.log statements | Medium | Remove for prod |
+
+---
+
+## Architecture Quick Reference
+
+### Project Structure (Non-standard Vite)
 ```
 /                    # Root level (source at root, NOT in src/)
-├── App.tsx          # Main app with HashRouter (40+ routes)
+├── App.tsx          # Main app with HashRouter (42 routes)
 ├── index.tsx        # React entry point
-├── types.ts         # ALL TypeScript interfaces/enums (50+ interfaces, 7 enums)
-├── pages/           # 40 page components (7 domains + auth + dashboard)
-├── components/      # 17 shared UI components (6 root + 11 dashboard widgets)
-├── docs/            # 31 documentation files + 8 ADRs
-├── plans/           # 40+ plan files + reports
+├── types.ts         # ALL TypeScript interfaces/enums (874 lines)
+├── pages/           # 40 page components (8 domains)
+├── components/      # 6 shared UI components
 ├── src/
 │   ├── config/firebase.ts
-│   ├── services/    # 34 Firestore CRUD services (static class)
-│   ├── hooks/       # 39 React hooks (12 real-time + 19 fetch + 2 hybrid)
+│   ├── services/    # 37 Firestore CRUD services (static class)
+│   ├── hooks/       # 36 React hooks (real-time listeners)
 │   ├── utils/       # 12 utility files
-│   └── features/    # 5 active feature modules (students, classes, attendance, reports, debt)
-├── functions/       # 15+ Cloud Functions (10 modules + 3 callables + scheduled)
-├── scripts/         # 18 maintenance scripts
-└── firestore.rules  # 37+ collection rules
+│   └── features/    # 5 feature modules
+├── functions/       # 10 Cloud Function triggers
+├── scripts/         # 23 maintenance scripts
+├── checkin_code/    # Subproject - Next.js 16 check-in system
+└── firestore.rules  # 457 lines, 37+ collections secured
 ```
 
-### Three-Layer Pattern
-1. **Services** (`src/services/`) - Static class methods for Firestore CRUD
-2. **Hooks** (`src/hooks/`) - React state + `onSnapshot` real-time listeners
-3. **Pages** (`pages/`) - UI consuming hooks
+### Key Patterns
+| Aspect | Pattern/Approach |
+|--------|-----------------|
+| **Data Flow** | Three-layer (Services → Hooks → Pages) |
+| **State Management** | React hooks + Firestore onSnapshot (25 usages) |
+| **API Style** | Firebase SDK + Cloud Functions |
+| **Database** | Firestore NoSQL (37+ collections) |
+| **Testing** | Vitest + React Testing Library (11 test files) |
+| **Styling** | TailwindCSS |
 
-### Core Collections
-- `students` - Student records with enrollment history
-- `classes` - Class definitions with schedules
-- `staff` - Staff/teachers with roles
-- `attendance`/`studentAttendance` - Attendance records
-- `contracts` - Payment contracts and enrollments
-- `workSessions` - Teacher work sessions for salary
+### Critical File Paths
+- **Entry Point:** `index.tsx`
+- **Config:** `src/config/firebase.ts`
+- **Routes:** `App.tsx`
+- **Types:** `types.ts`
+- **Services:** `src/services/`
+- **Permissions:** `src/services/permissionService.ts`
+- **Security Rules:** `firestore.rules`
 
 ---
 
 ## Active Plans
 
-### Permission & Dashboard Completion (2025-12-30) ✅ COMPLETE
-**Path:** `plans/251230-2152-permission-dashboard-completion/plan.md`
-**Status:** All 5 phases completed on 2025-12-31
+| Plan | Status | Priority | Notes |
+|------|--------|----------|-------|
+| Security Hardening | Complete | P0 | 6-phase Firestore rules |
+| Ultrathink Review | Complete | P0 | 7.2/10 score |
+| Code Quality | Pending | P1 | DRY, large files |
+| Performance | Pending | P2 | Dashboard memoization |
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Permission Fix | ✅ Complete |
-| 2 | Dashboard CSKH Bug Fix | ✅ Complete |
-| 3 | Dashboard CSKH Widgets | ✅ Complete |
-| 4 | Dashboard GV Implementation | ✅ Complete |
-| 5 | Testing & Verification | ✅ Complete |
+### Immediate Priorities (Next 3 Actions)
+1. **Review & commit:** 6 uncommitted files (permissionService change important)
+2. **Split Dashboard.tsx:** 2,562 lines into smaller components
+3. **Remove console.log:** 66 instances in production code
 
-### Key Achievements (v1.0.1)
-- Fixed CSKH/CM/Sale Staff permissions (classes, schedule, holidays)
-- Added 4 new CSKH/Sale widgets (work days, expiring fees, debt list, checklist)
-- Implemented complete GV/TG Dashboard (7 widgets with data isolation)
-- All 294 tests pass, production build successful
-
-### Codebase Review Plan (2025-12-26)
-**Path:** `plans/251226-2134-codebase-review/plan.md`
-**Status:** Review Complete, Security Phase Pending (v1.1)
+### Upcoming Work
+- [ ] Reduce 232 `any` types
+- [ ] Add error handling (try-catch)
+- [ ] Service layer tests (34 untested)
+- [ ] Document checkin_code subproject
 
 ---
 
-## Recent Activity (Last 10 Tasks)
+## Development Context
 
-**2026-01-07 (Current Session) - Security Hardening**
-- ✅ **Firestore Security Rules** - 6-phase hardening completed
-  - Phase 1-4: Training, Customer, Business, HR collections
-  - Phase 5-6: Salary/Finance collections with `onlyOwnData` pattern
-  - Added helper functions: `hasPosition()`, `isTeacher()`, `canSeeFinance()`, `isOnlyOwnData()`
-- ✅ **Permission Service Fix** - CM Lead salary visibility bug
-  - Added `canSeeAllSalaries()` function (Admin/KeToan only)
-  - Removed `cm_lead` from `canSeeRevenue()`
-  - Staff roles use `salary_staff` module instead of `salary_teacher`
-- ✅ **Salary Report Pages** - Permission filtering
-  - `SalaryReportTeacher.tsx`: Non-admin sees only own data
-  - `SalaryReportStaff.tsx`: Non-admin sees only own data
-  - `Dashboard.tsx`: Split revenue/salary widgets with permission gates
-- ✅ **Staff Salary Service** - Include Team Leads in NV report
-- ✅ **Deployed** to https://edumanager-pro-6180f.web.app
-
-**Recent Commits (01/07)**
-1. `d4a4382` fix(permissions): staff roles see salary_staff, not salary_teacher
-2. `cddbdde` fix(salary): include team leads in staff salary report
-3. `e58bf29` fix(security): filter SalaryReportStaff by canSeeAllSalaries permission
-4. `532be0c` fix(security): filter SalaryReportTeacher by canSeeAllSalaries permission
-5. `5c90357` fix(security): restrict salary data visibility to Admin/KeToan only
-6. `ddd7d25` feat(security): phase 6 - customer + settings collections (FINAL)
-7. `32a4108` feat(security): phase 5 - salary collections with onlyOwnData
-8. `57d684c` feat(security): phase 4 - HR collections with approval logic
-
----
-
-## Key Files to Know
-
-| Purpose | File |
-|---------|------|
-| All Types | `types.ts` |
-| Routes | `App.tsx` |
-| Firebase Config | `src/config/firebase.ts` |
-| Student Service | `src/services/studentService.ts` |
-| Attendance Service | `src/services/attendanceService.ts` |
-| Data Integrity | `src/services/dataIntegrityService.ts` (1130 lines) |
-| Security Rules | `firestore.rules` |
-| Codebase Summary | `docs/codebase-summary.md` |
-| System Architecture | `docs/system-architecture.md` |
-
----
-
-## Development Commands
-
+### Essential Commands
 ```bash
 npm run dev              # Dev server port 3000
 npm run build            # Production build
@@ -152,54 +140,103 @@ firebase emulators:start # Local emulators
 firebase deploy          # Deploy to Firebase
 ```
 
+### Environment Setup
+- **Node Version:** 18+
+- **Package Manager:** npm
+- **Required ENV:** VITE_FIREBASE_*, GEMINI_API_KEY (optional)
+- **External Services:** Firebase (Auth, Firestore, Functions, Hosting)
+
+### Test Coverage
+- **Test Files:** 11 in src/
+- **Coverage Gaps:** 34/37 services, 31/36 hooks untested
+- **Score:** 6/10 (needs expansion)
+
 ---
 
 ## Session Continuity
 
-### Current Session (2026-01-07 21:35)
-- ✅ Security Hardening Complete (v1.1)
-- ✅ Firestore rules hardened (6 phases)
-- ✅ Permission fixes deployed
-- ✅ Documentation updated
+### Uncommitted Changes (REVIEW REQUIRED)
+| File | Changes | Action |
+|------|---------|--------|
+| `pages/DashboardCSKH.tsx` | Minor widget updates | Review |
+| `pages/DebtManagement.tsx` | UI refinements | Review |
+| `src/services/permissionService.ts` | **CSKH Staff debt=false** | Review carefully |
+| `.gitignore` | Minor additions | Commit |
+| `project-memory.md` | This update | Commit |
+| `.firebase/hosting.*.cache` | Build cache | Ignore |
 
-### Key Achievements (v1.1 Security Release)
-- 6-phase Firestore security rules hardening
-- `canSeeAllSalaries()` function for salary data access control
-- Staff roles properly separated (salary_staff vs salary_teacher)
-- Team Leads included in NV salary report
-- All permission tests passing (130 tests)
+### Permission Change Detail
+```diff
+- debt: { view: true, create: true, edit: true, delete: false },
++ debt: { view: false, create: false, edit: false, delete: false }, // Ẩn công nợ khỏi CSKH Staff
+```
+**Impact:** CSKH Staff (Nhân viên CSKH) no longer has access to Debt Management module.
 
-### Next Priority
-- Code Quality: DRY violations, hook consistency
-- Performance: Dashboard memoization
-- Feature: New feature requests from users
+### Recent Commits (01/07-01/09)
+| Hash | Description |
+|------|-------------|
+| 9295a02 | fix: Firestore Schema Update |
+| 69d7827 | docs: update codebase summary and project memory |
+| d4a4382 | fix(permissions): staff roles see salary_staff |
+| cddbdde | fix(salary): include team leads in staff salary report |
+| e58bf29 | fix(security): filter SalaryReportStaff by canSeeAllSalaries |
 
-### Recommended Skills
+### Technical Debt Identified
+| Item | Severity | Location |
+|------|----------|----------|
+| 232 `any` types | High | Throughout codebase |
+| 66 console.log | Medium | Production code |
+| Dashboard.tsx 2,562 lines | High | Needs split |
+| 15 timestamp DRY violations | Medium | Services layer |
+| 0 try-catch blocks | High | Missing error handling |
+
+---
+
+## Handover Notes
+
+### Start With
+1. Review uncommitted changes (`git diff`)
+2. Validate permissionService.ts change (CSKH debt access)
+3. Commit if approved: `git add . && git commit -m "fix(permissions): hide debt from CSKH Staff"`
+
+### Watch Out For
+- Permission change affects CSKH Staff role immediately
+- DashboardCSKH widget dependencies
+- DebtManagement navigation guards
+
+### Files to Review First
+1. `src/services/permissionService.ts` - CSKH debt permission change
+2. `pages/DashboardCSKH.tsx` - Dashboard updates
+3. `pages/DebtManagement.tsx` - Debt module updates
+
+### Commands to Run First
+```bash
+git status               # Verify uncommitted changes
+git diff --stat          # See change summary
+npm run test:run         # Ensure all tests pass
+npm run build            # Verify production build
+```
+
+---
+
+## Skills & Tools
+
+### Recommended Skills for Next Session
 - `frontend-development` - React/TypeScript patterns
 - `databases` - Firebase/Firestore operations
-- `backend-development` - Cloud Functions
+- `debugging` - If issues with permission change
+
+### MCP Tools Available
+- Firebase MCP: `mcp__plugin_firebase_firebase__*`
+- GitHub MCP: `mcp__plugin_github_github__*`
+- Context7: `mcp__plugin_context7_context7__*`
 
 ---
 
-## Documentation Updated
+## Changelog
 
-| File | Updated |
-|------|---------|
-| `docs/PERMISSION_MATRIX.md` | 2026-01-07 (NEW) |
-| `docs/DASHBOARD_SPECS.md` | 2026-01-07 (NEW) |
-| `docs/FIRESTORE_SCHEMA.md` | 2026-01-07 |
-| `docs/codebase-summary.md` | 2026-01-05 |
-| `docs/system-architecture.md` | 2026-01-05 |
-| `docs/code-standards.md` | 2026-01-05 |
-| `docs/project-roadmap.md` | 2026-01-05 |
-| `project-memory.md` | 2026-01-07 |
-
----
-
-## Notes
-
-- All UI text in Vietnamese
-- Uses HashRouter (hash-based routing)
-- Multi-class support: students can enroll in multiple classes
-- Path alias: `@/*` maps to project root
-- 9 ADRs documented in `docs/decisions/`
+| Date | Change | By |
+|------|--------|-----|
+| 2026-01-09 15:55 | Full refresh - ultrathink review, permission change | project-update |
+| 2026-01-09 08:50 | Incremental refresh - git delta | read-project-context |
+| 2026-01-07 | Security hardening complete, v1.1 release | Session |

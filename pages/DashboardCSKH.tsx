@@ -23,7 +23,6 @@ import {
   StudentExpiringSoonWidget,
   WorkDaysWidget,
   ChecklistWidget,
-  type DashboardStatsData,
   type Center,
   type BirthdayPerson,
   type GiftStatus,
@@ -479,14 +478,6 @@ export const DashboardCSKH: React.FC = () => {
     );
   }
 
-  // Prepare data for widgets
-  const dashboardStatsData: DashboardStatsData = {
-    totalStudents: stats.totalStudents,
-    totalClasses: stats.totalClasses,
-    avgPerClass: stats.avgPerClass,
-    studentsByStatus: stats.studentsByStatus,
-  };
-
   return (
     <div className="space-y-6">
       {/* Header with Work Days and Branch Filter */}
@@ -522,7 +513,7 @@ export const DashboardCSKH: React.FC = () => {
       {/* Row 1: Student Stats + Charts (Leader only) */}
       <div className="grid grid-cols-12 gap-6">
         <div className={isCSKHLeader ? "col-span-4" : "col-span-12"}>
-          <DashboardStats data={dashboardStatsData} />
+          <DashboardStats studentsByStatus={stats.studentsByStatus} />
         </div>
         {isCSKHLeader && (
           <>

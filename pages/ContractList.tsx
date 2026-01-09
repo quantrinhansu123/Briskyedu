@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Search, Eye, Trash2, DollarSign, Filter, X, CreditCard } from 'lucide-react';
+import { FileText, Plus, Search, Eye, Trash2, DollarSign, Filter, X, CreditCard, Printer } from 'lucide-react';
 import { Contract, ContractStatus } from '../types';
 import { useContracts } from '../src/hooks/useContracts';
 import { formatCurrency } from '../src/utils/currencyUtils';
@@ -158,6 +158,132 @@ export const ContractList: React.FC = () => {
     }
   };
 
+  // Print contract PDF
+  const handlePrintContract = (contract: Contract) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
+      return;
+    }
+
+    const contractDate = contract.contractDate
+      ? new Date(contract.contractDate).toLocaleDateString('vi-VN')
+      : new Date().toLocaleDateString('vi-VN');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Hợp đồng - ${contract.code || 'N/A'}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .header h1 { font-size: 24px; margin: 0; text-transform: uppercase; }
+            .header p { margin: 5px 0; color: #666; }
+            .contract-title { text-align: center; margin: 30px 0; }
+            .contract-title h2 { font-size: 20px; text-transform: uppercase; margin: 0; }
+            .contract-title p { margin: 5px 0; }
+            .section { margin: 20px 0; }
+            .section-title { font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+            th { background: #f0f0f0; }
+            .total-row { font-weight: bold; background: #f9f9f9; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
+            .signature-box { text-align: center; width: 200px; }
+            .signature-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 5px; }
+            .amount-words { font-style: italic; background: #f5f5f5; padding: 10px; margin: 10px 0; }
+            @media print { body { padding: 20px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>TRUNG TÂM ANH NGỮ BRISKY</h1>
+            <p>Tây Mỗ, Nam Từ Liêm, Hà Nội</p>
+          </div>
+
+          <div class="contract-title">
+            <h2>HỢP ĐỒNG ĐĂNG KÝ KHÓA HỌC</h2>
+            <p>Số: <strong>${contract.code || 'N/A'}</strong></p>
+            <p>Ngày: ${contractDate}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">BÊN B: PHỤ HUYNH / HỌC VIÊN</div>
+            <p><strong>Học viên:</strong> ${contract.studentName || '---'}</p>
+            <p><strong>Ngày sinh:</strong> ${contract.studentDOB ? new Date(contract.studentDOB).toLocaleDateString('vi-VN') : '---'}</p>
+            <p><strong>Phụ huynh:</strong> ${contract.parentName || '---'}</p>
+            <p><strong>Điện thoại:</strong> ${contract.parentPhone || '---'}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">NỘI DUNG HỢP ĐỒNG</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>STT</th>
+                  <th>Nội dung</th>
+                  <th style="text-align: right;">Đơn giá</th>
+                  <th style="text-align: center;">SL</th>
+                  <th style="text-align: right;">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(contract.items || []).map((item, idx) => `
+                  <tr>
+                    <td>${idx + 1}</td>
+                    <td>${item.name}</td>
+                    <td style="text-align: right;">${formatCurrency(item.unitPrice || 0)}</td>
+                    <td style="text-align: center;">${item.quantity}</td>
+                    <td style="text-align: right;">${formatCurrency(item.finalPrice || 0)}</td>
+                  </tr>
+                `).join('')}
+                <tr class="total-row">
+                  <td colspan="4" style="text-align: right;">TỔNG CỘNG:</td>
+                  <td style="text-align: right;">${formatCurrency(contract.totalAmount || 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+            ${contract.totalAmountInWords ? `<div class="amount-words"><strong>Bằng chữ:</strong> <em>${contract.totalAmountInWords}</em></div>` : ''}
+          </div>
+
+          <div class="section">
+            <div class="section-title">THÔNG TIN THANH TOÁN</div>
+            <p><strong>Hình thức:</strong> ${contract.paymentMethod || '---'}</p>
+            <p><strong>Trạng thái:</strong> ${contract.status}</p>
+            <p><strong>Đã thanh toán:</strong> ${formatCurrency(contract.paidAmount || 0)}</p>
+            <p><strong>Còn lại:</strong> ${formatCurrency(contract.remainingAmount || 0)}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">ĐIỀU KHOẢN HỢP ĐỒNG</div>
+            <ol>
+              <li>Bên B cam kết thanh toán đầy đủ học phí theo thỏa thuận.</li>
+              <li>Bên A cam kết cung cấp dịch vụ giảng dạy theo chương trình đã đăng ký.</li>
+              <li>Học phí đã đóng không được hoàn trả, trừ trường hợp bất khả kháng.</li>
+              <li>Bên B có quyền bảo lưu khóa học trong thời gian tối đa 3 tháng.</li>
+              <li>Hợp đồng có hiệu lực kể từ ngày ký.</li>
+            </ol>
+          </div>
+
+          <div class="signatures">
+            <div class="signature-box">
+              <p><strong>ĐẠI DIỆN BÊN A</strong></p>
+              <p style="font-size: 12px; color: #666;">(Ký, ghi rõ họ tên)</p>
+              <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+              <p><strong>ĐẠI DIỆN BÊN B</strong></p>
+              <p style="font-size: 12px; color: #666;">(Ký, ghi rõ họ tên)</p>
+              <div class="signature-line"></div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       [ContractStatus.DRAFT]: 'bg-gray-100 text-gray-700',
@@ -278,6 +404,13 @@ export const ContractList: React.FC = () => {
                         title="Xem chi tiết"
                       >
                         <Eye size={16} />
+                      </button>
+                      <button
+                        onClick={() => handlePrintContract(contract)}
+                        className="text-gray-400 hover:text-blue-600 p-1"
+                        title="In hợp đồng"
+                      >
+                        <Printer size={16} />
                       </button>
                       {contract.status === ContractStatus.PARTIAL && (
                         <button

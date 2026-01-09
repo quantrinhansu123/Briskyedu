@@ -5,10 +5,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  FileText, Plus, X, Calculator, DollarSign, 
-  User, Calendar, Save, FileCheck, Printer 
+import {
+  FileText, Plus, X, Calculator, DollarSign,
+  User, Calendar, Save, FileCheck, Printer, Download
 } from 'lucide-react';
+import { downloadContractAsPdf, ContractCenterInfo } from '../src/utils/contract-pdf-generator';
 import {
   Contract, ContractType, ContractCategory, ContractItem, PaymentMethod,
   Student, Course, Product, ContractStatus, Discount, ClassStatus
@@ -114,6 +115,13 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
             Hợp đồng đã được tạo thành công!
           </h3>
           <div className="flex gap-2">
+            <button
+              onClick={() => downloadContractAsPdf(contract, centerInfo)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Download size={18} />
+              Tải PDF
+            </button>
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -313,6 +321,13 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
             className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
           >
             Đóng
+          </button>
+          <button
+            onClick={() => downloadContractAsPdf(contract, centerInfo)}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+          >
+            <Download size={18} />
+            Tải PDF
           </button>
           <button
             onClick={handlePrint}

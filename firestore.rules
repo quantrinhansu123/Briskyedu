@@ -138,11 +138,70 @@ service cloud.firestore {
     function isOwnData(docStaffId) {
       return request.auth.uid == docStaffId;
     }
-    
+
+    // ========================================
+    // FIELD VALIDATION HELPERS
+    // ========================================
+
+    // Check if field is non-empty string
+    function isNonEmptyString(field) {
+      return field is string && field.size() > 0;
+    }
+
+    // Check if field is valid number (>=0)
+    function isNonNegativeNumber(field) {
+      return field is number && field >= 0;
+    }
+
+    // Check if data has required fields
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    // ========================================
+    // COLLECTION-SPECIFIC VALIDATORS
+    // ========================================
+
+    // Staff collection validator
+    function isValidStaffData(data) {
+      return hasRequiredFields(data, ['name', 'position', 'status']) &&
+             isNonEmptyString(data.name) &&
+             isNonEmptyString(data.position) &&
+             data.status in ['Active', 'Inactive'];
+    }
+
+    // Student collection validator
+    function isValidStudentData(data) {
+      return hasRequiredFields(data, ['fullName', 'status']) &&
+             isNonEmptyString(data.fullName) &&
+             data.status in ['Đang học', 'Nợ phí', 'Nợ hợp đồng', 'Bảo lưu', 'Nghỉ học', 'Học thử', 'Đã học hết phí'];
+    }
+
+    // Contract collection validator
+    function isValidContractData(data) {
+      return hasRequiredFields(data, ['studentId', 'totalAmount']) &&
+             isNonEmptyString(data.studentId) &&
+             isNonNegativeNumber(data.totalAmount);
+    }
+
+    // Invoice collection validator
+    function isValidInvoiceData(data) {
+      return hasRequiredFields(data, ['amount']) &&
+             isNonNegativeNumber(data.amount);
+    }
+
+    // WorkSession collection validator
+    function isValidWorkSessionData(data) {
+      return hasRequiredFields(data, ['date']) &&
+             isNonEmptyString(data.date);
+    }
+
     // Students collection
     match /students/{studentId} {
       allow read: if isStaff();
-      allow write: if isStaff();
+      allow create: if isStaff() && isValidStudentData(request.resource.data);
+      allow update: if isStaff() && isValidStudentData(request.resource.data);
+      allow delete: if isStaff();
     }
     
     // Classes collection
@@ -160,7 +219,9 @@ service cloud.firestore {
       // Allow user to read own doc (for auth) + admin/teamlead can read all
       allow read: if isAuthenticated() &&
         (request.auth.uid == staffId || isAdmin() || isTeamLead());
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin() && isValidStaffData(request.resource.data);
+      allow update: if isAdmin() && isValidStaffData(request.resource.data);
+      allow delete: if isAdmin();
     }
     
     // ========================================
@@ -204,8 +265,8 @@ service cloud.firestore {
     // Contracts collection
     match /contracts/{contractId} {
       allow read: if canSeeFinance();
-      allow create: if canSeeFinance();
-      allow update: if canSeeFinance();
+      allow create: if canSeeFinance() && isValidContractData(request.resource.data);
+      allow update: if canSeeFinance() && isValidContractData(request.resource.data);
       allow delete: if isAdmin();
     }
     
@@ -232,8 +293,8 @@ service cloud.firestore {
     // Invoices collection
     match /invoices/{invoiceId} {
       allow read: if canSeeFinance();
-      allow create: if canSeeFinance();
-      allow update: if canSeeFinance();
+      allow create: if canSeeFinance() && isValidInvoiceData(request.resource.data);
+      allow update: if canSeeFinance() && isValidInvoiceData(request.resource.data);
       allow delete: if isAdmin();
     }
     
@@ -263,7 +324,9 @@ service cloud.firestore {
     // #8 Work Sessions - office only (teachers don't do work confirmation)
     match /workSessions/{sessionId} {
       allow read: if isOfficeStaff() || isAdmin();
-      allow write: if isOfficeStaff() || isAdmin();
+      allow create: if (isOfficeStaff() || isAdmin()) && isValidWorkSessionData(request.resource.data);
+      allow update: if (isOfficeStaff() || isAdmin()) && isValidWorkSessionData(request.resource.data);
+      allow delete: if isOfficeStaff() || isAdmin();
     }
     
     // ========================================

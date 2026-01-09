@@ -1,7 +1,7 @@
 # EduManager Pro - Project Memory
 
-**Last Updated:** 2026-01-09 15:55
-**Context Version:** 2.2
+**Last Updated:** 2026-01-09 23:22
+**Context Version:** 2.3
 
 ---
 
@@ -12,7 +12,7 @@
 | **Name** | EduManager Pro |
 | **Type** | Education Center Management System (Vietnamese) |
 | **Stack** | React 19 + TypeScript + Firebase + Vite 7 |
-| **Status** | Production (v1.1 Security Release) |
+| **Status** | Production (v1.1 + Bugfixes) |
 | **Deploy** | https://edumanager-pro-6180f.web.app |
 
 ---
@@ -20,42 +20,43 @@
 ## Current State Snapshot
 
 ### Progress Metrics
-- **Overall Completion:** 85%
-- **Current Milestone:** v1.1 Security Release Complete
+- **Overall Completion:** 87%
+- **Current Milestone:** Customer Bugfix Release
 - **Active Phase:** Code Quality & Performance (P1)
 - **Quality Score:** 7.2/10 (per Ultrathink Review)
 
 ### Git State
 ```
 Branch: main
-Uncommitted: Yes - 6 files
-Last Commit: 9295a02 - fix: Firestore Schema Update
-Ahead/Behind: Up to date with origin/main
+Uncommitted: None (clean)
+Last Commit: a963aa6 - feat(contracts): add PDF download and modularize
+Ahead/Behind: Up to date with origin/main (deployed)
 ```
 
-### Recent Achievements (This Session - 01/09/2026)
-1. [x] Ultrathink Codebase Review complete (15 reports generated)
-2. [x] CSKH Staff debt view permission disabled
-3. [x] DashboardCSKH and DebtManagement minor updates
+### Recent Achievements (Session 01/09/2026 Evening)
+1. [x] Fixed 5 customer-reported bugs
+2. [x] Added PDF download button to ContractCreation
+3. [x] Added print button to ContractList
+4. [x] Auto-fill remaining sessions in class transfer
+5. [x] Director name fetches from Firestore (not hardcoded)
+6. [x] Modularized contract PDF code → `contract-pdf-generator.ts`
+7. [x] CSKH Staff debt permission disabled
+8. [x] Deployed to Firebase
 
-### Recent Achievements (01/07-01/09)
-| Date | Achievement |
+### Recent Commits (This Session)
+| Hash | Description |
 |------|-------------|
-| 01/09 | Ultrathink codebase review - 7.2/10 score |
-| 01/09 | Firestore Schema Update (commit 9295a02) |
-| 01/07 | Security hardening v1.1 complete |
-| 01/07 | canSeeAllSalaries() implementation |
-| 01/07 | RBAC helper functions in Firestore rules |
+| a963aa6 | feat(contracts): add PDF download and modularize print logic |
+| 12ad63b | fix: customer-reported bugs - contracts, class transfer, permissions |
 
 ### Active Work
-- **Current Focus:** Uncommitted changes review
+- **Current Focus:** Session complete - all bugs fixed
 - **Active Plan:** None
-- **Next Priority:** Commit pending changes, Code Quality refactoring
+- **Next Priority:** Code Quality refactoring (technical debt)
 
 ### Known Blockers & Issues
 | Issue | Severity | Notes |
 |-------|----------|-------|
-| 6 uncommitted files | Low | Need commit |
 | 232 `any` types | High | Type safety concern |
 | Dashboard.tsx 2,562 lines | High | Needs split |
 | 66 console.log statements | Medium | Remove for prod |
@@ -76,7 +77,7 @@ Ahead/Behind: Up to date with origin/main
 │   ├── config/firebase.ts
 │   ├── services/    # 37 Firestore CRUD services (static class)
 │   ├── hooks/       # 36 React hooks (real-time listeners)
-│   ├── utils/       # 12 utility files
+│   ├── utils/       # 13 utility files (+contract-pdf-generator.ts)
 │   └── features/    # 5 feature modules
 ├── functions/       # 10 Cloud Function triggers
 ├── scripts/         # 23 maintenance scripts
@@ -102,6 +103,7 @@ Ahead/Behind: Up to date with origin/main
 - **Services:** `src/services/`
 - **Permissions:** `src/services/permissionService.ts`
 - **Security Rules:** `firestore.rules`
+- **Contract PDF:** `src/utils/contract-pdf-generator.ts` (NEW)
 
 ---
 
@@ -111,13 +113,14 @@ Ahead/Behind: Up to date with origin/main
 |------|--------|----------|-------|
 | Security Hardening | Complete | P0 | 6-phase Firestore rules |
 | Ultrathink Review | Complete | P0 | 7.2/10 score |
+| Customer Bugfixes | Complete | P0 | 5 bugs fixed this session |
 | Code Quality | Pending | P1 | DRY, large files |
 | Performance | Pending | P2 | Dashboard memoization |
 
 ### Immediate Priorities (Next 3 Actions)
-1. **Review & commit:** 6 uncommitted files (permissionService change important)
-2. **Split Dashboard.tsx:** 2,562 lines into smaller components
-3. **Remove console.log:** 66 instances in production code
+1. **Split Dashboard.tsx:** 2,562 lines into smaller components
+2. **Remove console.log:** 66 instances in production code
+3. **Reduce 232 `any` types:** Type safety improvement
 
 ### Upcoming Work
 - [ ] Reduce 232 `any` types
@@ -148,6 +151,7 @@ firebase deploy          # Deploy to Firebase
 
 ### Test Coverage
 - **Test Files:** 11 in src/
+- **Tests:** 294 passing
 - **Coverage Gaps:** 34/37 services, 31/36 hooks untested
 - **Score:** 6/10 (needs expansion)
 
@@ -155,31 +159,34 @@ firebase deploy          # Deploy to Firebase
 
 ## Session Continuity
 
-### Uncommitted Changes (REVIEW REQUIRED)
-| File | Changes | Action |
-|------|---------|--------|
-| `pages/DashboardCSKH.tsx` | Minor widget updates | Review |
-| `pages/DebtManagement.tsx` | UI refinements | Review |
-| `src/services/permissionService.ts` | **CSKH Staff debt=false** | Review carefully |
-| `.gitignore` | Minor additions | Commit |
-| `project-memory.md` | This update | Commit |
-| `.firebase/hosting.*.cache` | Build cache | Ignore |
+### Changes Made This Session (01/09 Evening)
 
-### Permission Change Detail
-```diff
-- debt: { view: true, create: true, edit: true, delete: false },
-+ debt: { view: false, create: false, edit: false, delete: false }, // Ẩn công nợ khỏi CSKH Staff
+#### Customer Bug Fixes (commit 12ad63b)
+| Bug | File | Fix |
+|-----|------|-----|
+| Director hardcoded | `ContractCreation.tsx` | Fetch from `centers` collection |
+| No print in list | `ContractList.tsx` | Added print button |
+| Class transfer sessions | `TransferClassModal.tsx` | Auto-fill remaining sessions |
+| CSKH debt access | `permissionService.ts` | Set debt.view = false |
+| Test fix | `usePermissions.test.tsx` | Updated CSKH test |
+
+#### PDF Modularization (commit a963aa6)
+| Change | Description |
+|--------|-------------|
+| NEW: `contract-pdf-generator.ts` | Shared PDF generation module |
+| ContractCreation.tsx | Added "Tải PDF" download button |
+| ContractList.tsx | Uses shared module, -125 lines |
+
+### Files Changed This Session
 ```
-**Impact:** CSKH Staff (Nhân viên CSKH) no longer has access to Debt Management module.
-
-### Recent Commits (01/07-01/09)
-| Hash | Description |
-|------|-------------|
-| 9295a02 | fix: Firestore Schema Update |
-| 69d7827 | docs: update codebase summary and project memory |
-| d4a4382 | fix(permissions): staff roles see salary_staff |
-| cddbdde | fix(salary): include team leads in staff salary report |
-| e58bf29 | fix(security): filter SalaryReportStaff by canSeeAllSalaries |
+src/utils/contract-pdf-generator.ts  [NEW]
+pages/ContractCreation.tsx           [MODIFIED]
+pages/ContractList.tsx               [MODIFIED]
+pages/CenterSettings.tsx             [MODIFIED]
+src/features/students/components/TransferClassModal.tsx [MODIFIED]
+src/services/permissionService.ts    [MODIFIED]
+src/hooks/usePermissions.test.tsx    [MODIFIED]
+```
 
 ### Technical Debt Identified
 | Item | Severity | Location |
@@ -194,27 +201,31 @@ firebase deploy          # Deploy to Firebase
 
 ## Handover Notes
 
-### Start With
-1. Review uncommitted changes (`git diff`)
-2. Validate permissionService.ts change (CSKH debt access)
-3. Commit if approved: `git add . && git commit -m "fix(permissions): hide debt from CSKH Staff"`
+### Session Summary
+- Fixed 5 customer-reported bugs
+- Modularized contract PDF code
+- All changes committed and deployed
+- Git state: clean
+
+### Start Next Session With
+1. Code quality refactoring (Dashboard split)
+2. Remove 66 console.log statements
+3. Reduce `any` types
 
 ### Watch Out For
-- Permission change affects CSKH Staff role immediately
-- DashboardCSKH widget dependencies
-- DebtManagement navigation guards
+- New PDF module: `src/utils/contract-pdf-generator.ts`
+- CSKH Staff now has NO debt module access
+- Center settings must have `manager` field for contract representative
 
 ### Files to Review First
-1. `src/services/permissionService.ts` - CSKH debt permission change
-2. `pages/DashboardCSKH.tsx` - Dashboard updates
-3. `pages/DebtManagement.tsx` - Debt module updates
+1. `src/utils/contract-pdf-generator.ts` - New shared module
+2. `pages/CenterSettings.tsx` - "Người đại diện" field updated
 
 ### Commands to Run First
 ```bash
-git status               # Verify uncommitted changes
-git diff --stat          # See change summary
-npm run test:run         # Ensure all tests pass
-npm run build            # Verify production build
+git log --oneline -5    # See recent commits
+npm run test:run        # Verify tests
+npm run dev             # Start dev server
 ```
 
 ---
@@ -222,9 +233,9 @@ npm run build            # Verify production build
 ## Skills & Tools
 
 ### Recommended Skills for Next Session
-- `frontend-development` - React/TypeScript patterns
-- `databases` - Firebase/Firestore operations
-- `debugging` - If issues with permission change
+- `frontend-development` - Dashboard component refactoring
+- `code-review` - Remove console.log, fix any types
+- `debugging` - If issues arise
 
 ### MCP Tools Available
 - Firebase MCP: `mcp__plugin_firebase_firebase__*`
@@ -237,6 +248,7 @@ npm run build            # Verify production build
 
 | Date | Change | By |
 |------|--------|-----|
+| 2026-01-09 23:22 | Session complete - 5 bugs fixed, PDF modularized, deployed | project-update |
 | 2026-01-09 15:55 | Full refresh - ultrathink review, permission change | project-update |
 | 2026-01-09 08:50 | Incremental refresh - git delta | read-project-context |
 | 2026-01-07 | Security hardening complete, v1.1 release | Session |

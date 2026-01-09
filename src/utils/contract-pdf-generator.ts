@@ -216,53 +216,71 @@ export function printContract(
 }
 
 /**
- * Download contract as PDF (using print to PDF)
- * Opens print dialog with download intent
+ * Download contract as PDF (auto-download using jspdf + html2canvas)
+ * Generates PDF and triggers automatic download
  */
-export function downloadContractAsPdf(
+export async function downloadContractAsPdf(
   contract: Contract,
   centerInfo?: ContractCenterInfo
-): void {
-  const downloadWindow = window.open('', '_blank');
-  if (!downloadWindow) {
-    alert('Không thể mở cửa sổ tải xuống. Vui lòng cho phép popup.');
-    return;
-  }
-
-  const htmlContent = generateContractHTML(contract, centerInfo);
+): Promise<void> {
   const fileName = `HopDong_${contract.code || 'N/A'}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-  downloadWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${fileName}</title>
-        <style>
-          ${CONTRACT_PDF_STYLES}
-          .download-hint {
-            background: #fef3c7;
-            border: 1px solid #f59e0b;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-          }
-          .download-hint strong { color: #92400e; }
-          @media print { .download-hint { display: none; } }
-        </style>
-      </head>
-      <body>
-        <div class="download-hint">
-          <strong>💡 Hướng dẫn tải PDF:</strong> Chọn "Save as PDF" / "Lưu dưới dạng PDF" trong hộp thoại in để tải về file PDF.
-        </div>
-        ${htmlContent}
-        <script>
-          // Auto-trigger print dialog for download
-          window.onload = function() { window.print(); };
-        </script>
-      </body>
-    </html>
-  `);
-  downloadWindow.document.close();
+  // Dynamically import jspdf and html2canvas for code splitting
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas'),
+  ]);
+
+  // Create temporary container for rendering
+  const container = document.createElement('div');
+  container.style.cssText = `
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: 794px;
+    padding: 40px;
+    background: white;
+    font-family: 'Times New Roman', serif;
+    line-height: 1.6;
+  `;
+  container.innerHTML = generateContractHTML(contract, centerInfo);
+  document.body.appendChild(container);
+
+  try {
+    // Capture HTML as canvas
+    const canvas = await html2canvas(container, {
+      scale: 2, // Higher quality
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
+
+    // Calculate PDF dimensions (A4)
+    const imgWidth = 210; // A4 width in mm
+    const pageHeight = 297; // A4 height in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Create PDF
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // Add first page
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // Add more pages if content exceeds one page
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    // Auto download
+    pdf.save(fileName);
+  } finally {
+    // Cleanup
+    document.body.removeChild(container);
+  }
 }

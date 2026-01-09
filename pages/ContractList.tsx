@@ -3,16 +3,17 @@
  * Danh sách hợp đồng với filter và actions
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, Search, Eye, Trash2, DollarSign, Filter, X, CreditCard, Printer } from 'lucide-react';
 import { Contract, ContractStatus } from '../types';
 import { useContracts } from '../src/hooks/useContracts';
 import { formatCurrency } from '../src/utils/currencyUtils';
-import { printContract } from '../src/utils/contract-pdf-generator';
+import { printContract, ContractCenterInfo, DEFAULT_CENTER_INFO } from '../src/utils/contract-pdf-generator';
 import { updateContract } from '../src/services/contractService';
 import { createEnrollment } from '../src/services/enrollmentService';
 import { useAuth } from '../src/hooks/useAuth';
+import { getCenters } from '../src/services/centerService';
 
 export const ContractList: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,29 @@ export const ContractList: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [centerInfo, setCenterInfo] = useState<ContractCenterInfo>(DEFAULT_CENTER_INFO);
+
+  // Fetch center info for printing contracts
+  useEffect(() => {
+    const loadCenterInfo = async () => {
+      try {
+        const centers = await getCenters();
+        const mainCenter = centers.find(c => c.isMain) || centers[0];
+        if (mainCenter) {
+          setCenterInfo({
+            centerName: mainCenter.name || DEFAULT_CENTER_INFO.centerName,
+            representative: mainCenter.manager || DEFAULT_CENTER_INFO.representative,
+            address: mainCenter.address || DEFAULT_CENTER_INFO.address,
+            phone: mainCenter.phone || DEFAULT_CENTER_INFO.phone,
+            email: mainCenter.email || DEFAULT_CENTER_INFO.email,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading center info:', error);
+      }
+    };
+    loadCenterInfo();
+  }, []);
 
   const { contracts, loading, error, deleteContract, updateStatus, refresh } = useContracts(
     statusFilter ? { status: statusFilter } : undefined
@@ -281,7 +305,7 @@ export const ContractList: React.FC = () => {
                         <Eye size={16} />
                       </button>
                       <button
-                        onClick={() => printContract(contract)}
+                        onClick={() => printContract(contract, centerInfo)}
                         className="text-gray-400 hover:text-blue-600 p-1"
                         title="In hợp đồng"
                       >

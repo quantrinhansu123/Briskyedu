@@ -78,14 +78,20 @@ npx tsx scripts/syncContractsToEnrollments.ts  # Sync contract/enrollment data
 **Critical Architecture**: Follow the three-layer pattern strictly:
 
 1. **Services Layer** (`src/services/`) - Firestore CRUD operations
-   - All services are **static class methods** (e.g., `StudentService.getStudents()`)
+   - **Primary pattern**: Named function exports (79% of services)
+     - Better tree-shaking, easier mocking, modern React/TS convention
+     - Example: `export async function getStudents() { ... }`
+   - **Legacy pattern**: Static class methods (21% of services)
+     - Used by: StudentService, ClassService, StaffService, AuthService
+     - Example: `StudentService.getStudents()`
    - Handle Firestore queries, mutations, and complex business logic
    - Return plain data or promises
    - No React hooks or state management
 
 2. **Hooks Layer** (`src/hooks/`) - React state + real-time listeners
    - Wrap services with React state management
-   - Use `onSnapshot` for real-time Firestore updates
+   - **Preferred**: Use `onSnapshot` for real-time Firestore updates
+   - **Acceptable**: Use `getDocs` for one-time fetches (reports, lookups)
    - Return `{ data, loading, error }` pattern
    - Handle client-side filtering and search
 
@@ -94,58 +100,55 @@ npx tsx scripts/syncContractsToEnrollments.ts  # Sync contract/enrollment data
    - Render UI with components
    - Handle user events and form submissions
 
-Example:
+Example (Function Pattern - Preferred):
 ```typescript
-// 1. Service: src/services/studentService.ts (Static class methods)
+// 1. Service: src/services/attendanceService.ts (Named exports)
+export async function getAttendance(classId: string): Promise<Attendance[]> {
+  const q = query(collection(db, 'attendance'), where('classId', '==', classId));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Attendance[];
+}
+
+export async function markAttendance(data: AttendanceData): Promise<string> {
+  const docRef = await addDoc(collection(db, 'attendance'), data);
+  return docRef.id;
+}
+
+// 2. Hook: src/hooks/useAttendance.ts (Real-time listener)
+export const useAttendance = (classId: string) => {
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'attendance'), where('classId', '==', classId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setAttendance(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Attendance[]);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [classId]);
+
+  return { attendance, loading };
+};
+
+// 3. Page: pages/Attendance.tsx
+export const Attendance = () => {
+  const { attendance, loading } = useAttendance(classId);
+  if (loading) return <LoadingSpinner />;
+  return <AttendanceTable data={attendance} />;
+};
+```
+
+Example (Class Pattern - Legacy):
+```typescript
+// Service: src/services/studentService.ts (Static class - legacy)
 export class StudentService {
   static async getStudents(filters?: { status?: StudentStatus }): Promise<Student[]> {
     const q = query(collection(db, 'students'), where('status', '==', filters?.status));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Student[];
   }
-
-  static async updateStudent(id: string, data: Partial<Student>): Promise<void> {
-    await updateDoc(doc(db, 'students', id), data);
-  }
 }
-
-// 2. Hook: src/hooks/useStudents.ts (Real-time listener)
-export const useStudents = (filters?: { status?: StudentStatus }) => {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Real-time listener with onSnapshot
-    const q = query(collection(db, 'students'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Student[];
-      setStudents(data);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  return { students, loading, error };
-};
-
-// 3. Page: pages/StudentManager.tsx (Consume hook)
-export const StudentManager = () => {
-  const { students, loading } = useStudents();
-
-  if (loading) return <div>Loading...</div>;
-
-  return (
-    <div>
-      {students.map(student => (
-        <StudentCard key={student.id} student={student} />
-      ))}
-    </div>
-  );
-};
 ```
 
 ### Firestore Collections
@@ -290,8 +293,8 @@ await addDoc(collection(db, 'students'), {
 ### Adding a New Feature
 
 1. **Define types** in `types.ts` (single source of truth)
-2. **Create service** in `src/services/[feature]Service.ts` with static methods
-3. **Create hook** in `src/hooks/use[Feature].ts` with real-time listener
+2. **Create service** in `src/services/[feature]Service.ts` (prefer function exports)
+3. **Create hook** in `src/hooks/use[Feature].ts` (prefer onSnapshot for real-time)
 4. **Create page** in `pages/[Feature]Manager.tsx` consuming the hook
 5. **Add route** in `App.tsx` under appropriate domain section
 6. **Update Firestore rules** in `firestore.rules` if needed

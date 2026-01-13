@@ -225,7 +225,10 @@ export const getSessionsByClass = async (
       id: doc.id,
       ...doc.data(),
     })) as ClassSession[];
-    
+
+    // Filter out invalid sessions (sessionNumber <= 0)
+    sessions = sessions.filter(s => s.sessionNumber > 0);
+
     // Client-side filtering
     if (options?.status) {
       sessions = sessions.filter(s => s.status === options.status);

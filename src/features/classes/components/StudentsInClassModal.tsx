@@ -5,10 +5,13 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Users, Search, UserPlus, UserMinus } from 'lucide-react';
-import { ClassModel } from '@/types';
-import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, addDoc } from 'firebase/firestore';
+import { X, Users, Search, UserPlus, UserMinus, ArrowRightLeft } from 'lucide-react';
+import { ClassModel, Student } from '@/types';
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
+import { TransferClassModal } from '@/src/features/students/components/TransferClassModal';
+import { useClasses } from '@/src/hooks/useClasses';
+import { useAuth } from '@/src/hooks/useAuth';
 
 export interface StudentsInClassModalProps {
   classData: ClassModel;
@@ -23,6 +26,12 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  // Transfer class modal state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedStudentToTransfer, setSelectedStudentToTransfer] = useState<any>(null);
+  const { classes: allClasses } = useClasses({});
+  const { staffData } = useAuth();
 
   // Enrollment confirmation modal state
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -56,13 +65,15 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
     }
   };
 
-  // Fetch students
+  // Realtime listener for students - Bug 1 fix
   useEffect(() => {
-    const fetchStudents = async () => {
-      setLoading(true);
-      try {
-        const studentsSnap = await getDocs(collection(db, 'students'));
-        const students = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setLoading(true);
+
+    // Subscribe to students collection with onSnapshot for realtime updates
+    const unsubscribe = onSnapshot(
+      collection(db, 'students'),
+      (snapshot) => {
+        const students = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
         // Students in this class (match by classId, classIds array, className, or class field)
         const inClass = students.filter((s: any) =>
@@ -82,14 +93,16 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
 
         setStudentsInClass(inClass);
         setAllStudents(notInClass);
-      } catch (err) {
-        console.error('Error fetching students:', err);
-      } finally {
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error listening to students:', error);
         setLoading(false);
       }
-    };
-    fetchStudents();
-  }, [classData]);
+    );
+
+    return () => unsubscribe();
+  }, [classData.id, classData.name]);
 
   // Open enrollment modal when adding student
   const addStudentToClass = (student: any) => {
@@ -180,6 +193,59 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
     } catch (err) {
       console.error('Error removing student from class:', err);
       alert('Không thể xóa học viên khỏi lớp');
+    }
+  };
+
+  // Open transfer class modal - Bug 5 fix
+  const openTransferModal = (student: any) => {
+    setSelectedStudentToTransfer(student);
+    setShowTransferModal(true);
+  };
+
+  // Handle transfer class submission
+  const handleTransferSubmit = async (data: { newClassId: string; newClassName: string; sessions: number; note: string }) => {
+    if (!selectedStudentToTransfer) return;
+
+    try {
+      const studentRef = doc(db, 'students', selectedStudentToTransfer.id);
+
+      // Update student with new class
+      await updateDoc(studentRef, {
+        classId: data.newClassId,
+        className: data.newClassName,
+        class: data.newClassName,
+        classIds: arrayUnion(data.newClassId),
+        registeredSessions: data.sessions,
+      });
+
+      // Remove from old class's classIds
+      await updateDoc(studentRef, {
+        classIds: arrayRemove(classData.id),
+      });
+
+      // Create enrollment record for transfer
+      await addDoc(collection(db, 'enrollments'), {
+        studentId: selectedStudentToTransfer.id,
+        studentName: selectedStudentToTransfer.fullName || selectedStudentToTransfer.name,
+        studentCode: selectedStudentToTransfer.code || '',
+        classId: data.newClassId,
+        className: data.newClassName,
+        oldClassId: classData.id,
+        oldClassName: classData.name,
+        sessions: data.sessions,
+        type: 'Chuyển lớp',
+        status: 'Đã xác nhận',
+        createdAt: new Date().toISOString(),
+        note: data.note,
+      });
+
+      setShowTransferModal(false);
+      setSelectedStudentToTransfer(null);
+      onUpdate();
+      alert(`Đã chuyển ${selectedStudentToTransfer.fullName || selectedStudentToTransfer.name} sang lớp ${data.newClassName}`);
+    } catch (err) {
+      console.error('Error transferring student:', err);
+      alert('Không thể chuyển lớp cho học viên');
     }
   };
 
@@ -287,13 +353,22 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeStudentFromClass(student)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Xóa khỏi lớp"
-                    >
-                      <UserMinus size={18} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openTransferModal(student)}
+                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Chuyển lớp"
+                      >
+                        <ArrowRightLeft size={18} />
+                      </button>
+                      <button
+                        onClick={() => removeStudentFromClass(student)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Xóa khỏi lớp"
+                      >
+                        <UserMinus size={18} />
+                      </button>
+                    </div>
                   </div>
                   );
                 })}
@@ -448,6 +523,17 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transfer Class Modal - Bug 5 fix */}
+      {showTransferModal && selectedStudentToTransfer && (
+        <TransferClassModal
+          student={selectedStudentToTransfer as Student}
+          classes={allClasses}
+          staffData={staffData}
+          onClose={() => { setShowTransferModal(false); setSelectedStudentToTransfer(null); }}
+          onSubmit={handleTransferSubmit}
+        />
       )}
     </div>
   );

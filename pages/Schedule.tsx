@@ -11,6 +11,7 @@ import { ClassModel, Student, Holiday } from '../types';
 import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { getScheduleTime, getScheduleDays, formatSchedule } from '../src/utils/scheduleUtils';
+import { isAssistantRole, isTeacherRole } from '../src/utils/roleUtils';
 
 // ============================================
 // CLASS COLOR PALETTE SYSTEM
@@ -188,18 +189,18 @@ export const Schedule: React.FC = () => {
     }
   }, [expandedCardId, allStudents, allClasses]);
 
-  // Get unique teachers from staff (only teachers)
+  // Get unique teachers from staff (only teachers) - using roleUtils for normalization
   const uniqueTeachers = useMemo(() => {
     return staff
-      .filter(s => s.position?.toLowerCase().includes('giáo viên') || s.role === 'Giáo viên')
+      .filter(s => isTeacherRole(s.position || '') || isTeacherRole(s.role || ''))
       .map(s => s.name)
       .sort();
   }, [staff]);
 
-  // Get unique assistants from staff
+  // Get unique assistants from staff - using roleUtils for normalized matching
   const uniqueAssistants = useMemo(() => {
     return staff
-      .filter(s => s.position?.toLowerCase().includes('trợ giảng') || s.role === 'Trợ giảng')
+      .filter(s => isAssistantRole(s.position || '') || isAssistantRole(s.role || ''))
       .map(s => s.name)
       .sort();
   }, [staff]);

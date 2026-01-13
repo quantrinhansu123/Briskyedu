@@ -17,7 +17,7 @@ import { usePermissions } from '../src/hooks/usePermissions';
 import { useSessions } from '../src/hooks/useSessions';
 import { ClassSession } from '../src/services/sessionService';
 import { formatSchedule } from '../src/utils/scheduleUtils';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { useHolidays } from '../src/hooks/useHolidays';
 import { Holiday } from '../types';
@@ -131,6 +131,9 @@ export const Attendance: React.FC = () => {
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
   const [showGradeFields, setShowGradeFields] = useState(false); // Toggle hiển thị điểm số
 
+  // Bug 3 fix: Track session IDs that have attendance records
+  const [completedSessionIds, setCompletedSessionIds] = useState<Set<string>>(new Set());
+
   // Review tab state
   const [reviewDate, setReviewDate] = useState<string>(() => {
     const yesterday = new Date();
@@ -138,12 +141,13 @@ export const Attendance: React.FC = () => {
     return yesterday.toISOString().split('T')[0];
   });
   const [reviewFilterClass, setReviewFilterClass] = useState<string>('');
+  const [reviewFilterBranch, setReviewFilterBranch] = useState<string>(''); // Bug 4 fix: Add branch filter
   const [reviewLoading, setReviewLoading] = useState(false);
   const [sessionsWithUnmarked, setSessionsWithUnmarked] = useState<SessionWithUnmarked[]>([]);
   const [reviewReasons, setReviewReasons] = useState<Record<string, string>>({});
   const [confirmDialog, setConfirmDialog] = useState<{
     show: boolean;
-    type: 'late' | 'absent';
+    type: 'late' | 'absent' | 'reserved'; // Bug 4 fix: Add 'reserved' type
     student: UnmarkedStudent | null;
     reason: string;
   }>({ show: false, type: 'late', student: null, reason: '' });
@@ -189,6 +193,39 @@ export const Attendance: React.FC = () => {
   // Close dropdown when class changes
   useEffect(() => {
     setSessionDropdownOpen(false);
+  }, [selectedClassId]);
+
+  // Bug 3 fix: Load completed session IDs from attendance records with realtime listener
+  useEffect(() => {
+    if (!selectedClassId) {
+      setCompletedSessionIds(new Set());
+      return;
+    }
+
+    const attendanceQuery = query(
+      collection(db, 'attendance'),
+      where('classId', '==', selectedClassId)
+    );
+
+    // Use onSnapshot for realtime updates to avoid race condition
+    const unsubscribe = onSnapshot(
+      attendanceQuery,
+      (snapshot) => {
+        const completedIds = new Set<string>();
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.sessionId) {
+            completedIds.add(data.sessionId);
+          }
+        });
+        setCompletedSessionIds(completedIds);
+      },
+      (error) => {
+        console.error('Error listening to completed sessions:', error);
+      }
+    );
+
+    return () => unsubscribe();
   }, [selectedClassId]);
 
   // Get students for selected class - only show students eligible for attendance
@@ -614,11 +651,18 @@ export const Attendance: React.FC = () => {
     }
   }, [reviewDate, activeTab, allClasses.length, allStudents.length]);
 
-  // Filter sessions by class
+  // Filter sessions by class and branch - Bug 4 fix
   const filteredReviewSessions = useMemo(() => {
-    if (!reviewFilterClass) return sessionsWithUnmarked;
-    return sessionsWithUnmarked.filter(s => s.classId === reviewFilterClass);
-  }, [sessionsWithUnmarked, reviewFilterClass]);
+    let filtered = sessionsWithUnmarked;
+    if (reviewFilterClass) {
+      filtered = filtered.filter(s => s.classId === reviewFilterClass);
+    }
+    if (reviewFilterBranch) {
+      const classesInBranch = new Set(allClasses.filter(c => c.branch === reviewFilterBranch).map(c => c.id));
+      filtered = filtered.filter(s => classesInBranch.has(s.classId));
+    }
+    return filtered;
+  }, [sessionsWithUnmarked, reviewFilterClass, reviewFilterBranch, allClasses]);
 
   // Total unmarked count
   const totalUnmarked = useMemo(() => {
@@ -633,6 +677,7 @@ export const Attendance: React.FC = () => {
     try {
       const student = confirmDialog.student;
       const isLate = confirmDialog.type === 'late';
+      const isReserved = confirmDialog.type === 'reserved'; // Bug 4 fix
       
       let actualSessionId = student.sessionId;
       
@@ -664,8 +709,9 @@ export const Attendance: React.FC = () => {
         studentName: student.studentName,
         date: student.sessionDate,
         sessionNumber: student.sessionNumber,
-        status: isLate ? 'Đi trễ' : 'Vắng',
-        note: confirmDialog.reason || (isLate ? 'Đến trễ - Rà soát điểm danh' : 'Nghỉ học - Rà soát điểm danh'),
+        // Bug 4 fix: Support 'reserved' status
+        status: isLate ? 'Đi trễ' : isReserved ? 'Bảo lưu' : 'Vắng',
+        note: confirmDialog.reason || (isLate ? 'Đến trễ - Rà soát điểm danh' : isReserved ? 'Bảo lưu - Rà soát điểm danh' : 'Nghỉ học - Rà soát điểm danh'),
         checkedAt: new Date().toISOString(),
         checkedBy: staffData?.name || 'Lễ tân',
         isReviewed: true,
@@ -698,7 +744,8 @@ export const Attendance: React.FC = () => {
     }
   };
 
-  const openReviewConfirmDialog = (type: 'late' | 'absent', student: UnmarkedStudent) => {
+  // Bug 4 fix: Support 'reserved' type
+  const openReviewConfirmDialog = (type: 'late' | 'absent' | 'reserved', student: UnmarkedStudent) => {
     setConfirmDialog({
       show: true,
       type,
@@ -810,15 +857,19 @@ export const Attendance: React.FC = () => {
                     </button>
                     
                     {sessionDropdownOpen && (
-                      <div 
+                      <div
                         style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 99999 }}
                         className="bg-white border border-gray-300 rounded-lg shadow-2xl max-h-[70vh] overflow-y-auto"
                       >
-                        {[...allSessions].sort((a, b) => a.sessionNumber - b.sessionNumber).map(s => {
+                        {[...allSessions]
+                          .filter(s => s.sessionNumber > 0) // Bug 2 fix: Filter out sessions with invalid sessionNumber
+                          .sort((a, b) => a.sessionNumber - b.sessionNumber)
+                          .map(s => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;
                           const isToday = s.date === today;
-                          const isCompleted = s.status === 'Đã học' || s.attendanceId;
+                          // Bug 3 fix: Also check completedSessionIds from attendance records
+                          const isCompleted = s.status === 'Đã học' || s.attendanceId || (s.id && completedSessionIds.has(s.id));
                           
                           let bgClass = 'bg-white hover:bg-gray-50';
                           let iconColor = '#9ca3af';
@@ -899,6 +950,20 @@ export const Attendance: React.FC = () => {
                     <option value="">Tất cả lớp</option>
                     {allClasses.filter(c => ['Đang học', 'Chờ mở'].includes(c.status)).map(cls => (
                       <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Bug 4 fix: Add branch filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Lọc theo cơ sở</label>
+                  <select
+                    value={reviewFilterBranch}
+                    onChange={(e) => setReviewFilterBranch(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 min-w-[150px]"
+                  >
+                    <option value="">Tất cả cơ sở</option>
+                    {[...new Set(allClasses.map(c => c.branch).filter(Boolean))].map(branch => (
+                      <option key={branch} value={branch}>{branch}</option>
                     ))}
                   </select>
                 </div>
@@ -1381,6 +1446,14 @@ export const Attendance: React.FC = () => {
                                   <XCircle size={14} />
                                   Vắng/Nghỉ học
                                 </button>
+                                {/* Bug 4 fix: Add Bảo lưu button */}
+                                <button
+                                  onClick={() => openReviewConfirmDialog('reserved', student)}
+                                  className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 flex items-center gap-1"
+                                >
+                                  <AlertTriangle size={14} />
+                                  Bảo lưu
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1434,7 +1507,9 @@ export const Attendance: React.FC = () => {
                 onClick={handleReviewConfirm}
                 disabled={processingReview}
                 className={`px-4 py-2 text-white rounded-lg font-medium flex items-center gap-2 ${
-                  confirmDialog.type === 'late' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                  confirmDialog.type === 'late' ? 'bg-green-600 hover:bg-green-700' :
+                  confirmDialog.type === 'reserved' ? 'bg-orange-500 hover:bg-orange-600' :
+                  'bg-red-600 hover:bg-red-700'
                 } disabled:opacity-50`}
               >
                 {processingReview ? (

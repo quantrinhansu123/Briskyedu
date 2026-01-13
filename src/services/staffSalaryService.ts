@@ -41,6 +41,7 @@ export interface StaffAttendanceLog {
   checkOut: string;
   status: 'Đúng giờ' | 'Đi muộn' | 'Về sớm' | 'Nghỉ phép' | 'Nghỉ không phép';
   note?: string;
+  photoUrl?: string;  // Check-in photo URL
 }
 
 const SALARY_COLLECTION = 'staffSalaries';
@@ -97,11 +98,28 @@ export const getStaffSalaries = async (month: number, year: number): Promise<Sta
   const salarySnapshot = await getDocs(salaryQuery);
   const existingSalaries = salarySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+  // 2.5 Lấy dữ liệu chấm công trong tháng để tính số ngày công
+  const attendanceSnapshot = await getDocs(collection(db, ATTENDANCE_COLLECTION));
+  const allAttendance = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // Group attendance by staffId and filter by month/year
+  const staffWorkDays: Record<string, number> = {};
+  allAttendance.forEach((log: any) => {
+    if (!log.date || !log.staffId) return;
+    const [d, m, y] = log.date.split('/').map(Number);
+    if (m === month && y === year) {
+      staffWorkDays[log.staffId] = (staffWorkDays[log.staffId] || 0) + 1;
+    }
+  });
+
   // 3. Merge: Với mỗi nhân viên, tìm salary record hoặc tạo default
   const result: StaffSalaryRecord[] = officeStaff.map((staff: any) => {
     const existingSalary = existingSalaries.find(
       (s: any) => s.staffId === staff.id || s.staffName === staff.name
     );
+
+    // Get work days from attendance data
+    const workDays = staffWorkDays[staff.id] || 0;
 
     if (existingSalary) {
       // Ensure existing records have new fields (backward compatibility)
@@ -110,6 +128,7 @@ export const getStaffSalaries = async (month: number, year: number): Promise<Sta
         ...record,
         positionBonus: record.positionBonus ?? 0,
         kpiBonus: record.kpiBonus ?? 0,
+        workDays: workDays, // Use calculated work days from attendance
       };
     }
 
@@ -128,7 +147,7 @@ export const getStaffSalaries = async (month: number, year: number): Promise<Sta
       baseSalary,
       positionBonus,
       kpiBonus: 0, // Default, can be updated by HR
-      workDays: 0,
+      workDays: workDays, // Use calculated work days from attendance
       commission: 0,
       allowance: 0,
       deduction: 0,
@@ -169,15 +188,15 @@ export const deleteStaffSalary = async (id: string): Promise<void> => {
 
 // Get attendance logs for a staff member
 export const getStaffAttendance = async (staffId: string, month?: number, year?: number): Promise<StaffAttendanceLog[]> => {
-  let q = query(
+  // Simple query without orderBy to avoid composite index requirement
+  const q = query(
     collection(db, ATTENDANCE_COLLECTION),
-    where('staffId', '==', staffId),
-    orderBy('date', 'desc')
+    where('staffId', '==', staffId)
   );
-  
+
   const snapshot = await getDocs(q);
   let logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffAttendanceLog));
-  
+
   // Filter by month/year if provided
   if (month && year) {
     logs = logs.filter(log => {
@@ -185,8 +204,15 @@ export const getStaffAttendance = async (staffId: string, month?: number, year?:
       return m === month && y === year;
     });
   }
-  
-  return logs;
+
+  // Sort by date descending (client-side)
+  return logs.sort((a, b) => {
+    const [d1, m1, y1] = a.date.split('/').map(Number);
+    const [d2, m2, y2] = b.date.split('/').map(Number);
+    const date1 = new Date(y1, m1 - 1, d1);
+    const date2 = new Date(y2, m2 - 1, d2);
+    return date2.getTime() - date1.getTime();
+  });
 };
 
 // Create attendance log

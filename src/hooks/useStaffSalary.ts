@@ -11,6 +11,7 @@ import {
   updateAttendanceLog,
   deleteAttendanceLog,
 } from '../services/staffSalaryService';
+import { getCheckIns } from '../services/checkInService';
 
 export const useStaffSalary = (month: number, year: number) => {
   const [salaries, setSalaries] = useState<StaffSalaryRecord[]>([]);
@@ -76,12 +77,34 @@ export const useStaffAttendance = (staffId: string, month?: number, year?: numbe
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     try {
+      // Fetch attendance logs
       const data = await getStaffAttendance(staffId, month, year);
-      setLogs(data);
+
+      // Also fetch check-ins to get photo URLs
+      const checkIns = await getCheckIns(staffId, month, year);
+
+      // Create a map of date -> photoUrl from checkIns
+      const photoMap: Record<string, string> = {};
+      checkIns.forEach(ci => {
+        if (ci.checkInPhotoUrl) {
+          // Convert YYYY-MM-DD to DD/MM/YYYY format
+          const [y, m, d] = ci.date.split('-');
+          const formattedDate = `${d}/${m}/${y}`;
+          photoMap[formattedDate] = ci.checkInPhotoUrl;
+        }
+      });
+
+      // Merge photoUrls into attendance logs
+      const logsWithPhotos = data.map(log => ({
+        ...log,
+        photoUrl: log.photoUrl || photoMap[log.date],
+      }));
+
+      setLogs(logsWithPhotos);
     } catch (err) {
       console.error('Error fetching attendance:', err);
       setError('Không thể tải dữ liệu chấm công');

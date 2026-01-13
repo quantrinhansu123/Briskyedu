@@ -57,7 +57,9 @@ export type ModuleKey =
   | 'reports_learning'    // Báo cáo Học Tập (MonthlyReport)
   | 'settings'
   | 'reward_penalty'      // Gap #6: Thưởng/Phạt
-  | 'personal_profile';   // Gap #7: Thông tin cá nhân
+  | 'personal_profile'    // Gap #7: Thông tin cá nhân
+  | 'checkin'             // Staff check-in
+  | 'wifi_management';    // WiFi management (admin only)
 
 // Định nghĩa quyền cho từng action
 export type PermissionAction = 'view' | 'create' | 'edit' | 'delete' | 'approve';
@@ -116,6 +118,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: true, create: true, edit: true, delete: true },
     reward_penalty: { view: true, create: true, edit: true, delete: true },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: true, delete: true },
+    wifi_management: { view: true, create: true, edit: true, delete: true },
   },
 
   // ========================================
@@ -156,6 +160,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -196,6 +202,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -236,6 +244,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -276,6 +286,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -316,6 +328,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -356,6 +370,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -396,6 +412,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false },
     personal_profile: { view: true, create: false, edit: true, delete: false },
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -436,6 +454,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false }, // Ẩn
     reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
     personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -475,6 +495,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
     personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 
   // ========================================
@@ -514,6 +536,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<Record<ModuleKey, Module
     settings: { view: false, create: false, edit: false, delete: false },
     reward_penalty: { view: true, create: false, edit: false, delete: false }, // Hiển thị All
     personal_profile: { view: true, create: false, edit: true, delete: false }, // Sửa thông tin cá nhân
+    checkin: { view: true, create: true, edit: false, delete: false },
+    wifi_management: { view: false, create: false, edit: false, delete: false },
   },
 };
 
@@ -694,7 +718,7 @@ export const shouldOnlyUpdateStatus = (role: UserRole, module: ModuleKey): boole
 export const getVisibleMenuItems = (role: UserRole): ModuleKey[] => {
   const permissions = ROLE_PERMISSIONS[role];
   if (!permissions) return [];
-  
+
   return Object.entries(permissions)
     .filter(([_, perm]) => perm.view)
     .map(([module]) => module as ModuleKey);

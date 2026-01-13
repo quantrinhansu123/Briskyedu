@@ -44,6 +44,8 @@ const CurriculumManager = lazy(() => import('./pages/CurriculumManager').then(m 
 const HomeworkManager = lazy(() => import('./pages/HomeworkManager').then(m => ({ default: m.HomeworkManager })));
 const MonthlyReport = lazy(() => import('./pages/MonthlyReport').then(m => ({ default: m.MonthlyReport })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const CheckInPage = lazy(() => import('./pages/CheckInPage').then(m => ({ default: m.CheckInPage })));
+const WifiManager = lazy(() => import('./pages/WifiManager').then(m => ({ default: m.WifiManager })));
 
 // Page loading spinner component
 const PageLoader: React.FC = () => (
@@ -169,6 +171,10 @@ const App: React.FC = () => {
                 <Route path="/settings/rooms" element={<RoomManager />} />
                 <Route path="/settings/center" element={<CenterSettings />} />
                 <Route path="/settings/curriculum" element={<CurriculumManager />} />
+                <Route path="/settings/wifi" element={<WifiManager />} />
+
+                {/* CheckIn Route */}
+                <Route path="/checkin" element={<CheckInPage />} />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

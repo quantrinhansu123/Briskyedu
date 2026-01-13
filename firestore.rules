@@ -512,6 +512,29 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ========================================
+    // CHECKIN - Staff check-in with WiFi IP verification
+    // ========================================
+
+    // Allowed WiFi configurations - Admin only
+    match /allowedWifis/{wifiId} {
+      allow read: if isStaff();  // All staff can read to verify their IP
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Staff Check-in records - self or admin
+    match /staffCheckIns/{checkInId} {
+      // Staff can read own check-ins, admin can read all
+      allow read: if isAdmin() || resource.data.staffId == request.auth.uid;
+      // Staff can create/update own check-ins
+      allow create: if isStaff() && request.resource.data.staffId == request.auth.uid;
+      allow update: if isStaff() && resource.data.staffId == request.auth.uid;
+      // Only admin can delete
+      allow delete: if isAdmin();
+    }
+
     // Default: deny all other collections
     match /{document=**} {
       allow read, write: if false;

@@ -71,7 +71,7 @@ export interface Student {
   badDebtAmount?: number; // Số tiền nợ xấu (sessions x 150k)
   badDebtDate?: string; // Ngày ghi nhận nợ xấu
   badDebtNote?: string; // Ghi chú nợ xấu
-  
+
   // Nợ hợp đồng (trả góp)
   contractDebt?: number; // Số tiền còn nợ hợp đồng
   nextPaymentDate?: string; // Ngày hẹn thanh toán tiếp theo
@@ -375,17 +375,17 @@ export interface StudentAttendance {
   sessionNumber?: number;
   status: AttendanceStatus;
   note?: string;
-  
+
   // Thông tin điểm số buổi học
   homeworkCompletion?: number;  // % BTVN (0-100)
   testName?: string;            // Tên bài KT (nếu có)
   score?: number;               // Điểm (0-10)
   bonusPoints?: number;         // Điểm thưởng
-  
+
   // Thông tin đúng giờ / trễ giờ
   punctuality?: 'onTime' | 'late' | '';  // Đúng giờ / Trễ giờ
   isLate?: boolean;             // Đi trễ (legacy)
-  
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -399,15 +399,15 @@ export interface MonthlyComment {
   className: string;
   month: number;              // 1-12
   year: number;               // 2025
-  
+
   // Nhận xét từ giáo viên
   teacherComment?: string;
   teacherId?: string;
   teacherName?: string;
-  
+
   // Nhận xét AI (có thể generate)
   aiComment?: string;
-  
+
   // Metadata
   createdAt: string;
   updatedAt?: string;
@@ -751,48 +751,48 @@ export interface Contract {
   code: string;
   type: ContractType;
   category?: ContractCategory; // Loại hợp đồng: mới, tái phí, liên kết
-  
+
   // Student Info
   studentId?: string;
   studentName?: string;
   studentDOB?: string;
   parentName?: string;
   parentPhone?: string;
-  
+
   // Items
   items: ContractItem[];
-  
+
   // Financial
   subtotal: number;
   totalDiscount: number;
   totalAmount: number;
   totalAmountInWords: string;
-  
+
   // Payment
   paymentMethod: PaymentMethod;
   paidAmount: number;
   remainingAmount: number;
-  
+
   // Dates
   contractDate: string;
   startDate?: string; // Ngày bắt đầu hợp đồng
   paymentDate?: string;
   nextPaymentDate?: string; // Ngày hẹn thanh toán tiếp theo (cho nợ hợp đồng)
-  
+
   // Class Info
   classId?: string;
   className?: string;
-  
+
   // Session Info (for financial reports)
   totalSessions?: number;
   pricePerSession?: number;
-  
+
   // Status
   status: ContractStatus;
-  
+
   // Notes
   notes?: string;
-  
+
   // Metadata
   createdAt: string;
   updatedAt: string;
@@ -872,3 +872,55 @@ export interface SettlementInvoice {
   updatedAt?: string;
   note?: string;
 }
+
+// ==========================================
+// WIFI & CHECKIN TYPES
+// ==========================================
+
+/**
+ * WiFi configuration for IP verification
+ * Admin configures allowed WiFi networks with their public IPs
+ */
+export interface AllowedWifi {
+  id: string;
+  name: string;           // WiFi name (SSID)
+  publicIp: string;       // Public IP of the WiFi network
+  branch?: string;        // Branch/center this WiFi belongs to
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+/**
+ * Staff CheckIn record
+ * Records daily check-in/check-out with IP verification
+ */
+export type CheckInVerificationMethod = 'ip' | 'wifi_name' | 'manual';
+export type CheckInStatus = 'checked_in' | 'checked_out' | 'invalid';
+
+export interface StaffCheckIn {
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string;           // YYYY-MM-DD
+  checkInTime?: string;   // HH:mm
+  checkOutTime?: string;  // HH:mm
+
+  // Verification data
+  detectedIp: string;
+  detectedWifiName?: string;  // From user input when IP doesn't match
+  matchedWifiId?: string;     // ID of matched AllowedWifi
+  verificationMethod: CheckInVerificationMethod;
+
+  // Photo capture
+  checkInPhotoUrl?: string;   // Photo taken at check-in
+  checkOutPhotoUrl?: string;  // Photo taken at check-out
+
+  // Status
+  status: CheckInStatus;
+  note?: string;
+
+  createdAt: string;
+  updatedAt?: string;
+}
+

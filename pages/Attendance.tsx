@@ -195,10 +195,13 @@ export const Attendance: React.FC = () => {
     setSessionDropdownOpen(false);
   }, [selectedClassId]);
 
-  // Bug 3 fix: Load completed session IDs from attendance records with realtime listener
+  // Bug 3 fix: Load completed session IDs AND dates from attendance records with realtime listener
+  const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (!selectedClassId) {
       setCompletedSessionIds(new Set());
+      setCompletedDates(new Set());
       return;
     }
 
@@ -212,13 +215,20 @@ export const Attendance: React.FC = () => {
       attendanceQuery,
       (snapshot) => {
         const completedIds = new Set<string>();
+        const completedDateSet = new Set<string>();
         snapshot.docs.forEach(doc => {
           const data = doc.data();
+          // Track by sessionId if available
           if (data.sessionId) {
             completedIds.add(data.sessionId);
           }
+          // Also track by date for legacy records without sessionId
+          if (data.date) {
+            completedDateSet.add(data.date);
+          }
         });
         setCompletedSessionIds(completedIds);
+        setCompletedDates(completedDateSet);
       },
       (error) => {
         console.error('Error listening to completed sessions:', error);
@@ -868,8 +878,8 @@ export const Attendance: React.FC = () => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;
                           const isToday = s.date === today;
-                          // Bug 3 fix: Also check completedSessionIds from attendance records
-                          const isCompleted = s.status === 'Đã học' || s.attendanceId || (s.id && completedSessionIds.has(s.id));
+                          // Bug 3 fix: Check by sessionId OR by date (for legacy records without sessionId)
+                          const isCompleted = s.status === 'Đã học' || s.attendanceId || (s.id && completedSessionIds.has(s.id)) || completedDates.has(s.date);
                           
                           let bgClass = 'bg-white hover:bg-gray-50';
                           let iconColor = '#9ca3af';

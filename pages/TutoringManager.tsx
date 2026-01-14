@@ -15,6 +15,7 @@ import { useClasses } from '../src/hooks/useClasses';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStaff } from '../src/hooks/useStaff';
+import { isTeacherRole, isAssistantRole } from '../src/utils/roleUtils';
 
 // ============================================
 // REASON MODAL (for Nghỉ tính phí)
@@ -429,12 +430,13 @@ export const TutoringManager: React.FC = () => {
   const { classes: allClasses } = useClasses();
   const { staff } = useStaff();
 
-  // Get unique teachers from staff
+  // Get teachers AND assistants from staff (both can tutor)
   const teachers = useMemo(() => {
     return staff.filter(s =>
-      s.position?.toLowerCase().includes('giáo viên') ||
-      s.position?.toLowerCase().includes('teacher') ||
-      s.position?.toLowerCase().includes('gv')
+      isTeacherRole(s.position || '') ||
+      isTeacherRole(s.role || '') ||
+      isAssistantRole(s.position || '') ||
+      isAssistantRole(s.role || '')
     );
   }, [staff]);
 

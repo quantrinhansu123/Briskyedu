@@ -56,23 +56,26 @@ export const useSessions = (props?: UseSessionsProps): UseSessionsReturn => {
       setLoading(true);
       setError(null);
 
-      // Fetch all sessions for the class
+      // Fetch all sessions for the class (no status filter for allSessions)
       const allSessions = await getSessionsByClass(props.classId, {
-        status: props.status,
         fromDate: props.fromDate,
         toDate: props.toDate,
       });
       setSessions(allSessions);
 
-      // Fetch upcoming sessions (get all, no limit for dropdown)
+      // Fetch upcoming sessions (status = 'Chưa học')
       const upcoming = await getUpcomingSessions(props.classId, 100);
       setUpcomingSessions(upcoming);
     } catch (err) {
+      console.error('[useSessions] Error fetching sessions for class', props.classId, err);
       setError(err instanceof Error ? err.message : 'Lỗi tải buổi học');
+      // Reset to empty arrays on error to prevent stale data
+      setSessions([]);
+      setUpcomingSessions([]);
     } finally {
       setLoading(false);
     }
-  }, [props?.classId, props?.status, props?.fromDate, props?.toDate]);
+  }, [props?.classId, props?.fromDate, props?.toDate]);
 
   useEffect(() => {
     fetchSessions();

@@ -135,22 +135,40 @@ export const ClassManager: React.FC = () => {
         
         // Count students per class
         students.forEach((student: any) => {
-          const classId = student.classId;
+          const primaryClassId = student.classId;
+          const classIds = student.classIds || []; // Array of all classes student enrolled
           const className = student.class || student.className;
           const status = normalizeStatus(student.status || '');
-          
-          // Find matching class by ID or name
-          let matchedClassId = classId;
-          if (!matchedClassId && className) {
-            const matchedClass = classes.find(c => 
-              c.name === className || 
+
+          // Get all class IDs this student belongs to
+          const allClassIds: string[] = [];
+
+          // Add primary classId if exists
+          if (primaryClassId && counts[primaryClassId]) {
+            allClassIds.push(primaryClassId);
+          }
+
+          // Add all classIds from array
+          classIds.forEach((cId: string) => {
+            if (cId && counts[cId] && !allClassIds.includes(cId)) {
+              allClassIds.push(cId);
+            }
+          });
+
+          // If no classIds found, try matching by class name
+          if (allClassIds.length === 0 && className) {
+            const matchedClass = classes.find(c =>
+              c.name === className ||
               c.id === className ||
               c.name?.toLowerCase() === className?.toLowerCase()
             );
-            if (matchedClass) matchedClassId = matchedClass.id;
+            if (matchedClass && counts[matchedClass.id]) {
+              allClassIds.push(matchedClass.id);
+            }
           }
-          
-          if (matchedClassId && counts[matchedClassId]) {
+
+          // Count for each matched class
+          allClassIds.forEach(matchedClassId => {
             counts[matchedClassId].total++;
 
             // Count by status - "Nợ phí" takes priority if hasDebt is true
@@ -177,9 +195,9 @@ export const ClassManager: React.FC = () => {
                 counts[matchedClassId].remainingValue += remaining * PRICE_PER_SESSION;
               }
             }
-          }
+          });
         });
-        
+
         setClassStudentCounts(counts);
       },
       (err) => {

@@ -3,10 +3,10 @@
  * Quản lý các buổi học kèm, bồi dưỡng kiến thức
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   BookOpen, Plus, Calendar, Clock, X, Check, Trash2, Users,
-  Circle, CheckCircle2, CalendarCheck, Sparkles,
+  Circle, CheckCircle2, CalendarCheck, Sparkles, Search,
   ChevronDown, XCircle, PauseCircle, RotateCcw  // NEW icons
 } from 'lucide-react';
 import { useTutoring, TutoringData, TutoringStatus, TERMINAL_STATUSES } from '../src/hooks/useTutoring';
@@ -907,6 +907,32 @@ const CreateTutoringModal: React.FC<CreateModalProps> = ({ students, classes, te
   });
   const [loading, setLoading] = useState(false);
 
+  // Searchable dropdown states
+  const [studentSearch, setStudentSearch] = useState('');
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const studentDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setShowStudentDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter students by search term
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students;
+    const term = studentSearch.toLowerCase();
+    return students.filter(s =>
+      s.fullName?.toLowerCase().includes(term) ||
+      s.class?.toLowerCase().includes(term)
+    );
+  }, [students, studentSearch]);
+
   const selectedStudent = students.find(s => s.id === formData.studentId);
   const selectedClass = classes.find(c => c.name === selectedStudent?.class);
 
@@ -957,24 +983,65 @@ const CreateTutoringModal: React.FC<CreateModalProps> = ({ students, classes, te
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Student Select */}
-          <div>
+          {/* Student Select - Searchable Dropdown */}
+          <div className="relative" ref={studentDropdownRef}>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
               Học sinh <span className="text-rose-500">*</span>
             </label>
-            <select
-              required
-              value={formData.studentId}
-              onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-slate-800 font-medium transition-all"
-            >
-              <option value="">-- Chọn học sinh --</option>
-              {students.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.fullName} - {s.class || 'Chưa có lớp'}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={formData.studentId ? (selectedStudent?.fullName || '') : studentSearch}
+                onChange={(e) => {
+                  setStudentSearch(e.target.value);
+                  setFormData({ ...formData, studentId: '' });
+                  setShowStudentDropdown(true);
+                }}
+                onFocus={() => setShowStudentDropdown(true)}
+                placeholder="Tìm kiếm học sinh..."
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-slate-800 font-medium transition-all"
+              />
+              {formData.studentId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, studentId: '' });
+                    setStudentSearch('');
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            {showStudentDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                {filteredStudents.length > 0 ? (
+                  filteredStudents.slice(0, 50).map(s => (
+                    <div
+                      key={s.id}
+                      className={`px-4 py-3 cursor-pointer hover:bg-violet-50 border-b border-slate-100 last:border-0 ${formData.studentId === s.id ? 'bg-violet-100' : ''}`}
+                      onClick={() => {
+                        setFormData({ ...formData, studentId: s.id });
+                        setStudentSearch('');
+                        setShowStudentDropdown(false);
+                      }}
+                    >
+                      <div className="font-medium text-slate-800">{s.fullName}</div>
+                      <div className="text-xs text-slate-500">{s.class || 'Chưa có lớp'}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-slate-400">Không tìm thấy học sinh</div>
+                )}
+                {filteredStudents.length > 50 && (
+                  <div className="px-4 py-2 text-xs text-slate-400 bg-slate-50 text-center">
+                    Còn {filteredStudents.length - 50} học sinh khác. Hãy nhập thêm để lọc...
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Date & Time */}

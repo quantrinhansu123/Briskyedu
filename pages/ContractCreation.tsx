@@ -9,10 +9,10 @@ import {
   FileText, Plus, X, Calculator, DollarSign,
   User, Calendar, Save, FileCheck, Printer, Download
 } from 'lucide-react';
-import { downloadContractAsPdf, ContractCenterInfo } from '../src/utils/contract-pdf-generator';
+import { downloadContractAsPdf, printContract, ContractCenterInfo } from '../src/utils/contract-pdf-generator';
 import {
   Contract, ContractType, ContractCategory, ContractItem, PaymentMethod,
-  Student, Course, Product, ContractStatus, Discount, ClassStatus
+  Student, Course, Product, ContractStatus, Discount, ClassStatus, AppliedDiscount
 } from '../types';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStudents } from '../src/hooks/useStudents';
@@ -37,6 +37,7 @@ interface CenterInfo {
   address: string;
   phone: string;
   email: string;
+  signatureUrl?: string;
 }
 
 const DEFAULT_CENTER_INFO: CenterInfo = {
@@ -45,6 +46,7 @@ const DEFAULT_CENTER_INFO: CenterInfo = {
   address: 'Tây Mỗ, Nam Từ Liêm, Hà Nội',
   phone: '0912.345.678',
   email: 'contact@brisky.edu.vn',
+  signatureUrl: '/signature-party-a.png',
 };
 
 // Contract Preview Component
@@ -61,49 +63,17 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
-    
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Hợp đồng - ${contract.code || 'Mới'}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .header h1 { font-size: 24px; margin: 0; text-transform: uppercase; }
-            .header p { margin: 5px 0; color: #666; }
-            .contract-title { text-align: center; margin: 30px 0; }
-            .contract-title h2 { font-size: 20px; text-transform: uppercase; margin: 0; }
-            .contract-title p { margin: 5px 0; }
-            .section { margin: 20px 0; }
-            .section-title { font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-            .info-row { display: flex; margin: 8px 0; }
-            .info-label { width: 150px; font-weight: bold; }
-            .info-value { flex: 1; }
-            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-            th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-            th { background: #f0f0f0; }
-            .total-row { font-weight: bold; background: #f9f9f9; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
-            .signature-box { text-align: center; width: 200px; }
-            .signature-line { border-top: 1px solid #333; margin-top: 60px; padding-top: 5px; }
-            .amount-words { font-style: italic; background: #f5f5f5; padding: 10px; margin: 10px 0; }
-            @media print { body { padding: 20px; } }
-          </style>
-        </head>
-        <body>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+  // Use shared printContract utility which converts signature to base64 for proper rendering
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printContract(contract as Contract, centerInfo);
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   return (
@@ -114,25 +84,9 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
             <FileCheck size={24} />
             Hợp đồng đã được tạo thành công!
           </h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => downloadContractAsPdf(contract, centerInfo)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <Download size={18} />
-              Tải PDF
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-            >
-              <Printer size={18} />
-              In hợp đồng
-            </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
-              <X size={24} />
-            </button>
-          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <X size={24} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -299,17 +253,28 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
               </ol>
             </div>
 
-            {/* Signatures */}
+            {/* Signatures with Party A signature image */}
             <div className="signatures flex justify-between mt-12">
-              <div className="signature-box text-center">
+              <div className="signature-box text-center" style={{ width: '200px' }}>
                 <p className="font-bold">ĐẠI DIỆN BÊN A</p>
                 <p className="text-sm text-gray-500">(Ký, ghi rõ họ tên)</p>
-                <div className="signature-line border-t border-gray-400 mt-16 pt-2"></div>
+                <div className="flex items-center justify-center my-4" style={{ minHeight: '60px' }}>
+                  <img
+                    src={centerInfo.signatureUrl || '/signature-party-a.png'}
+                    alt="Chữ ký bên A"
+                    className="h-12 max-w-[150px] object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+                <div className="signature-line border-t border-gray-400 pt-2 font-medium">
+                  {centerInfo.representative.split(' - ')[0] || ''}
+                </div>
               </div>
-              <div className="signature-box text-center">
+              <div className="signature-box text-center" style={{ width: '200px' }}>
                 <p className="font-bold">ĐẠI DIỆN BÊN B</p>
                 <p className="text-sm text-gray-500">(Ký, ghi rõ họ tên)</p>
-                <div className="signature-line border-t border-gray-400 mt-16 pt-2"></div>
+                <div style={{ minHeight: '60px' }} className="my-4"></div>
+                <div className="signature-line border-t border-gray-400 pt-2"></div>
               </div>
             </div>
           </div>
@@ -331,10 +296,11 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
           </button>
           <button
             onClick={handlePrint}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+            disabled={isPrinting}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50"
           >
             <Printer size={18} />
-            In hợp đồng
+            {isPrinting ? 'Đang xử lý...' : 'In hợp đồng'}
           </button>
         </div>
       </div>
@@ -369,11 +335,15 @@ export const ContractCreation: React.FC = () => {
   const [showContractPreview, setShowContractPreview] = useState(false);
   const [createdContract, setCreatedContract] = useState<Partial<Contract> | null>(null);
   const [centerInfo, setCenterInfo] = useState<CenterInfo>(DEFAULT_CENTER_INFO);
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [selectedCenterId, setSelectedCenterId] = useState<string>(''); // For Party A selection
   const [showPartialPaymentModal, setShowPartialPaymentModal] = useState(false);
   const [partialPaidAmount, setPartialPaidAmount] = useState<number>(0);
   const [partialPaymentDate, setPartialPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [nextPaymentDate, setNextPaymentDate] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState<string>('');
+  const [contractDate, setContractDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Discounts from configuration
   const [discounts, setDiscounts] = useState<Discount[]>([]);
@@ -391,28 +361,67 @@ export const ContractCreation: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch main center info for contract
+  // Fetch centers list
   useEffect(() => {
-    const loadCenterInfo = async () => {
+    const loadCenters = async () => {
       try {
-        const centers = await getCenters();
-        const mainCenter = centers.find(c => c.isMain) || centers[0];
+        const centersList = await getCenters();
+        setCenters(centersList);
+        // Build branches list from all active centers
+        const branches = centersList
+          .filter(c => c.status === 'Active')
+          .map(c => ({ code: c.code, address: c.address }));
+        // Set default center info from main center
+        const mainCenter = centersList.find(c => c.isMain) || centersList[0];
         if (mainCenter) {
           setCenterInfo({
-            centerName: mainCenter.name || DEFAULT_CENTER_INFO.centerName,
+            centerName: DEFAULT_CENTER_INFO.centerName, // Always use company name
             representative: mainCenter.manager || DEFAULT_CENTER_INFO.representative,
             address: mainCenter.address || DEFAULT_CENTER_INFO.address,
-            phone: mainCenter.phone || DEFAULT_CENTER_INFO.phone,
+            phone: DEFAULT_CENTER_INFO.phone, // Use company hotline
             email: mainCenter.email || DEFAULT_CENTER_INFO.email,
+            signatureUrl: mainCenter.signatureUrl || '',
+            branches,
+            logoUrl: '/logo.jpg',
           });
         }
       } catch (error) {
-        console.error('Error loading center info:', error);
-        // Keep default if error
+        console.error('Error loading centers:', error);
       }
     };
-    loadCenterInfo();
+    loadCenters();
   }, []);
+
+  // Update center info when student changes (based on student's branch)
+  useEffect(() => {
+    if (!selectedStudent?.branch || centers.length === 0) return;
+
+    // Build branches list from all active centers
+    const branches = centers
+      .filter(c => c.status === 'Active')
+      .map(c => ({ code: c.code, address: c.address }));
+
+    // Find center matching student's branch
+    const studentCenter = centers.find(c =>
+      c.name === selectedStudent.branch ||
+      c.code === selectedStudent.branch ||
+      c.name?.includes(selectedStudent.branch) ||
+      selectedStudent.branch?.includes(c.name)
+    );
+
+    if (studentCenter) {
+      setCenterInfo({
+        centerName: DEFAULT_CENTER_INFO.centerName, // Always use company name
+        representative: studentCenter.manager || DEFAULT_CENTER_INFO.representative,
+        address: studentCenter.address || DEFAULT_CENTER_INFO.address,
+        phone: DEFAULT_CENTER_INFO.phone, // Use company hotline
+        email: studentCenter.email || DEFAULT_CENTER_INFO.email,
+        signatureUrl: studentCenter.signatureUrl || '',
+        branches,
+        logoUrl: '/logo.jpg',
+      });
+    }
+  }, [selectedStudent?.branch, centers]);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
 
   // Smart filtering: Filter classes by status and student's branch
@@ -442,39 +451,11 @@ export const ContractCreation: React.FC = () => {
     }));
   }, [filteredClasses]);
 
-  // Date format helpers (ISO <-> dd/mm/yyyy)
+  // Date format helper (ISO -> dd/mm/yyyy for display)
   const isoToVN = (isoDate: string) => {
     if (!isoDate) return '';
     const [y, m, d] = isoDate.split('-');
     return `${d}/${m}/${y}`;
-  };
-  const vnToISO = (vnDate: string) => {
-    if (!vnDate) return '';
-    const parts = vnDate.split('/');
-    if (parts.length !== 3) return '';
-    const [d, m, y] = parts;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  };
-  const handleDateInput = (value: string, setter: (v: string) => void) => {
-    // Allow typing in dd/mm/yyyy format
-    const cleaned = value.replace(/[^0-9/]/g, '');
-    if (cleaned.length <= 10) {
-      // Auto-add slashes
-      let formatted = cleaned;
-      if (cleaned.length === 2 && !cleaned.includes('/')) {
-        formatted = cleaned + '/';
-      } else if (cleaned.length === 5 && cleaned.split('/').length === 2) {
-        formatted = cleaned + '/';
-      }
-      // If complete date, convert to ISO
-      if (formatted.length === 10 && formatted.split('/').length === 3) {
-        const iso = vnToISO(formatted);
-        if (iso && !isNaN(Date.parse(iso))) {
-          setter(iso);
-          return;
-        }
-      }
-    }
   };
 
   // Convert curriculums to course format for contract
@@ -536,6 +517,43 @@ export const ContractCreation: React.FC = () => {
       s.phone?.includes(term)
     ).slice(0, 50);
   }, [students, studentSearchTerm]);
+
+  // Auto-calculate end date based on total sessions and class schedule
+  useEffect(() => {
+    if (!startDate || items.length === 0) {
+      setEndDate('');
+      return;
+    }
+
+    const totalSessions = items
+      .filter(item => item.type === 'course')
+      .reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    if (totalSessions <= 0) {
+      setEndDate('');
+      return;
+    }
+
+    // Get selected class schedule to calculate sessions per week
+    const selectedClass = classes.find(c => c.id === selectedClassId);
+    let sessionsPerWeek = 2; // Default: 2 sessions per week
+
+    if (selectedClass?.schedule) {
+      // Count number of unique days in class schedule
+      // schedule format: "T2, T4" or "Thứ 2, Thứ 4" etc.
+      const scheduleDays = selectedClass.schedule.split(',').filter(d => d.trim()).length;
+      if (scheduleDays > 0) {
+        sessionsPerWeek = scheduleDays;
+      }
+    }
+
+    // Calculate end date: startDate + (totalSessions / sessionsPerWeek) weeks
+    const weeksNeeded = Math.ceil(totalSessions / sessionsPerWeek);
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + (weeksNeeded * 7));
+    setEndDate(end.toISOString().split('T')[0]);
+  }, [startDate, items, selectedClassId, classes]);
 
   // Calculate totals
   const calculations = useMemo(() => {
@@ -613,6 +631,96 @@ export const ContractCreation: React.FC = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // Toggle discount on/off for an item (supports multiple discounts)
+  const toggleDiscount = (itemIndex: number, discount: Discount, checked: boolean) => {
+    const newItems = [...items];
+    const item = { ...newItems[itemIndex] };
+
+    let appliedDiscounts = [...(item.appliedDiscounts || [])];
+
+    if (checked) {
+      // Add discount - calculate amount based on type (from original subtotal for parallel calc)
+      const amount = discount.type === 'percent'
+        ? item.subtotal * (discount.value / 100)
+        : Math.min(discount.value, item.subtotal); // Fixed amount can't exceed subtotal
+
+      appliedDiscounts.push({
+        discountId: discount.id!,
+        name: discount.name,
+        type: discount.type,
+        value: discount.value,
+        amount: Math.round(amount),
+      });
+    } else {
+      // Remove discount
+      appliedDiscounts = appliedDiscounts.filter(ad => ad.discountId !== discount.id);
+    }
+
+    // Recalculate totals (parallel = sum of all discounts from original price)
+    const totalDiscountAmount = appliedDiscounts.reduce((sum, ad) => sum + ad.amount, 0);
+
+    item.appliedDiscounts = appliedDiscounts;
+    item.discount = item.subtotal > 0 ? Math.min(totalDiscountAmount / item.subtotal, 1) : 0;
+    item.finalPrice = Math.max(item.subtotal - totalDiscountAmount, 0);
+
+    newItems[itemIndex] = item;
+    setItems(newItems);
+  };
+
+  // Add custom discount (supports both % and fixed amount)
+  const addCustomDiscount = (itemIndex: number, value: number, type: 'percent' | 'fixed') => {
+    if (value <= 0) return;
+
+    const newItems = [...items];
+    const item = { ...newItems[itemIndex] };
+
+    let appliedDiscounts = [...(item.appliedDiscounts || [])];
+
+    // Remove any existing custom discount
+    appliedDiscounts = appliedDiscounts.filter(ad => !ad.discountId.startsWith('custom-'));
+
+    // Calculate amount
+    const amount = type === 'percent'
+      ? item.subtotal * (value / 100)
+      : Math.min(value, item.subtotal);
+
+    // Add new custom discount
+    appliedDiscounts.push({
+      discountId: `custom-${Date.now()}`,
+      name: type === 'percent' ? `Tùy chỉnh ${value}%` : `Giảm ${formatCurrency(value)}`,
+      type,
+      value,
+      amount: Math.round(amount),
+    });
+
+    // Recalculate totals
+    const totalDiscountAmount = appliedDiscounts.reduce((sum, ad) => sum + ad.amount, 0);
+
+    item.appliedDiscounts = appliedDiscounts;
+    item.discount = item.subtotal > 0 ? Math.min(totalDiscountAmount / item.subtotal, 1) : 0;
+    item.finalPrice = Math.max(item.subtotal - totalDiscountAmount, 0);
+
+    newItems[itemIndex] = item;
+    setItems(newItems);
+  };
+
+  // Remove a specific discount from an item
+  const removeDiscount = (itemIndex: number, discountId: string) => {
+    const newItems = [...items];
+    const item = { ...newItems[itemIndex] };
+
+    let appliedDiscounts = (item.appliedDiscounts || []).filter(ad => ad.discountId !== discountId);
+
+    const totalDiscountAmount = appliedDiscounts.reduce((sum, ad) => sum + ad.amount, 0);
+
+    item.appliedDiscounts = appliedDiscounts;
+    item.discount = item.subtotal > 0 ? Math.min(totalDiscountAmount / item.subtotal, 1) : 0;
+    item.finalPrice = Math.max(item.subtotal - totalDiscountAmount, 0);
+
+    newItems[itemIndex] = item;
+    setItems(newItems);
+  };
+
   // Handle submit
   const handleSubmit = async (status: ContractStatus) => {
     if (!user) {
@@ -661,7 +769,8 @@ export const ContractCreation: React.FC = () => {
         studentName: selectedStudent?.fullName,
         studentDOB: selectedStudent?.dob,
         parentName: selectedStudent?.parentName,
-        parentPhone: selectedStudent?.phone,
+        parentPhone: selectedStudent?.parentPhone || selectedStudent?.phone, // Prefer parentPhone, fallback to phone
+        branch: selectedStudent?.branch || selectedClass?.branch, // Lưu cơ sở từ học viên hoặc lớp
         items,
         subtotal: calculations.subtotal,
         totalDiscount: calculations.totalDiscount,
@@ -670,13 +779,14 @@ export const ContractCreation: React.FC = () => {
         paymentMethod,
         paidAmount,
         remainingAmount,
-        contractDate: new Date().toISOString(),
+        contractDate: contractDate ? new Date(contractDate).toISOString() : new Date().toISOString(),
         startDate: startDate || new Date().toISOString().split('T')[0],
+        endDate: endDate || undefined, // Ngày kết thúc dự kiến
         classId: selectedClassId || undefined,
         className: selectedClass?.name || undefined,
         totalSessions,
         pricePerSession,
-        paymentDate: status === ContractStatus.PAID ? new Date().toISOString() : 
+        paymentDate: status === ContractStatus.PAID ? new Date().toISOString() :
                      status === ContractStatus.PARTIAL ? partialPaymentDate : undefined,
         nextPaymentDate: status === ContractStatus.PARTIAL && nextPaymentDate ? nextPaymentDate : undefined,
         status,
@@ -741,9 +851,14 @@ export const ContractCreation: React.FC = () => {
             </h2>
             <p className="text-sm text-gray-500 mt-1">Mã hợp đồng sẽ được tạo tự động (Brisky001-999)</p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Ngày tạo</p>
-            <p className="font-semibold text-gray-800">{new Date().toLocaleDateString('vi-VN')}</p>
+          <div className="text-sm text-gray-500">
+            Ngày tạo: <span className="font-semibold text-gray-800">{isoToVN(contractDate)}</span>
+            <input
+              type="date"
+              value={contractDate}
+              onChange={(e) => setContractDate(e.target.value)}
+              className="ml-2 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
           </div>
         </div>
       </div>
@@ -815,6 +930,48 @@ export const ContractCreation: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Chuyển từ hệ thống cũ</p>
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Center/Branch Selection for Party A */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="font-bold text-gray-800 mb-4">Chi nhánh thực hiện (Bên A)</h3>
+        <select
+          value={selectedCenterId}
+          onChange={(e) => {
+            const center = centers.find(c => c.id === e.target.value);
+            setSelectedCenterId(e.target.value);
+            if (center) {
+              const branches = centers
+                .filter(c => c.status === 'Active')
+                .map(c => ({ code: c.code, address: c.address }));
+              setCenterInfo({
+                centerName: DEFAULT_CENTER_INFO.centerName,
+                representative: center.manager || DEFAULT_CENTER_INFO.representative,
+                address: center.address || DEFAULT_CENTER_INFO.address,
+                phone: center.phone || DEFAULT_CENTER_INFO.phone,
+                email: center.email || DEFAULT_CENTER_INFO.email,
+                signatureUrl: center.signatureUrl || '',
+                branches,
+                logoUrl: '/logo.jpg',
+              });
+            }
+          }}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        >
+          <option value="">-- Chọn chi nhánh --</option>
+          {centers.filter(c => c.status === 'Active').map(c => (
+            <option key={c.id} value={c.id}>
+              {c.name} - {c.address}
+            </option>
+          ))}
+        </select>
+        {selectedCenterId && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm space-y-1">
+            <p><span className="text-gray-500">Đại diện:</span> {centerInfo.representative}</p>
+            <p><span className="text-gray-500">Địa chỉ:</span> {centerInfo.address}</p>
+            <p><span className="text-gray-500">SĐT:</span> {centerInfo.phone}</p>
           </div>
         )}
       </div>
@@ -921,26 +1078,32 @@ export const ContractCreation: React.FC = () => {
               </div>
             )}
 
-            {/* Ngày bắt đầu & Lớp học */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {/* Ngày bắt đầu, Ngày kết thúc & Lớp học */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ngày bắt đầu hợp đồng <span className="text-red-500">*</span>
+                  Ngày bắt đầu <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={isoToVN(startDate)}
-                    readOnly
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                  />
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ngày kết thúc dự kiến
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tự động tính từ số buổi + lịch lớp
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1020,7 +1183,7 @@ export const ContractCreation: React.FC = () => {
                   <th className="px-4 py-3 text-right">Đơn giá</th>
                   <th className="px-4 py-3 text-center">Số lượng</th>
                   <th className="px-4 py-3 text-right">Tổng tiền</th>
-                  <th className="px-4 py-3 text-center">Ưu đãi (%)</th>
+                  <th className="px-4 py-3 text-left">Ưu đãi</th>
                   <th className="px-4 py-3 text-right">Thành tiền</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -1059,66 +1222,100 @@ export const ContractCreation: React.FC = () => {
                       {formatCurrency(item.subtotal)}
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={
-                          // Find matching discount by calculated value
-                          discounts.find(d => {
-                            if (d.type === 'percent') {
-                              return d.value === item.discount * 100;
-                            } else {
-                              // For fixed: check if finalPrice matches subtotal - fixed value
-                              return item.subtotal - d.value === item.finalPrice;
-                            }
-                          })?.id || (item.discount > 0 ? 'custom' : '0')
-                        }
-                        onChange={(e) => {
-                          const selectedId = e.target.value;
-                          if (selectedId === '0') {
-                            // No discount
-                            updateItem(index, 'discount', 0);
-                          } else if (selectedId === 'custom') {
-                            // Custom: set small default to trigger custom input
-                            updateItem(index, 'discount', 0.01);
-                          } else {
-                            // Find discount by ID
-                            const selectedDiscount = discounts.find(d => d.id === selectedId);
-                            if (selectedDiscount) {
-                              if (selectedDiscount.type === 'percent') {
-                                updateItem(index, 'discount', selectedDiscount.value / 100);
-                              } else {
-                                // Fixed amount: calculate equivalent percent
-                                const subtotal = item.subtotal || 0;
-                                const fixedPercent = subtotal > 0 ? selectedDiscount.value / subtotal : 0;
-                                updateItem(index, 'discount', Math.min(fixedPercent, 1)); // Cap at 100%
+                      <div className="space-y-2">
+                        {/* Checkbox list for available discounts */}
+                        {discounts.filter(d => d.status === 'Kích hoạt').map(d => {
+                          const isSelected = (item.appliedDiscounts || [])
+                            .some(ad => ad.discountId === d.id);
+                          return (
+                            <label key={d.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => toggleDiscount(index, d, e.target.checked)}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="flex-1">{d.name}</span>
+                              <span className="text-gray-500">
+                                {d.type === 'percent' ? `${d.value}%` : `-${formatCurrency(d.value)}`}
+                              </span>
+                            </label>
+                          );
+                        })}
+
+                        {/* Custom discount input */}
+                        <div className="flex items-center gap-1 pt-2 border-t border-gray-200">
+                          <span className="text-xs text-gray-500">Tùy chỉnh:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Giá trị"
+                            className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const target = e.target as HTMLInputElement;
+                                const value = parseFloat(target.value) || 0;
+                                const typeSelect = target.nextElementSibling as HTMLSelectElement;
+                                const type = typeSelect?.value as 'percent' | 'fixed';
+                                if (value > 0) {
+                                  addCustomDiscount(index, value, type);
+                                  target.value = '';
+                                }
                               }
-                            }
-                          }
-                        }}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm cursor-pointer"
-                      >
-                        <option value="0">Không ưu đãi</option>
-                        {discounts.map(d => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} {d.type === 'percent' ? `(${d.value}%)` : `(-${formatCurrency(d.value)})`}
-                          </option>
-                        ))}
-                        <option value="custom">Tùy chỉnh...</option>
-                      </select>
-                      {/* Show custom input when: discount > 0 AND no matching discount found */}
-                      {item.discount > 0 && !discounts.some(d =>
-                        (d.type === 'percent' && d.value === item.discount * 100) ||
-                        (d.type === 'fixed' && item.subtotal - d.value === item.finalPrice)
-                      ) && (
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={Math.round(item.discount * 100)}
-                          onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) / 100 || 0)}
-                          className="w-16 px-2 py-1 border border-gray-300 rounded text-center mt-1"
-                          placeholder="%"
-                        />
-                      )}
+                            }}
+                          />
+                          <select
+                            className="text-xs border border-gray-300 rounded px-1 py-0.5"
+                            defaultValue="percent"
+                          >
+                            <option value="percent">%</option>
+                            <option value="fixed">VND</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const container = (e.target as HTMLElement).parentElement;
+                              const input = container?.querySelector('input') as HTMLInputElement;
+                              const select = container?.querySelector('select') as HTMLSelectElement;
+                              const value = parseFloat(input?.value) || 0;
+                              const type = select?.value as 'percent' | 'fixed';
+                              if (value > 0) {
+                                addCustomDiscount(index, value, type);
+                                input.value = '';
+                              }
+                            }}
+                            className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded hover:bg-indigo-600"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Show applied discounts breakdown */}
+                        {(item.appliedDiscounts?.length || 0) > 0 && (
+                          <div className="text-xs p-2 bg-green-50 rounded border border-green-200 mt-2">
+                            <div className="font-medium text-green-800 mb-1">Ưu đãi đã áp dụng:</div>
+                            {item.appliedDiscounts!.map((ad) => (
+                              <div key={ad.discountId} className="flex justify-between items-center text-green-700">
+                                <span className="flex items-center gap-1">
+                                  {ad.name}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeDiscount(index, ad.discountId)}
+                                    className="text-red-400 hover:text-red-600"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                                <span>-{formatCurrency(ad.amount)}</span>
+                              </div>
+                            ))}
+                            <div className="border-t border-green-300 mt-1 pt-1 font-medium flex justify-between text-green-800">
+                              <span>Tổng giảm</span>
+                              <span>-{formatCurrency(item.subtotal - item.finalPrice)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-indigo-600">
                       {formatCurrency(item.finalPrice)}
@@ -1257,20 +1454,12 @@ export const ContractCreation: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ngày thanh toán
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={isoToVN(partialPaymentDate)}
-                  readOnly
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-                <input
-                  type="date"
-                  value={partialPaymentDate}
-                  onChange={(e) => setPartialPaymentDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
+              <input
+                type="date"
+                value={partialPaymentDate}
+                onChange={(e) => setPartialPaymentDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+              />
             </div>
 
             {/* Số tiền đã thanh toán */}
@@ -1302,22 +1491,13 @@ export const ContractCreation: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ngày hẹn thanh toán tiếp theo <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={isoToVN(nextPaymentDate)}
-                  readOnly
-                  placeholder="dd/mm/yyyy"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-                <input
-                  type="date"
-                  value={nextPaymentDate}
-                  onChange={(e) => setNextPaymentDate(e.target.value)}
-                  min={partialPaymentDate}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
+              <input
+                type="date"
+                value={nextPaymentDate}
+                onChange={(e) => setNextPaymentDate(e.target.value)}
+                min={partialPaymentDate}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+              />
               <p className="text-xs text-gray-500 mt-1">
                 Thông tin này sẽ được đồng bộ với Quản lý công nợ
               </p>

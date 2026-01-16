@@ -330,9 +330,9 @@ export const Attendance: React.FC = () => {
     initData();
   }, [selectedClassId, attendanceDate, classStudents.length]);
 
-  // Sync with loaded student attendance
+  // Sync with loaded student attendance - only show students in current filtered classStudents
   useEffect(() => {
-    if (studentAttendance.length > 0 && existingRecord) {
+    if (studentAttendance.length > 0 && existingRecord && classStudents.length > 0) {
       setAttendanceData(
         classStudents.map(s => {
           const existing = studentAttendance.find(sa => sa.studentId === s.id);
@@ -351,7 +351,7 @@ export const Attendance: React.FC = () => {
         })
       );
     }
-  }, [studentAttendance, existingRecord]);
+  }, [studentAttendance, existingRecord, classStudents]);
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     setAttendanceData(prev =>
@@ -424,8 +424,10 @@ export const Attendance: React.FC = () => {
         }))
       );
 
-      // Mark session as complete if using session mode
-      if (selectedSession?.id && attendanceId) {
+      // Mark session as complete if using session mode AND all students are marked
+      // Bug fix: Only mark complete when all students have been marked (no PENDING status)
+      const allStudentsMarked = attendanceData.every(s => s.status && s.status !== AttendanceStatus.PENDING);
+      if (selectedSession?.id && attendanceId && allStudentsMarked) {
         try {
           await markSessionComplete(selectedSession.id, attendanceId);
         } catch (err) {
@@ -878,8 +880,9 @@ export const Attendance: React.FC = () => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;
                           const isToday = s.date === today;
-                          // Bug 3 fix: Check by sessionId OR by date (for legacy records without sessionId)
-                          const isCompleted = s.status === 'Đã học' || s.attendanceId || (s.id && completedSessionIds.has(s.id)) || completedDates.has(s.date);
+                          // Bug fix: Only check session status and attendanceId (set by markSessionComplete)
+                          // Don't rely on completedSessionIds as it gets populated from any attendance record
+                          const isCompleted = s.status === 'Đã học' || !!s.attendanceId;
                           
                           let bgClass = 'bg-white hover:bg-gray-50';
                           let iconColor = '#9ca3af';
@@ -1002,12 +1005,16 @@ export const Attendance: React.FC = () => {
         </div>
       )}
       
-      {/* No sessions warning */}
+      {/* No sessions warning - differentiate between no sessions created vs all completed */}
       {useSessionMode && selectedClassId && !sessionsLoading && upcomingSessions.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-yellow-800">
             <AlertCircle size={20} />
-            <span>Chưa có buổi học nào được tạo cho lớp này. Vui lòng tạo buổi học hoặc chuyển sang chế độ "Chọn ngày".</span>
+            <span>
+              {allSessions.length === 0
+                ? 'Chưa có buổi học nào được tạo cho lớp này. Vui lòng tạo buổi học hoặc chuyển sang chế độ "Chọn ngày".'
+                : 'Tất cả buổi học đã được điểm danh. Bạn có thể chọn buổi từ danh sách hoặc thêm buổi học bù.'}
+            </span>
           </div>
           <button
             onClick={() => setShowAddSessionModal(true)}

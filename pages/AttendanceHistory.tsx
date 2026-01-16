@@ -335,12 +335,14 @@ export const AttendanceHistory: React.FC = () => {
       setFilterLoading(true);
       try {
         let q = query(collection(db, 'studentAttendance'));
-        
+
         // Build query constraints
         const constraints: any[] = [];
         if (filterStudent) {
           constraints.push(where('studentId', '==', filterStudent));
         }
+        // Note: Status filter needs to match exact status values from database
+        // AttendanceStatus values: 'Đúng giờ', 'Trễ giờ', 'Vắng', 'Bảo lưu', 'Đã bồi'
         if (filterStatus) {
           constraints.push(where('status', '==', filterStatus));
         }
@@ -350,10 +352,13 @@ export const AttendanceHistory: React.FC = () => {
         }
 
         const snapshot = await getDocs(q);
-        const attendanceIds = [...new Set(snapshot.docs.map(doc => doc.data().attendanceId))];
+
+        // If no results found with status filter, the filter is still valid (just no matches)
+        const attendanceIds = [...new Set(snapshot.docs.map(doc => doc.data().attendanceId).filter(Boolean))];
         setFilteredAttendanceIds(attendanceIds);
       } catch (error) {
         console.error('Error querying studentAttendance:', error);
+        // On error, don't filter (show all records)
         setFilteredAttendanceIds(null);
       } finally {
         setFilterLoading(false);

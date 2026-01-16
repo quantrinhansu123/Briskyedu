@@ -250,15 +250,15 @@ export const HolidayManager: React.FC = () => {
       {/* Modal Thêm lịch nghỉ */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="p-5 border-b border-gray-200 flex justify-between items-center">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
+            <div className="p-5 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-bold text-gray-900">Thêm lịch nghỉ mới</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={22} />
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên kỳ nghỉ *</label>
                 <input
@@ -384,7 +384,7 @@ export const HolidayManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-5 border-t border-gray-200 flex justify-end gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowModal(false)}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"

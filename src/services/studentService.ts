@@ -148,15 +148,24 @@ export class StudentService {
       
       const { newParentName, newParentPhone, ...restData } = studentData;
       
+      // Validate and convert dob - handle empty string case
+      let dobValue: Timestamp | null = null;
+      if (studentData.dob && studentData.dob.trim() !== '') {
+        const dobDate = new Date(studentData.dob);
+        if (!isNaN(dobDate.getTime())) {
+          dobValue = Timestamp.fromDate(dobDate);
+        }
+      }
+
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...restData,
         parentId: parentId || null,
         parentName: parentName || null,
         parentPhone: parentPhone || null,
-        dob: Timestamp.fromDate(new Date(studentData.dob)),
+        dob: dobValue,
         careHistory: studentData.careHistory?.map(log => ({
           ...log,
-          date: Timestamp.fromDate(new Date(log.date))
+          date: log.date ? Timestamp.fromDate(new Date(log.date)) : null
         })) || [],
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()

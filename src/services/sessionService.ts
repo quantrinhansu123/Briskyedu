@@ -214,17 +214,20 @@ export const getSessionsByClass = async (
   }
 ): Promise<ClassSession[]> => {
   try {
+    // Query without orderBy to avoid index requirements, sort client-side
     const q = query(
       collection(db, COLLECTION_NAME),
-      where('classId', '==', classId),
-      orderBy('date', 'asc')
+      where('classId', '==', classId)
     );
-    
+
     const snapshot = await getDocs(q);
     let sessions = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     })) as ClassSession[];
+
+    // Sort by date client-side
+    sessions.sort((a, b) => a.date.localeCompare(b.date));
 
     // Filter out invalid sessions (sessionNumber <= 0)
     sessions = sessions.filter(s => s.sessionNumber > 0);
@@ -242,10 +245,10 @@ export const getSessionsByClass = async (
     if (options?.limit) {
       sessions = sessions.slice(0, options.limit);
     }
-    
+
     return sessions;
   } catch (error) {
-    console.error('Error getting sessions:', error);
+    console.error('Error getting sessions for class', classId, ':', error);
     throw error;
   }
 };

@@ -245,6 +245,7 @@ const CenterModal: React.FC<CenterModalProps> = ({ center, onClose, onSubmit }) 
     phone: center?.phone || '',
     email: center?.email || '',
     manager: center?.manager || '',
+    signatureUrl: center?.signatureUrl || '',
     workingHours: center?.workingHours || '8:00 - 21:00',
     isMain: center?.isMain || false,
     status: center?.status || 'Active' as 'Active' | 'Inactive',
@@ -345,6 +346,29 @@ const CenterModal: React.FC<CenterModalProps> = ({ center, onClose, onSubmit }) 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 placeholder="VD: Nguyễn Văn A - Giám đốc"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                URL chữ ký <span className="text-xs text-gray-400">(Hiển thị trên HĐ)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.signatureUrl}
+                onChange={(e) => setFormData({ ...formData, signatureUrl: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="/signature-party-a.png hoặc URL đầy đủ"
+              />
+              {formData.signatureUrl && (
+                <div className="mt-2 p-2 bg-gray-50 rounded border">
+                  <p className="text-xs text-gray-500 mb-1">Xem trước:</p>
+                  <img
+                    src={formData.signatureUrl.startsWith('/') ? formData.signatureUrl : formData.signatureUrl}
+                    alt="Chữ ký"
+                    className="h-10 object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Giờ làm việc</label>

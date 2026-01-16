@@ -29,6 +29,7 @@ export interface Center {
   email?: string;
   manager?: string;
   workingHours?: string;
+  signatureUrl?: string; // URL to signature image for contract signing
   isMain: boolean;
   status: 'Active' | 'Inactive';
   createdAt?: string;

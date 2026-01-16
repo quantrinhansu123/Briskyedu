@@ -22,6 +22,13 @@ interface ClassSession {
   status: string;
 }
 
+// Helper to parse progress string like "0/18" to get total sessions
+const parseTotalFromProgress = (progress: string | undefined): number => {
+  if (!progress) return 0;
+  const match = progress.match(/\/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+
 // Helper to safely format date
 const formatDateSafe = (dateValue: unknown): string => {
   if (!dateValue) return '?';
@@ -82,7 +89,8 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
             s.classId === classData.id ||
             s.currentClassId === classData.id ||
             s.class === classData.name ||
-            s.className === classData.name
+            s.className === classData.name ||
+            (Array.isArray(s.classIds) && s.classIds.includes(classData.id))
           );
         setStudentsInClass(students);
 
@@ -93,7 +101,9 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
             where('classId', '==', classData.id)
           )
         );
-        const sessions = sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ClassSession[];
+        const allSessions = sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ClassSession[];
+        // Filter valid sessions (sessionNumber > 0) - consistent with sessionService.ts
+        const sessions = allSessions.filter(s => s.sessionNumber > 0);
         const completed = sessions.filter(s => s.status === 'Đã học').length;
         const today = new Date().toISOString().split('T')[0];
         const upcoming = sessions
@@ -113,12 +123,20 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
 
   // Generate sessions for this class
   const handleGenerateSessions = async () => {
-    if (!classData.schedule || !classData.totalSessions) {
-      alert('Vui lòng cập nhật lịch học và tổng số buổi trước khi tạo buổi học');
+    // Get total from totalSessions or parse from progress string
+    const effectiveTotal = classData.totalSessions || parseTotalFromProgress(classData.progress);
+
+    if (!classData.schedule) {
+      alert('Vui lòng cập nhật lịch học trước khi tạo buổi học');
       return;
     }
 
-    if (!confirm(`Tạo ${classData.totalSessions} buổi học cho lớp ${classData.name}?`)) return;
+    if (!effectiveTotal) {
+      alert('Vui lòng cập nhật tổng số buổi trước khi tạo buổi học');
+      return;
+    }
+
+    if (!confirm(`Tạo ${effectiveTotal} buổi học cho lớp ${classData.name}?`)) return;
 
     setGenerating(true);
     try {
@@ -167,7 +185,7 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
       let sessionNumber = 1;
       let daysChecked = 0;
 
-      while (sessionNumber <= classData.totalSessions && daysChecked < 365) {
+      while (sessionNumber <= effectiveTotal && daysChecked < 365) {
         const dayOfWeek = currentDate.getDay();
         if (scheduleDays.includes(dayOfWeek)) {
           sessions.push({
@@ -352,7 +370,21 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
                   </div>
                 )}
               </>
-            ) : classData.totalSessions ? (
+            ) : (() => {
+              // No actual sessions - show button to create them
+              // Get total from totalSessions field or parse from progress string
+              const effectiveTotal = classData.totalSessions || parseTotalFromProgress(classData.progress);
+
+              if (!effectiveTotal) {
+                return (
+                  <div>
+                    <p className="text-indigo-600 text-sm mb-2">Chưa thiết lập số buổi học</p>
+                    <p className="text-xs text-gray-500">Vui lòng chỉnh sửa lớp để thêm tổng số buổi và lịch học</p>
+                  </div>
+                );
+              }
+
+              return (
               /* Có tổng số buổi nhưng chưa tạo sessions */
               <div>
                 <div className="flex items-center gap-4 mb-3">
@@ -363,23 +395,22 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
                     />
                   </div>
                   <span className="text-sm font-medium text-indigo-900">
-                    0/{classData.totalSessions} buổi
+                    0/{effectiveTotal} buổi
                   </span>
                 </div>
                 <button
                   onClick={handleGenerateSessions}
-                  disabled={generating}
+                  disabled={generating || !classData.schedule}
                   className="w-full mt-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
                 >
-                  {generating ? 'Đang tạo...' : `Tạo ${classData.totalSessions} buổi học`}
+                  {generating ? 'Đang tạo...' : `Tạo ${effectiveTotal} buổi học`}
                 </button>
+                {!classData.schedule && (
+                  <p className="text-xs text-orange-600 mt-2">Vui lòng thiết lập lịch học trước khi tạo buổi</p>
+                )}
               </div>
-            ) : (
-              <div>
-                <p className="text-indigo-600 text-sm mb-2">Chưa thiết lập số buổi học</p>
-                <p className="text-xs text-gray-500">Vui lòng chỉnh sửa lớp để thêm tổng số buổi và lịch học</p>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Student Stats */}

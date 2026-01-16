@@ -46,6 +46,8 @@ const MonthlyReport = lazy(() => import('./pages/MonthlyReport').then(m => ({ de
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const CheckInPage = lazy(() => import('./pages/CheckInPage').then(m => ({ default: m.CheckInPage })));
 const WifiManager = lazy(() => import('./pages/WifiManager').then(m => ({ default: m.WifiManager })));
+const ProfileSettings = lazy(() => import('./pages/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
+const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })));
 
 // Page loading spinner component
 const PageLoader: React.FC = () => (
@@ -172,6 +174,8 @@ const App: React.FC = () => {
                 <Route path="/settings/center" element={<CenterSettings />} />
                 <Route path="/settings/curriculum" element={<CurriculumManager />} />
                 <Route path="/settings/wifi" element={<WifiManager />} />
+                <Route path="/settings/profile" element={<ProfileSettings />} />
+                <Route path="/settings/change-password" element={<ChangePassword />} />
 
                 {/* CheckIn Route */}
                 <Route path="/checkin" element={<CheckInPage />} />

@@ -535,6 +535,15 @@ export interface Discount {
   createdAt?: string;
 }
 
+// Applied discount on contract item (supports multiple discounts)
+export interface AppliedDiscount {
+  discountId: string;    // Reference to Discount.id or 'custom' for manual
+  name: string;          // Discount name for display
+  type: 'percent' | 'fixed';
+  value: number;         // % value (12) or fixed amount (50000)
+  amount: number;        // Calculated discount amount in VND
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -739,7 +748,8 @@ export interface ContractItem {
   unitPrice: number;
   quantity: number;
   subtotal: number;
-  discount: number; // 0-1 (0.2 = 20%)
+  discount: number; // 0-1 (0.2 = 20%) - legacy, calculated from appliedDiscounts
+  appliedDiscounts?: AppliedDiscount[]; // Multiple discounts with details
   finalPrice: number;
   debtSessions?: number;
   startDate?: string;
@@ -776,12 +786,14 @@ export interface Contract {
   // Dates
   contractDate: string;
   startDate?: string; // Ngày bắt đầu hợp đồng
+  endDate?: string; // Ngày kết thúc dự kiến (tự động tính từ số buổi + lịch học)
   paymentDate?: string;
   nextPaymentDate?: string; // Ngày hẹn thanh toán tiếp theo (cho nợ hợp đồng)
 
   // Class Info
   classId?: string;
   className?: string;
+  branch?: string; // Cơ sở (lưu từ học viên hoặc lớp)
 
   // Session Info (for financial reports)
   totalSessions?: number;

@@ -132,10 +132,11 @@ export const HomeworkManager: React.FC = () => {
 
     return allStudents.filter(s =>
       s.classId === selectedClassId ||
+      (s as any).currentClassId === selectedClassId ||  // Support currentClassId field
       s.classIds?.includes(selectedClassId) ||  // Support multi-class
       s.class === selectedClass.name ||
       s.className === selectedClass.name ||
-      s.currentClassName === selectedClass.name
+      (s as any).currentClassName === selectedClass.name
     ).filter(s => s.status === 'Đang học' || s.status === 'Học thử' || s.status === 'Nợ phí');
   }, [selectedClassId, classes, allStudents]);
 

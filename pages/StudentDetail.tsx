@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, User, Phone, Mail, MapPin, Calendar, BookOpen, DollarSign, Clock, MessageSquare, FileText, X, GraduationCap, CheckCircle2, CalendarCheck, Circle, TrendingUp, AlertTriangle, History, CreditCard, AlertCircle, BadgeDollarSign } from 'lucide-react';
+import { ChevronLeft, User, Phone, Mail, MapPin, Calendar, BookOpen, DollarSign, Clock, MessageSquare, FileText, X, GraduationCap, CheckCircle2, CalendarCheck, Circle, TrendingUp, AlertTriangle, History, CreditCard, AlertCircle, BadgeDollarSign, FileDown } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { useClasses } from '../src/hooks/useClasses';
@@ -14,6 +14,7 @@ import { formatSchedule } from '../src/utils/scheduleUtils';
 import { createEnrollment } from '../src/services/enrollmentService';
 import { useAuth } from '../src/hooks/useAuth';
 import { Plus, Minus } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -295,6 +296,47 @@ export const StudentDetail: React.FC = () => {
     } finally {
       setLoadingNextSession(false);
     }
+  };
+
+  // Export finance history to Excel
+  const exportFinanceHistory = () => {
+    if (!student) return;
+
+    const enrollmentData = enrollments.map((enroll: any, idx: number) => ({
+      STT: idx + 1,
+      'Ngày': enroll.createdDate || (enroll.createdAt ? new Date(enroll.createdAt).toLocaleDateString('vi-VN') : ''),
+      'Loại': enroll.type,
+      'Lớp': enroll.className || '--',
+      'Số buổi': enroll.sessions,
+      'Số tiền': enroll.finalAmount || 0,
+      'Ghi chú': enroll.note || enroll.reason || ''
+    }));
+
+    const contractData = contracts.map((contract: any, idx: number) => ({
+      STT: idx + 1,
+      'Mã HĐ': contract.code || contract.id?.slice(0, 8),
+      'Loại': contract.category || contract.type,
+      'Ngày tạo': contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('vi-VN') : '--',
+      'Tổng tiền': contract.totalAmount || 0,
+      'Trạng thái': contract.status
+    }));
+
+    const wb = XLSX.utils.book_new();
+
+    // Enrollment sheet
+    if (enrollmentData.length > 0) {
+      const wsEnroll = XLSX.utils.json_to_sheet(enrollmentData);
+      XLSX.utils.book_append_sheet(wb, wsEnroll, 'Lịch sử ghi danh');
+    }
+
+    // Contracts sheet
+    if (contractData.length > 0) {
+      const wsContract = XLSX.utils.json_to_sheet(contractData);
+      XLSX.utils.book_append_sheet(wb, wsContract, 'Hợp đồng');
+    }
+
+    const fileName = `TaiChinh_${student.fullName?.replace(/\s+/g, '_') || 'HocVien'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   if (loading) {
@@ -739,9 +781,19 @@ export const StudentDetail: React.FC = () => {
 
                      {/* Enrollment History */}
                      <div>
-                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                           <History size={18} className="text-indigo-600" /> Lịch sử ghi danh
-                        </h3>
+                        <div className="flex items-center justify-between mb-4">
+                           <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                              <History size={18} className="text-indigo-600" /> Lịch sử ghi danh & tài chính
+                           </h3>
+                           <button
+                              onClick={exportFinanceHistory}
+                              disabled={enrollments.length === 0 && contracts.length === 0}
+                              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed border border-green-200"
+                           >
+                              <FileDown size={16} />
+                              Xuất Excel
+                           </button>
+                        </div>
                         <div className="overflow-hidden border border-gray-200 rounded-lg">
                            <table className="w-full text-left text-sm">
                               <thead className="bg-gray-50 font-semibold text-gray-600">

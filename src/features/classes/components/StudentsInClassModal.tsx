@@ -107,8 +107,19 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
   // Open enrollment modal when adding student
   const addStudentToClass = (student: any) => {
     setSelectedStudentToAdd(student);
+    // Calculate remaining sessions from class data
+    // Parse progress to get remaining sessions (e.g., "12/24 Buổi" -> 24 - 12 = 12)
+    let defaultSessions = classData.totalSessions || 12;
+    if (classData.progress) {
+      const match = classData.progress.match(/(\d+)\/(\d+)/);
+      if (match) {
+        const completed = parseInt(match[1]);
+        const total = parseInt(match[2]);
+        defaultSessions = Math.max(1, total - completed);
+      }
+    }
     setEnrollForm({
-      sessions: 12,
+      sessions: defaultSessions,
       startDate: new Date().toISOString().split('T')[0],
     });
     setShowEnrollModal(true);
@@ -445,8 +456,16 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
 
       {/* Enrollment Confirmation Modal */}
       {showEnrollModal && selectedStudentToAdd && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+          onClick={() => { setShowEnrollModal(false); setSelectedStudentToAdd(null); }}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) e.stopPropagation(); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="p-5 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-900">Xác nhận ghi danh</h3>
               <p className="text-sm text-gray-600 mt-1">Thêm học viên vào lớp {classData.name}</p>

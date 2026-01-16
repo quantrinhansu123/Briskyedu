@@ -71,8 +71,11 @@ export function generateContractHTML(
   // Table items with 8 columns matching PDF template
   const itemsHTML = (contract.items || [])
     .map(item => {
-      const startDate = item.startDate ? new Date(item.startDate).toLocaleDateString('vi-VN') : '';
-      const endDate = item.endDate ? new Date(item.endDate).toLocaleDateString('vi-VN') : '';
+      // Fallback to contract-level dates if item doesn't have them (backwards compatibility)
+      const rawStartDate = item.startDate || contract.startDate;
+      const startDate = rawStartDate ? new Date(rawStartDate).toLocaleDateString('vi-VN') : '';
+      const rawEndDate = item.endDate || contract.endDate;
+      const endDate = rawEndDate ? new Date(rawEndDate).toLocaleDateString('vi-VN') : '';
       const discount = item.discount ? Math.round(item.discount * 100) : 0;
 
       return `
@@ -215,16 +218,29 @@ const CONTRACT_PDF_STYLES = `
     overflow: hidden;
   }
   body {
-    padding: 0 10mm 8mm 10mm;
+    padding: 5mm 10mm 5mm 10mm;
+  }
+  /* Force content to fit single page */
+  .contract-content {
+    max-height: 190mm; /* A4 landscape height minus margins */
+    overflow: hidden;
+  }
+  table {
+    page-break-inside: avoid;
   }
   @media print {
     @page {
       size: A4 landscape;
-      margin: 0 5mm 5mm 5mm;
+      margin: 5mm;
     }
     html, body {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      transform-origin: top left;
     }
   }
 `;
@@ -324,7 +340,24 @@ export async function printContract(
         <style>${CONTRACT_PDF_STYLES}</style>
       </head>
       <body>
-        ${htmlContent}
+        <div class="contract-content">
+          ${htmlContent}
+        </div>
+        <script>
+          // Auto-scale content to fit single page
+          window.addEventListener('load', function() {
+            const content = document.querySelector('.contract-content');
+            if (content) {
+              const pageHeight = 190; // mm available
+              const contentHeight = content.scrollHeight / 3.78; // px to mm (96dpi)
+              if (contentHeight > pageHeight) {
+                const scale = pageHeight / contentHeight;
+                document.body.style.transform = 'scale(' + scale + ')';
+                document.body.style.width = (100 / scale) + '%';
+              }
+            }
+          });
+        </script>
       </body>
     </html>
   `);

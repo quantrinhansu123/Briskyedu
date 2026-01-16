@@ -758,6 +758,13 @@ export const ContractCreation: React.FC = () => {
       // Get selected class info
       const selectedClass = classes.find(c => c.id === selectedClassId);
 
+      // Add startDate/endDate to each item for PDF display
+      const itemsWithDates = items.map(item => ({
+        ...item,
+        startDate: item.startDate || startDate,
+        endDate: item.endDate || endDate,
+      }));
+
       const contractData: Partial<Contract> = {
         type: contractType,
         category: contractCategory,
@@ -767,7 +774,7 @@ export const ContractCreation: React.FC = () => {
         parentName: selectedStudent?.parentName,
         parentPhone: selectedStudent?.parentPhone || selectedStudent?.phone, // Prefer parentPhone, fallback to phone
         branch: selectedStudent?.branch || selectedClass?.branch, // Lưu cơ sở từ học viên hoặc lớp
-        items,
+        items: itemsWithDates,
         subtotal: calculations.subtotal,
         totalDiscount: calculations.totalDiscount,
         totalAmount: calculations.totalAmount,

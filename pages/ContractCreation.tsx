@@ -367,10 +367,8 @@ export const ContractCreation: React.FC = () => {
       try {
         const centersList = await getCenters();
         setCenters(centersList);
-        // Build branches list from all active centers
-        const branches = centersList
-          .filter(c => c.status === 'Active')
-          .map(c => ({ code: c.code, address: c.address }));
+        // Always use hardcoded branches from DEFAULT_CENTER_INFO (CS1, CS2, CS3 in correct order)
+        const branches = DEFAULT_CENTER_INFO.branches || [];
         // Set default center info from main center
         const mainCenter = centersList.find(c => c.isMain) || centersList[0];
         if (mainCenter) {
@@ -396,10 +394,8 @@ export const ContractCreation: React.FC = () => {
   useEffect(() => {
     if (!selectedStudent?.branch || centers.length === 0) return;
 
-    // Build branches list from all active centers
-    const branches = centers
-      .filter(c => c.status === 'Active')
-      .map(c => ({ code: c.code, address: c.address }));
+    // Always use hardcoded branches from DEFAULT_CENTER_INFO (CS1, CS2, CS3 in correct order)
+    const branches = DEFAULT_CENTER_INFO.branches || [];
 
     // Find center matching student's branch
     const studentCenter = centers.find(c =>
@@ -943,9 +939,8 @@ export const ContractCreation: React.FC = () => {
             const center = centers.find(c => c.id === e.target.value);
             setSelectedCenterId(e.target.value);
             if (center) {
-              const branches = centers
-                .filter(c => c.status === 'Active')
-                .map(c => ({ code: c.code, address: c.address }));
+              // Always use hardcoded branches from DEFAULT_CENTER_INFO
+              const branches = DEFAULT_CENTER_INFO.branches || [];
               setCenterInfo({
                 centerName: DEFAULT_CENTER_INFO.centerName,
                 representative: center.manager || DEFAULT_CENTER_INFO.representative,

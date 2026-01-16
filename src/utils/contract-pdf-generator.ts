@@ -59,9 +59,9 @@ export function generateContractHTML(
     ? `<img src="${signatureUrl}" alt="Chữ ký" style="height: 50px; max-width: 150px; object-fit: contain;" onerror="this.style.display='none'" />`
     : '';
 
-  // Logo HTML - height ~80px to match 5 lines of text
+  // Logo HTML - natural aspect ratio, max dimensions to fit header
   const logoUrl = centerInfo.logoUrl || '/logo.jpg';
-  const logoHTML = `<img src="${logoUrl}" alt="Logo" style="height: 80px; object-fit: contain;" onerror="this.style.display='none'" />`;
+  const logoHTML = `<img src="${logoUrl}" alt="Logo" style="height: auto; width: auto; max-height: 80px; max-width: 100px;" onerror="this.style.display='none'" />`;
 
   // Branch list HTML - compact inline
   const branchesHTML = (centerInfo.branches || [])
@@ -77,14 +77,14 @@ export function generateContractHTML(
 
       return `
       <tr>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: left;">${item.name}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: center;">${item.className || ''}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: center;">${item.quantity}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: center;">${startDate}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: center;">${endDate}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: right;">${formatCurrency(item.subtotal || 0).replace(' ₫', '')}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: center;">${discount > 0 ? discount + '%' : '0'}</td>
-        <td style="border: 1px solid #000; padding: 3px 4px; text-align: right;">${formatCurrency(item.finalPrice || 0).replace(' ₫', '')}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: left; vertical-align: middle; line-height: 1.4;">${item.name}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${item.className || ''}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${item.quantity}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${startDate}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${endDate}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${formatCurrency(item.subtotal || 0).replace(' ₫', '')}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${discount > 0 ? discount + '%' : '0'}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${formatCurrency(item.finalPrice || 0).replace(' ₫', '')}</td>
       </tr>
     `;
     })
@@ -98,8 +98,8 @@ export function generateContractHTML(
   const remainingText = (contract.remainingAmount || 0) === 0 ? '(0 đồng)' : '';
 
   return `
-    <!-- Header: Logo + Company Info (left) | Invoice Title (right) - Single row layout -->
-    <table style="width: 100%; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 6px;">
+    <!-- Header: Logo + Company Info (left) | Invoice Title (right) - Aligned top -->
+    <table style="width: 100%; margin-bottom: 8px;">
       <tr>
         <td style="width: 80px; vertical-align: top;">${logoHTML}</td>
         <td style="vertical-align: top; padding-left: 10px;">
@@ -107,9 +107,9 @@ export function generateContractHTML(
           <div style="font-size: 10px;">Hotline: ${centerInfo.phone}</div>
           ${branchesHTML}
         </td>
-        <td style="text-align: right; vertical-align: top; width: 180px;">
-          <div style="font-size: 16px; font-weight: bold;">HOÁ ĐƠN THU TIỀN</div>
-          <div style="font-size: 10px; margin-top: 3px;">Mã Hoá đơn: <strong>${contract.code || 'N/A'}</strong></div>
+        <td style="text-align: right; vertical-align: top; width: 200px;">
+          <div style="font-size: 16px; font-weight: bold; margin-bottom: 3px;">HOÁ ĐƠN THU TIỀN</div>
+          <div style="font-size: 10px;">Mã Hoá đơn:<br/><strong>${contract.code || 'N/A'}</strong></div>
           <div style="font-size: 10px; margin-top: 2px;">Ngày xuất: <strong>${contractDate}</strong></div>
         </td>
       </tr>
@@ -137,18 +137,18 @@ export function generateContractHTML(
 
     <!-- Service Table -->
     <div style="margin: 8px 0;">
-      <div style="text-align: right; font-size: 9px; margin-bottom: 2px;">Đơn vị: VNĐ</div>
+      <div style="text-align: right; font-size: 9px; margin-bottom: 5px;">Đơn vị: VNĐ</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
         <thead>
           <tr style="background: #f5f5f5;">
-            <th style="border: 1px solid #000; padding: 4px; text-align: left;">Khoá học/ Sản phẩm</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: center;">Lớp học</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 40px;">Số buổi</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: center;">Bắt đầu</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: center;">Kết thúc</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: right;">Giá trị</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 40px;">ƯĐHĐ</th>
-            <th style="border: 1px solid #000; padding: 4px; text-align: right;">Thành tiền</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Khoá học/ Sản phẩm</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Lớp học</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4; width: 50px;">Số buổi</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Bắt đầu</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Kết thúc</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Giá trị</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4; width: 50px;">ƯĐHĐ</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Thành tiền</th>
           </tr>
         </thead>
         <tbody>
@@ -158,14 +158,26 @@ export function generateContractHTML(
       <div style="font-size: 8px; font-style: italic; margin-top: 2px; color: #666;">*ƯĐHĐ: ưu đãi được áp dụng trên hợp đồng</div>
     </div>
 
-    <!-- Financial Summary - Right aligned, compact -->
-    <div style="text-align: right; margin: 6px 0; font-size: 11px;">
-      <div><strong>Tổng tiền cần thanh toán:</strong> ${formatCurrency(contract.totalAmount || 0).replace(' ₫', '')} VND</div>
-      <div><strong>Hình thức thanh toán:</strong> ${paymentMethodDisplay}</div>
-      <div><strong>Số tiền đã thanh toán:</strong> ${formatCurrency(contract.paidAmount || 0).replace(' ₫', '')}</div>
-      <div><strong>Số tiền nợ còn lại:</strong> ${formatCurrency(contract.remainingAmount || 0).replace(' ₫', '')} VNĐ</div>
-      ${remainingText ? `<div style="font-style: italic;">${remainingText}</div>` : ''}
-    </div>
+    <!-- Financial Summary - Right aligned using table for better alignment -->
+    <table style="margin: 6px 0 6px auto; font-size: 11px; border-collapse: collapse;">
+      <tr>
+        <td style="text-align: right; padding: 1px 8px;"><strong>Tổng tiền cần thanh toán:</strong></td>
+        <td style="text-align: right; padding: 1px 0;">${formatCurrency(contract.totalAmount || 0).replace(' ₫', '')} VND</td>
+      </tr>
+      <tr>
+        <td style="text-align: right; padding: 1px 8px;"><strong>Hình thức thanh toán:</strong></td>
+        <td style="text-align: right; padding: 1px 0;">${paymentMethodDisplay}</td>
+      </tr>
+      <tr>
+        <td style="text-align: right; padding: 1px 8px;"><strong>Số tiền đã thanh toán:</strong></td>
+        <td style="text-align: right; padding: 1px 0;">${formatCurrency(contract.paidAmount || 0).replace(' ₫', '')}</td>
+      </tr>
+      <tr>
+        <td style="text-align: right; padding: 1px 8px;"><strong>Số tiền nợ còn lại:</strong></td>
+        <td style="text-align: right; padding: 1px 0;">${formatCurrency(contract.remainingAmount || 0).replace(' ₫', '')} VNĐ</td>
+      </tr>
+      ${remainingText ? `<tr><td colspan="2" style="text-align: right; font-style: italic; padding: 1px 0;">${remainingText}</td></tr>` : ''}
+    </table>
 
     <!-- Signatures: Compact layout -->
     <table style="width: 100%; margin-top: 15px;">
@@ -203,12 +215,12 @@ const CONTRACT_PDF_STYLES = `
     overflow: hidden;
   }
   body {
-    padding: 8mm 10mm;
+    padding: 0 10mm 8mm 10mm;
   }
   @media print {
     @page {
       size: A4 landscape;
-      margin: 5mm;
+      margin: 0 5mm 5mm 5mm;
     }
     html, body {
       -webkit-print-color-adjust: exact;
@@ -288,11 +300,12 @@ export async function printContract(
   const logoUrl = centerInfo?.logoUrl || '/logo.jpg';
   const logoBase64 = await imageToBase64(logoUrl);
 
-  // Create centerInfo with base64 images
+  // Create centerInfo with base64 images and hardcoded branches
   const centerInfoWithBase64: ContractCenterInfo = {
     ...(centerInfo || DEFAULT_CENTER_INFO),
     signatureUrl: signatureBase64,
     logoUrl: logoBase64 || logoUrl,
+    branches: DEFAULT_CENTER_INFO.branches, // Always use hardcoded branches (CS1, CS2, CS3)
   };
 
   const printWindow = window.open('', '_blank');
@@ -339,6 +352,12 @@ export async function downloadContractAsPdf(
   const studentName = (contract.studentName || 'N/A').replace(/\s+/g, ' ').trim();
   const fileName = `HĐ_${studentName}_${dateStr}.pdf`;
 
+  // Always use hardcoded branches from DEFAULT_CENTER_INFO (CS1, CS2, CS3 in correct order)
+  const centerInfoWithHardcodedBranches: ContractCenterInfo = {
+    ...(centerInfo || DEFAULT_CENTER_INFO),
+    branches: DEFAULT_CENTER_INFO.branches, // Always override with hardcoded branches
+  };
+
   // Dynamically import jspdf and html2canvas for code splitting
   const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
     import('jspdf'),
@@ -352,14 +371,14 @@ export async function downloadContractAsPdf(
     left: -9999px;
     top: 0;
     width: 1100px;
-    padding: 8px 15px;
+    padding: 0 15px 10px 15px;
     background: white;
     font-family: Arial, Helvetica, sans-serif;
     line-height: 1.2;
     font-size: 10px;
     color: #000;
   `;
-  container.innerHTML = generateContractHTML(contract, centerInfo);
+  container.innerHTML = generateContractHTML(contract, centerInfoWithHardcodedBranches);
   document.body.appendChild(container);
 
   // Wait for images to load
@@ -388,9 +407,9 @@ export async function downloadContractAsPdf(
     const scaledWidth = imgWidth * scale;
     const scaledHeight = imgHeight * scale;
 
-    // Center content if scaled down
+    // Align content to top-left (no vertical centering)
     const xOffset = (imgWidth - scaledWidth) / 2;
-    const yOffset = (pageHeight - scaledHeight) / 2;
+    const yOffset = 0; // Start from top, no vertical centering
 
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', xOffset, yOffset, scaledWidth, scaledHeight);
 

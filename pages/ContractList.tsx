@@ -56,10 +56,8 @@ export const ContractList: React.FC = () => {
   // Get center info for a specific contract (based on student's branch)
   const getCenterInfoForContract = async (contract: Contract): Promise<ContractCenterInfo> => {
     try {
-      // Build branches list from all active centers
-      const branches = centers
-        .filter(c => c.status === 'Active')
-        .map(c => ({ code: c.code, address: c.address }));
+      // Always use hardcoded branches from DEFAULT_CENTER_INFO (CS1, CS2, CS3 in correct order)
+      const branches = DEFAULT_CENTER_INFO.branches || [];
 
       // If contract has studentId, lookup student's branch
       if (contract.studentId) {

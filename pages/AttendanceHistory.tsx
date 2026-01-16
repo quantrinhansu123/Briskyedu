@@ -58,6 +58,7 @@ export const AttendanceHistory: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filteredAttendanceIds, setFilteredAttendanceIds] = useState<string[] | null>(null);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [filterStatusCounts, setFilterStatusCounts] = useState<Record<string, number>>({});
   const [studentSearch, setStudentSearch] = useState('');
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const studentDropdownRef = useRef<HTMLDivElement>(null);
@@ -329,6 +330,7 @@ export const AttendanceHistory: React.FC = () => {
     const queryStudentAttendance = async () => {
       if (!filterStudent && !filterStatus) {
         setFilteredAttendanceIds(null);
+        setFilterStatusCounts({});
         return;
       }
 
@@ -353,13 +355,27 @@ export const AttendanceHistory: React.FC = () => {
 
         const snapshot = await getDocs(q);
 
-        // If no results found with status filter, the filter is still valid (just no matches)
-        const attendanceIds = [...new Set(snapshot.docs.map(doc => doc.data().attendanceId).filter(Boolean))];
-        setFilteredAttendanceIds(attendanceIds);
+        // Count students per attendanceId when filtering by status
+        const counts: Record<string, number> = {};
+        const attendanceIds = new Set<string>();
+
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.attendanceId) {
+            attendanceIds.add(data.attendanceId);
+            if (filterStatus) {
+              counts[data.attendanceId] = (counts[data.attendanceId] || 0) + 1;
+            }
+          }
+        });
+
+        setFilteredAttendanceIds([...attendanceIds]);
+        setFilterStatusCounts(counts);
       } catch (error) {
         console.error('Error querying studentAttendance:', error);
         // On error, don't filter (show all records)
         setFilteredAttendanceIds(null);
+        setFilterStatusCounts({});
       } finally {
         setFilterLoading(false);
       }
@@ -1105,7 +1121,9 @@ export const AttendanceHistory: React.FC = () => {
               <th className="px-6 py-4">Sĩ số</th>
               <th className="px-6 py-4">Hiện diện</th>
               <th className="px-6 py-4">Vắng</th>
-              <th className="px-6 py-4">Trạng thái</th>
+              <th className="px-6 py-4">
+                {filterStatus ? `Số HV ${filterStatus}` : 'Trạng thái'}
+              </th>
               <th className="px-6 py-4 text-right">Hành động</th>
             </tr>
           </thead>
@@ -1143,7 +1161,11 @@ export const AttendanceHistory: React.FC = () => {
                 <td className="px-6 py-4 text-green-600 font-medium">{present}</td>
                 <td className="px-6 py-4 text-red-600 font-medium">{absent}</td>
                 <td className="px-6 py-4">
-                  {showAsHoliday ? (
+                  {filterStatus && filterStatusCounts[record.id] ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
+                      {filterStatusCounts[record.id]} học viên
+                    </span>
+                  ) : showAsHoliday ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">
                       LỊCH NGHỈ CHUNG
                     </span>

@@ -12,6 +12,7 @@ import { useFeedback } from '../src/hooks/useFeedback';
 import { useTutoring } from '../src/hooks/useTutoring';
 import { formatSchedule } from '../src/utils/scheduleUtils';
 import { createEnrollment } from '../src/services/enrollmentService';
+import { generateFeedbackPDF, generateFeedbackExcel } from '../src/services/feedbackReportService';
 import { useAuth } from '../src/hooks/useAuth';
 import { Plus, Minus } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -337,6 +338,25 @@ export const StudentDetail: React.FC = () => {
 
     const fileName = `TaiChinh_${student.fullName?.replace(/\s+/g, '_') || 'HocVien'}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
+  };
+
+  // Calculate feedback stats for export
+  const getFeedbackStats = () => {
+    const allFeedbacks = [...callFeedbacks, ...formFeedbacks];
+    const withScores = allFeedbacks.filter(f => f.averageScore);
+
+    const calcAvg = (arr: number[]) => arr.length > 0 ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '0';
+
+    return {
+      total: allFeedbacks.length,
+      callCount: callFeedbacks.length,
+      formCount: formFeedbacks.length,
+      avgScore: calcAvg(withScores.map(f => f.averageScore || 0)),
+      teacherAvg: calcAvg(allFeedbacks.filter(f => f.teacherScore).map(f => f.teacherScore || 0)),
+      curriculumAvg: calcAvg(allFeedbacks.filter(f => f.curriculumScore).map(f => f.curriculumScore || 0)),
+      serviceAvg: calcAvg(allFeedbacks.filter(f => f.customerServiceScore).map(f => f.customerServiceScore || 0)),
+      facilityAvg: calcAvg(allFeedbacks.filter(f => f.facilityScore).map(f => f.facilityScore || 0)),
+    };
   };
 
   if (loading) {
@@ -1508,9 +1528,43 @@ export const StudentDetail: React.FC = () => {
                 Đóng
               </button>
               <button
-                onClick={() => { alert('Đang xuất báo cáo...'); }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                onClick={() => {
+                  if (!student) return;
+                  try {
+                    const stats = getFeedbackStats();
+                    generateFeedbackExcel(
+                      { fullName: student.fullName, code: student.code, className: student.className },
+                      [...callFeedbacks, ...formFeedbacks],
+                      stats
+                    );
+                  } catch (error) {
+                    console.error('Error exporting Excel:', error);
+                    alert('Lỗi khi xuất file Excel. Vui lòng thử lại.');
+                  }
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
               >
+                <FileDown size={16} />
+                Xuất Excel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!student) return;
+                  try {
+                    const stats = getFeedbackStats();
+                    await generateFeedbackPDF(
+                      { fullName: student.fullName, code: student.code, className: student.className },
+                      [...callFeedbacks, ...formFeedbacks],
+                      stats
+                    );
+                  } catch (error) {
+                    console.error('Error exporting PDF:', error);
+                    alert('Lỗi khi xuất file PDF. Vui lòng thử lại.');
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <FileText size={16} />
                 Xuất PDF
               </button>
             </div>

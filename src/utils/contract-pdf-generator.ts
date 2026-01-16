@@ -71,10 +71,19 @@ export function generateContractHTML(
   // Table items with 8 columns matching PDF template
   const itemsHTML = (contract.items || [])
     .map(item => {
-      // Fallback to contract-level dates if item doesn't have them (backwards compatibility)
-      const rawStartDate = item.startDate || contract.startDate;
+      // Fallback chain: item dates → contract dates → contractDate (for old contracts without dates)
+      const rawStartDate = item.startDate || contract.startDate || contract.contractDate;
       const startDate = rawStartDate ? new Date(rawStartDate).toLocaleDateString('vi-VN') : '';
-      const rawEndDate = item.endDate || contract.endDate;
+
+      // For endDate: use item/contract endDate, or calculate from startDate + sessions (2 per week)
+      let rawEndDate = item.endDate || contract.endDate;
+      if (!rawEndDate && rawStartDate && item.quantity) {
+        // Estimate: 2 sessions per week, calculate weeks needed
+        const weeksNeeded = Math.ceil((item.quantity || 1) / 2);
+        const estimatedEnd = new Date(rawStartDate);
+        estimatedEnd.setDate(estimatedEnd.getDate() + weeksNeeded * 7);
+        rawEndDate = estimatedEnd.toISOString();
+      }
       const endDate = rawEndDate ? new Date(rawEndDate).toLocaleDateString('vi-VN') : '';
       const discount = item.discount ? Math.round(item.discount * 100) : 0;
 

@@ -128,15 +128,15 @@ export const InventoryManager: React.FC = () => {
       alert('Cơ sở xuất và nhập phải khác nhau');
       return;
     }
-    
+
     const currentBranchStock = selectedProduct.branchStock || {};
     const fromQty = currentBranchStock[transferFromBranch] || 0;
-    
+
     if (transferQuantity > fromQty) {
       alert(`Không đủ hàng để chuyển. Cơ sở hiện có: ${fromQty}`);
       return;
     }
-    
+
     try {
       // Update branch stock
       const newBranchStock = {
@@ -144,27 +144,32 @@ export const InventoryManager: React.FC = () => {
         [transferFromBranch]: fromQty - transferQuantity,
         [transferToBranch]: (currentBranchStock[transferToBranch] || 0) + transferQuantity
       };
-      
+
       const totalStock = Object.values(newBranchStock).reduce((sum, qty) => sum + qty, 0);
-      
+
       await updateProduct(selectedProduct.id, {
         branchStock: newBranchStock,
         stock: totalStock
       });
-      
-      // Log transfer history
-      await addDoc(collection(db, 'inventoryTransfers'), {
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        fromBranch: transferFromBranch,
-        toBranch: transferToBranch,
-        quantity: transferQuantity,
-        transferDate: new Date().toISOString().split('T')[0],
-        note: transferNote,
-        createdBy: staffData?.name || 'Admin',
-        createdAt: Timestamp.now()
-      });
-      
+
+      // Log transfer history (non-blocking, don't fail the transfer if this fails)
+      try {
+        await addDoc(collection(db, 'inventoryTransfers'), {
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          fromBranch: transferFromBranch,
+          toBranch: transferToBranch,
+          quantity: transferQuantity,
+          transferDate: new Date().toISOString().split('T')[0],
+          note: transferNote,
+          createdBy: staffData?.name || 'Admin',
+          createdAt: Timestamp.now()
+        });
+      } catch (historyErr) {
+        console.error('Failed to log transfer history:', historyErr);
+        // Continue - transfer was successful, just logging failed
+      }
+
       setShowTransferModal(false);
       setSelectedProduct(null);
       setTransferQuantity(1);

@@ -32,7 +32,7 @@ export class AuthService {
         return {
           ...user,
           role: staffDoc.data().role,
-          staffData: staffDoc.data()
+          staffData: { id: staffDoc.id, ...staffDoc.data() }
         } as AuthUser;
       }
       
@@ -105,7 +105,7 @@ export class AuthService {
           callback({
             ...user,
             role: staffDoc.data().role,
-            staffData: staffDoc.data()
+            staffData: { id: staffDoc.id, ...staffDoc.data() }
           } as AuthUser);
         } else {
           callback(user as AuthUser);

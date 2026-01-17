@@ -927,6 +927,10 @@ export const SalaryConfig: React.FC = () => {
                 <div className="text-center py-8 text-gray-400">
                   Giáo viên này chưa được phân công lớp nào
                 </div>
+              ) : staffClasses.filter(cls => !classConfigs.some(c => c.classId === cls.id)).length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  Tất cả các lớp đã được thêm vào cấu hình
+                </div>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {staffClasses.filter(cls => !classConfigs.some(c => c.classId === cls.id)).map((cls) => (

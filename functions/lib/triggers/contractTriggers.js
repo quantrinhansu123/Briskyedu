@@ -142,6 +142,15 @@ exports.onContractUpdate = functions
         updateData.status = 'Đang học';
         console.log('[onContractUpdate] Updating student status from Học thử to Đang học');
     }
+    else if ((after.category === 'Hợp đồng tái phí' || after.category === 'Hợp đồng liên kết')
+        && ((studentData === null || studentData === void 0 ? void 0 : studentData.status) === 'Nợ phí' || (studentData === null || studentData === void 0 ? void 0 : studentData.status) === 'Đã học hết phí')
+        && (newSessions - attendedSessions) > 0) {
+        // Renew contract cleared the debt - restore to ACTIVE
+        updateData.status = 'Đang học';
+        updateData.debtStartDate = null;
+        updateData.debtSessions = 0;
+        console.log(`[onContractUpdate] Restored student status from ${studentData === null || studentData === void 0 ? void 0 : studentData.status} to Đang học (renewal cleared debt)`);
+    }
     await studentRef.update(updateData);
     console.log(`[onContractUpdate] Updated student ${after.studentId} with ${newSessions} sessions`);
     // Check if enrollment already exists for this contract (avoid duplicate)
@@ -249,6 +258,15 @@ exports.onContractCreate = functions
     }
     else if (contract.category === 'Hợp đồng mới' && (studentData === null || studentData === void 0 ? void 0 : studentData.status) === 'Học thử') {
         updateData.status = 'Đang học';
+    }
+    else if ((contract.category === 'Hợp đồng tái phí' || contract.category === 'Hợp đồng liên kết')
+        && ((studentData === null || studentData === void 0 ? void 0 : studentData.status) === 'Nợ phí' || (studentData === null || studentData === void 0 ? void 0 : studentData.status) === 'Đã học hết phí')
+        && (newSessions - attendedSessions) > 0) {
+        // Renew contract cleared the debt - restore to ACTIVE
+        updateData.status = 'Đang học';
+        updateData.debtStartDate = null;
+        updateData.debtSessions = 0;
+        console.log(`[onContractCreate] Restored student status from ${studentData === null || studentData === void 0 ? void 0 : studentData.status} to Đang học (renewal cleared debt)`);
     }
     await studentRef.update(updateData);
     console.log(`[onContractCreate] Updated student ${contract.studentId} with ${newSessions} sessions`);

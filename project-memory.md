@@ -81,7 +81,6 @@ Ahead/Behind: Up to date with origin/main (deployed)
 │   └── features/    # 5 feature modules
 ├── functions/       # 10 Cloud Function triggers
 ├── scripts/         # 23 maintenance scripts
-├── checkin_code/    # Subproject - Next.js 16 check-in system
 └── firestore.rules  # 457 lines, 37+ collections secured
 ```
 
@@ -126,7 +125,6 @@ Ahead/Behind: Up to date with origin/main (deployed)
 - [ ] Reduce 232 `any` types
 - [ ] Add error handling (try-catch)
 - [ ] Service layer tests (34 untested)
-- [ ] Document checkin_code subproject
 
 ---
 

@@ -186,8 +186,8 @@ service cloud.firestore {
 
     // Invoice collection validator
     function isValidInvoiceData(data) {
-      return hasRequiredFields(data, ['amount']) &&
-             isNonNegativeNumber(data.amount);
+      return hasRequiredFields(data, ['total']) &&
+             isNonNegativeNumber(data.total);
     }
 
     // WorkSession collection validator

@@ -58,10 +58,12 @@ export const ContractList: React.FC = () => {
     try {
       // Always use hardcoded branches from DEFAULT_CENTER_INFO (CS1, CS2, CS3 in correct order)
       const branches = DEFAULT_CENTER_INFO.branches || [];
+      console.log('[DEBUG] getCenterInfo - centers loaded:', centers.length, centers.map(c => ({ code: c.code, signatureUrl: c.signatureUrl })));
 
       // If contract has studentId, lookup student's branch
       if (contract.studentId) {
         const student = await StudentService.getStudentById(contract.studentId);
+        console.log('[DEBUG] getCenterInfo - student branch:', student?.branch);
         if (student?.branch) {
           const studentCenter = centers.find(c =>
             c.name === student.branch ||
@@ -85,6 +87,7 @@ export const ContractList: React.FC = () => {
       }
       // Fallback to main center
       const mainCenter = centers.find(c => c.isMain) || centers[0];
+      console.log('[DEBUG] getCenterInfo - fallback to mainCenter:', mainCenter?.code, 'signatureUrl:', mainCenter?.signatureUrl);
       if (mainCenter) {
         return {
           centerName: DEFAULT_CENTER_INFO.centerName, // Always use company name
@@ -106,6 +109,8 @@ export const ContractList: React.FC = () => {
   // Handle print contract with correct center info and latest student data
   const handlePrintContract = async (contract: Contract) => {
     const centerInfo = await getCenterInfoForContract(contract);
+    console.log('[DEBUG] Print - centerInfo:', centerInfo);
+    console.log('[DEBUG] Print - signatureUrl:', centerInfo.signatureUrl);
 
     // Get latest student data for phone number (in case contract was created without it)
     let contractWithLatestData = { ...contract };
@@ -130,6 +135,8 @@ export const ContractList: React.FC = () => {
   // Handle download contract with correct center info and latest student data
   const handleDownloadContract = async (contract: Contract) => {
     const centerInfo = await getCenterInfoForContract(contract);
+    console.log('[DEBUG] Download - centerInfo:', centerInfo);
+    console.log('[DEBUG] Download - signatureUrl:', centerInfo.signatureUrl);
 
     // Get latest student data for phone number (in case contract was created without it)
     let contractWithLatestData = { ...contract };

@@ -142,6 +142,14 @@ export const onContractUpdate = functions
       // If new contract and student was in TRIAL status, update to ACTIVE
       updateData.status = 'Đang học';
       console.log('[onContractUpdate] Updating student status from Học thử to Đang học');
+    } else if ((after.category === 'Hợp đồng tái phí' || after.category === 'Hợp đồng liên kết')
+               && (studentData?.status === 'Nợ phí' || studentData?.status === 'Đã học hết phí')
+               && (newSessions - attendedSessions) > 0) {
+      // Renew contract cleared the debt - restore to ACTIVE
+      updateData.status = 'Đang học';
+      updateData.debtStartDate = null;
+      updateData.debtSessions = 0;
+      console.log(`[onContractUpdate] Restored student status from ${studentData?.status} to Đang học (renewal cleared debt)`);
     }
 
     await studentRef.update(updateData);
@@ -265,6 +273,14 @@ export const onContractCreate = functions
       console.log(`[onContractCreate] Setting student status to Nợ hợp đồng (${contract.remainingAmount}đ)`);
     } else if (contract.category === 'Hợp đồng mới' && studentData?.status === 'Học thử') {
       updateData.status = 'Đang học';
+    } else if ((contract.category === 'Hợp đồng tái phí' || contract.category === 'Hợp đồng liên kết')
+               && (studentData?.status === 'Nợ phí' || studentData?.status === 'Đã học hết phí')
+               && (newSessions - attendedSessions) > 0) {
+      // Renew contract cleared the debt - restore to ACTIVE
+      updateData.status = 'Đang học';
+      updateData.debtStartDate = null;
+      updateData.debtSessions = 0;
+      console.log(`[onContractCreate] Restored student status from ${studentData?.status} to Đang học (renewal cleared debt)`);
     }
 
     await studentRef.update(updateData);

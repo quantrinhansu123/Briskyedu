@@ -696,11 +696,22 @@ export const Attendance: React.FC = () => {
       // If sessionId is temporary (starts with temp_), create a real session first
       if (student.sessionId.startsWith('temp_')) {
         const classInfo = allClasses.find(c => c.id === student.classId);
+
+        // Calculate correct sessionNumber by counting existing sessions for this class
+        const existingSessionsSnap = await getDocs(
+          query(collection(db, 'classSessions'), where('classId', '==', student.classId))
+        );
+        const maxSessionNumber = existingSessionsSnap.docs.reduce((max, doc) => {
+          const num = doc.data().sessionNumber || 0;
+          return num > max ? num : max;
+        }, 0);
+        const newSessionNumber = maxSessionNumber + 1;
+
         const sessionDoc = await addDoc(collection(db, 'classSessions'), {
           classId: student.classId,
           className: student.className,
           date: student.sessionDate,
-          sessionNumber: 0, // Will be updated by Cloud Function or manually
+          sessionNumber: newSessionNumber,
           status: 'Chưa học',
           dayOfWeek: new Date(student.sessionDate).toLocaleDateString('vi-VN', { weekday: 'long' }),
           time: classInfo?.time || '',
@@ -710,7 +721,7 @@ export const Attendance: React.FC = () => {
           note: 'Tạo tự động từ Rà soát điểm danh'
         });
         actualSessionId = sessionDoc.id;
-        console.log('[Review] Created new session:', actualSessionId);
+        console.log('[Review] Created new session:', actualSessionId, 'sessionNumber:', newSessionNumber);
       }
       
       await addDoc(collection(db, 'studentAttendance'), {

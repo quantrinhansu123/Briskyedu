@@ -1444,59 +1444,66 @@ export const StudentDetail: React.FC = () => {
 
             <div className="p-5 overflow-y-auto max-h-[60vh]">
               {/* Summary Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-blue-700">{callFeedbacks.length + formFeedbacks.length}</p>
-                  <p className="text-xs text-blue-600">Tổng phản hồi</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-green-700">{callFeedbacks.length}</p>
-                  <p className="text-xs text-green-600">Qua điện thoại</p>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-purple-700">{formFeedbacks.length}</p>
-                  <p className="text-xs text-purple-600">Qua Form</p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-orange-700">4.5</p>
-                  <p className="text-xs text-orange-600">Điểm TB</p>
-                </div>
-              </div>
+              {(() => {
+                const stats = getFeedbackStats();
+                return (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-blue-50 p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-blue-700">{stats.total}</p>
+                        <p className="text-xs text-blue-600">Tổng phản hồi</p>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-green-700">{stats.callCount}</p>
+                        <p className="text-xs text-green-600">Qua điện thoại</p>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-purple-700">{stats.formCount}</p>
+                        <p className="text-xs text-purple-600">Qua Form</p>
+                      </div>
+                      <div className="bg-orange-50 p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold text-orange-700">{stats.avgScore}</p>
+                        <p className="text-xs text-orange-600">Điểm TB</p>
+                      </div>
+                    </div>
 
-              {/* Score Breakdown */}
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-700 mb-3">Điểm đánh giá chi tiết</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-40">Giáo viên</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div className="bg-green-500 h-3 rounded-full" style={{width: '90%'}}></div>
+                    {/* Score Breakdown */}
+                    <div className="mb-6">
+                      <h4 className="font-semibold text-gray-700 mb-3">Điểm đánh giá chi tiết</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-40">Giáo viên</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-3">
+                            <div className="bg-green-500 h-3 rounded-full" style={{width: `${(parseFloat(String(stats.teacherAvg)) / 5) * 100}%`}}></div>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 w-12">{stats.teacherAvg}/5</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-40">Chương trình học</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-3">
+                            <div className="bg-blue-500 h-3 rounded-full" style={{width: `${(parseFloat(String(stats.curriculumAvg)) / 5) * 100}%`}}></div>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 w-12">{stats.curriculumAvg}/5</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-40">Chăm sóc khách hàng</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-3">
+                            <div className="bg-purple-500 h-3 rounded-full" style={{width: `${(parseFloat(String(stats.serviceAvg)) / 5) * 100}%`}}></div>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 w-12">{stats.serviceAvg}/5</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-40">Cơ sở vật chất</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-3">
+                            <div className="bg-orange-500 h-3 rounded-full" style={{width: `${(parseFloat(String(stats.facilityAvg)) / 5) * 100}%`}}></div>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 w-12">{stats.facilityAvg}/5</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-sm font-bold text-gray-700 w-12">4.5/5</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-40">Chương trình học</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div className="bg-blue-500 h-3 rounded-full" style={{width: '85%'}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-gray-700 w-12">4.3/5</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-40">Chăm sóc khách hàng</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div className="bg-purple-500 h-3 rounded-full" style={{width: '92%'}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-gray-700 w-12">4.6/5</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-40">Cơ sở vật chất</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div className="bg-orange-500 h-3 rounded-full" style={{width: '88%'}}></div>
-                    </div>
-                    <span className="text-sm font-bold text-gray-700 w-12">4.4/5</span>
-                  </div>
-                </div>
-              </div>
+                  </>
+                );
+              })()}
 
               {/* Recent Feedbacks */}
               <div>

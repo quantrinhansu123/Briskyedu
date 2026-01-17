@@ -299,8 +299,16 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ onClose, onSubmit }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.customerName || items.some(i => !i.productName)) {
-      alert('Vui lòng điền đầy đủ thông tin');
+    if (!formData.customerName) {
+      alert('Vui lòng nhập tên khách hàng');
+      return;
+    }
+    if (items.some(i => !i.productName)) {
+      alert('Vui lòng nhập tên sản phẩm');
+      return;
+    }
+    if (items.some(i => i.unitPrice <= 0)) {
+      alert('Vui lòng nhập đơn giá cho tất cả sản phẩm');
       return;
     }
     setLoading(true);
@@ -313,6 +321,9 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ onClose, onSubmit }) => {
         total,
         status: 'Chờ thanh toán',
       });
+    } catch (err) {
+      console.error('Invoice creation error:', err);
+      alert(`Không thể tạo hoá đơn: ${err instanceof Error ? err.message : 'Lỗi không xác định'}`);
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,352 @@
+
+ ▐▛███▜▌   Claude Code v2.1.9
+▝▜█████▛▘  gemini-claude-opus-4-5-thinking · API Usage Billing
+  ▘▘ ▝▝    E:\Github_Repos\edumanager-pro
+
+  Welcome to Opus 4.5
+
+❯ E:\Github_Repos\edumanager-pro\fix_nốt_lỗi_brisky.txt tiếp tục nha 
+  ⎿  [Image #1]
+
+● Tôi sẽ đọc file để hiểu chi tiết các lỗi cần fix.
+
+● Read(fix_nốt_lỗi_brisky.txt)
+  ⎿  Read 351 lines
+
+● Đã hiểu. Còn 4 lỗi cần fix. Tôi sẽ tạo todo list và tiếp tục.
+
+● Read(pages\ContractList.tsx)
+  ⎿  Read 743 lines
+
+● Read(src\utils\contract-pdf-generator.ts)
+  ⎿  Read 423 lines
+
+● Tôi thấy vấn đề: CSS cho print cần được cải thiện để đảm bảo nội dung fit vào 1 trang. Tôi sẽ fix bằng cách thêm scaling và điều chỉnh font-size.
+
+● Update(src\utils\contract-pdf-generator.ts)
+  ⎿  Added 15 lines, removed 2 lines                                     
+      215      overflow: hidden;                                         
+      216    }                                                           
+      217    body {                                                      
+      218 -    padding: 0 10mm 8mm 10mm;                                 
+      218 +    padding: 5mm 10mm 5mm 10mm;                               
+      219    }                                                           
+      220 +  /* Force content to fit single page */                      
+      221 +  .contract-content {                                         
+      222 +    max-height: 190mm; /* A4 landscape height minus margins   
+          +*/                                                            
+      223 +    overflow: hidden;                                         
+      224 +  }                                                           
+      225 +  table {                                                     
+      226 +    page-break-inside: avoid;                                 
+      227 +  }                                                           
+      228    @media print {                                              
+      229      @page {                                                   
+      230        size: A4 landscape;                                     
+      231 -      margin: 0 5mm 5mm 5mm;                                  
+      231 +      margin: 5mm;                                            
+      232      }                                                         
+      233      html, body {                                              
+      234        -webkit-print-color-adjust: exact;                      
+      235        print-color-adjust: exact;                              
+      236 +      height: 100%;                                           
+      237 +      overflow: hidden;                                       
+      238      }                                                         
+      239 +    body {                                                    
+      240 +      transform-origin: top left;                             
+      241 +    }                                                         
+      242    }                                                           
+      243  `;                                                            
+      244                                                                
+
+● Bây giờ tôi cần update hàm printContract để wrap nội dung trong div có class contract-content.
+
+● Update(src\utils\contract-pdf-generator.ts)
+  ⎿  Added 18 lines, removed 1 line                                      
+      337          <style>${CONTRACT_PDF_STYLES}</style>                 
+      338        </head>                                                 
+      339        <body>                                                  
+      340 -        ${htmlContent}                                        
+      340 +        <div class="contract-content">                        
+      341 +          ${htmlContent}                                      
+      342 +        </div>                                                
+      343 +        <script>                                              
+      344 +          // Auto-scale content to fit single page            
+      345 +          window.addEventListener('load', function() {        
+      346 +            const content =                                   
+          +document.querySelector('.contract-content');                  
+      347 +            if (content) {                                    
+      348 +              const pageHeight = 190; // mm available         
+      349 +              const contentHeight = content.scrollHeight /    
+          +3.78; // px to mm (96dpi)                                     
+      350 +              if (contentHeight > pageHeight) {               
+      351 +                const scale = pageHeight / contentHeight;     
+      352 +                document.body.style.transform = 'scale(' +    
+          +scale + ')';                                                  
+      353 +                document.body.style.width = (100 / scale) +   
+          +'%';                                                          
+      354 +              }                                               
+      355 +            }                                                 
+      356 +          });                                                 
+      357 +        </script>                                             
+      358        </body>                                                 
+      359      </html>                                                   
+      360    `);                                                         
+
+● Bug #3 đã fix. Tiếp tục với bug #4: Salary config add operation.
+
+● Read(pages\SalaryConfig.tsx)
+  ⎿  Read 951 lines
+
+● Tôi thấy vấn đề. Khi tất cả lớp đã được thêm, modal hiển thị danh sách trống mà không có thông báo. Tôi sẽ fix:
+
+● Update(pages\SalaryConfig.tsx)
+  ⎿  Added 4 lines                                                       
+      927                  <div className="text-center py-8              
+           text-gray-400">                                               
+      928                    Giáo viên này chưa được phân công lớp nào   
+      929                  </div>                                        
+      930 +              ) : staffClasses.filter(cls =>                  
+          +!classConfigs.some(c => c.classId === cls.id)).length === 0 ? 
+          + (                                                            
+      931 +                <div className="text-center py-8              
+          +text-gray-400">                                               
+      932 +                  Tất cả các lớp đã được thêm vào cấu hình    
+      933 +                </div>                                        
+      934                ) : (                                           
+      935                  <div className="space-y-2 max-h-64            
+           overflow-y-auto">                                             
+      936                    {staffClasses.filter(cls =>                 
+           !classConfigs.some(c => c.classId === cls.id)).map((cls) => ( 
+
+● Bug #4 đã fix. Tiếp tục với bug #5: Leave request error handling.
+
+● Read(pages\LeaveRequestManager.tsx)
+  ⎿  Read 506 lines
+
+● Tôi cần xem hook useLeaveRequests để hiểu lỗi:
+
+● Read(src\hooks\useLeaveRequests.ts)
+  ⎿  Read 149 lines
+
+● Read(src\services\leaveRequestService.ts)
+  ⎿  Read 168 lines
+
+● Read(src\hooks\useLeaveBalance.ts)
+  ⎿  Read 95 lines
+
+● Tôi thấy vấn đề: error handling không đủ chi tiết và có thể lỗi từ checkBalance không được handle đúng. Tôi sẽ fix:
+
+● Update(pages\LeaveRequestManager.tsx)
+  ⎿  Added 21 lines, removed 10 lines                                    
+       98        return;                                                 
+       99      }                                                         
+      100      if (!staffData) {                                         
+      101 -      alert('Không tìm thấy thông tin nhân viên');            
+      101 +      alert('Không tìm thấy thông tin nhân viên               
+          +. Vui lòng đăng nhập lại.');                                  
+      102        return;                                                 
+      103      }                                                         
+      104 +    if (!staffData.id || !staffData.name) {                   
+      105 +      alert('Thông tin nhân viên không đầy đủ. Vui lòng liên  
+          +hệ quản trị viên.');                                          
+      106 +      return;                                                 
+      107 +    }                                                         
+      108                                                                
+      109      // Validation: No past dates                              
+      110      const today = new Date();                                 
+     ...
+      142                                                                
+      143      // Check balance for paid leave (Nghỉ phép)               
+      144      if (form.leaveType === 'Nghỉ phép') {                     
+      145 -      const { hasBalance, remaining, requested } = await      
+          -checkBalance(                                                 
+      146 -        form.startDate,                                       
+      147 -        form.endDate,                                         
+      148 -        form.leaveType                                        
+      149 -      );                                                      
+      150 -      if (!hasBalance) {                                      
+      151 -        alert(`Không đủ ngày phép. Còn lại: ${remaining}      
+          -ngày, yêu cầu: ${requested} ngày`);                           
+      152 -        return;                                               
+      145 +      try {                                                   
+      146 +        const { hasBalance, remaining, requested } = await    
+          +checkBalance(                                                 
+      147 +          form.startDate,                                     
+      148 +          form.endDate,                                       
+      149 +          form.leaveType                                      
+      150 +        );                                                    
+      151 +        if (!hasBalance) {                                    
+      152 +          alert(`Không đủ ngày phép. Còn lại: ${remaining}    
+          +ngày, yêu cầu: ${requested} ngày`);                           
+      153 +          return;                                             
+      154 +        }                                                     
+      155 +      } catch (balanceErr) {                                  
+      156 +        console.error('Balance check error:', balanceErr);    
+      157 +        // Allow submission if balance check fails (admin can 
+          + review)                                                      
+      158        }                                                       
+      159      }                                                         
+      160                                                                
+     ...
+      170        setForm({ startDate: '', endDate: '', leaveType: 'Nghỉ  
+           phép', reason: '' });                                         
+      171        // Refresh balance after submit                         
+      172        refreshBalance();                                       
+      173 +      alert('Đã gửi đơn xin nghỉ thành công!');               
+      174      } catch (err) {                                           
+      175        console.error('Submit error:', err);                    
+      176 -      alert('Có lỗi khi gửi đơn');                            
+      176 +      const errorMessage = err instanceof Error ? err.message 
+          + : 'Lỗi không xác định';                                      
+      177 +      alert(`Không thể gửi đơn: ${errorMessage}`);            
+      178      } finally {                                               
+      179        setSubmitting(false);                                   
+      180      }                                                         
+
+● Bug #5 đã fix. Tiếp tục với bug cuối cùng: Inventory transfer error message timing.
+
+● Read(pages\InventoryManager.tsx)
+  ⎿  Read 586 lines
+
+● Tôi thấy vấn đề rồi. Nếu updateProduct thành công nhưng addDoc (log history) fail, alert lỗi sẽ được hiển thị dù dữ liệu đã được cập nhật. Tôi cần fix:
+
+● Update(pages\InventoryManager.tsx)
+  ⎿  Added 24 lines, removed 19 lines                                    
+      128        alert('Cơ sở xuất và nhập phải khác nhau');             
+      129        return;                                                 
+      130      }                                                         
+      131 -                                                              
+      131 +                                                              
+      132      const currentBranchStock = selectedProduct.branchStock || 
+            {};                                                          
+      133      const fromQty = currentBranchStock[transferFromBranch] || 
+            0;                                                           
+      134 -                                                              
+      134 +                                                              
+      135      if (transferQuantity > fromQty) {                         
+      136        alert(`Không đủ hàng để chuyển. Cơ sở hiện có:          
+           ${fromQty}`);                                                 
+      137        return;                                                 
+      138      }                                                         
+      139 -                                                              
+      139 +                                                              
+      140      try {                                                     
+      141        // Update branch stock                                  
+      142        const newBranchStock = {                                
+     ...
+      144          [transferFromBranch]: fromQty - transferQuantity,     
+      145          [transferToBranch]:                                   
+           (currentBranchStock[transferToBranch] || 0) +                 
+           transferQuantity                                              
+      146        };                                                      
+      147 -                                                              
+      147 +                                                              
+      148        const totalStock =                                      
+           Object.values(newBranchStock).reduce((sum, qty) => sum + qty, 
+            0);                                                          
+      149 -                                                              
+      149 +                                                              
+      150        await updateProduct(selectedProduct.id, {               
+      151          branchStock: newBranchStock,                          
+      152          stock: totalStock                                     
+      153        });                                                     
+      154 -                                                              
+      155 -      // Log transfer history                                 
+      156 -      await addDoc(collection(db, 'inventoryTransfers'), {    
+      157 -        productId: selectedProduct.id,                        
+      158 -        productName: selectedProduct.name,                    
+      159 -        fromBranch: transferFromBranch,                       
+      160 -        toBranch: transferToBranch,                           
+      161 -        quantity: transferQuantity,                           
+      162 -        transferDate: new Date().toISOString().split('T')[0], 
+      163 -        note: transferNote,                                   
+      164 -        createdBy: staffData?.name || 'Admin',                
+      165 -        createdAt: Timestamp.now()                            
+      166 -      });                                                     
+      167 -                                                              
+      154 +                                                              
+      155 +      // Log transfer history (non-blocking, don't fail the   
+          +transfer if this fails)                                       
+      156 +      try {                                                   
+      157 +        await addDoc(collection(db, 'inventoryTransfers'), {  
+      158 +          productId: selectedProduct.id,                      
+      159 +          productName: selectedProduct.name,                  
+      160 +          fromBranch: transferFromBranch,                     
+      161 +          toBranch: transferToBranch,                         
+      162 +          quantity: transferQuantity,                         
+      163 +          transferDate: new                                   
+          +Date().toISOString().split('T')[0],                           
+      164 +          note: transferNote,                                 
+      165 +          createdBy: staffData?.name || 'Admin',              
+      166 +          createdAt: Timestamp.now()                          
+      167 +        });                                                   
+      168 +      } catch (historyErr) {                                  
+      169 +        console.error('Failed to log transfer history:',      
+          +historyErr);                                                  
+      170 +        // Continue - transfer was successful, just logging   
+          +failed                                                        
+      171 +      }                                                       
+      172 +                                                              
+      173        setShowTransferModal(false);                            
+      174        setSelectedProduct(null);                               
+      175        setTransferQuantity(1);                                 
+
+● Tất cả bugs đã được fix. Cập nhật todo list và kiểm tra build.
+
+● Bash(cd E:/Github_Repos/edumanager-pro && npm run build 2>&1 | head -50)
+  ⎿  > edumanager-pro@0.0.0 build  
+     > vite build
+     … +86 lines (ctrl+o to expand)
+
+● Bash(cd E:/Github_Repos/edumanager-pro && npm run build 2>&1 | tail -20)
+  ⎿ dist/assets/DebtManagement-DWURgSIO.js            31.90 kB │ gzip:   7.
+    26 kB
+    dist/assets/Schedule-34WjdtHc.js                  32.97 kB │ gzip:   8.
+    … +36 lines (ctrl+o to expand)
+
+
+
+● Build thành công. Tóm tắt các bug đã fix:
+
+  Tóm tắt
+
+  Đã fix 6 bugs từ danh sách:
+
+  1. ✅ Modal scroll issues (CustomerDatabase + CenterSettings)
+
+  - Đã fix ở session trước: thêm max-h-[90vh] flex flex-col và overflow-y-auto flex-1
+
+  2. ✅ Invoice creation (InvoiceManager)
+
+  - Đã fix ở session trước: cải thiện validation và error handling
+
+  3. ✅ Contract print to fit single page
+
+  - Thêm CSS auto-scaling với JavaScript để tự động scale nội dung vào 1 trang A4 landscape
+  - Thêm .contract-content wrapper và page-break-inside: avoid
+  - File: src/utils/contract-pdf-generator.ts
+
+  4. ✅ Salary config add operation
+
+  - Thêm kiểm tra và thông báo rõ ràng khi tất cả lớp đã được thêm vào cấu hình
+  - File: pages/SalaryConfig.tsx
+
+  5. ✅ Leave request error handling
+
+  - Thêm validation staffData.id và staffData.name
+  - Wrap checkBalance trong try-catch riêng để không block submission
+  - Hiển thị chi tiết error message thay vì thông báo chung
+  - Thêm success alert sau khi gửi đơn
+  - File: pages/LeaveRequestManager.tsx
+
+  6. ✅ Inventory transfer error message timing
+
+  - Tách riêng try-catch cho log history (addDoc) khỏi main transfer (updateProduct)
+  - Nếu log history fail, transfer vẫn thành công và hiển thị đúng message
+  - File: pages/InventoryManager.tsx
+
+✻ Worked for 6m 34s
+
+
+

@@ -511,6 +511,16 @@ export const checkAndUpdateStudentDebtStatus = async (
           });
           console.log(`[checkDebtStatus] Student ${studentId} status changed to "Đã học hết phí" (attended: ${attendedSessions}, registered: ${registeredSessions})`);
         }
+      } else if (remainingSessions > 0) {
+        // Positive remaining = should be "Đang học", restore if currently in debt
+        if (currentStatus === StudentStatus.DEBT || currentStatus === StudentStatus.EXPIRED_FEE) {
+          await updateDoc(studentRef, {
+            status: StudentStatus.ACTIVE,
+            debtStartDate: null,
+            debtSessions: 0
+          });
+          console.log(`[checkDebtStatus] Student ${studentId} status restored to "Đang học" (attended: ${attendedSessions}, registered: ${registeredSessions}, remaining: ${remainingSessions})`);
+        }
       }
     }
   } catch (error) {

@@ -124,20 +124,47 @@ export const HomeworkManager: React.FC = () => {
     return result;
   }, [classes, shouldShowOnlyOwnClasses, staffData, filterBranch]);
 
-  // Get students in selected class
+  // Get students in selected class - improved matching logic
   const studentsInClass = useMemo(() => {
     if (!selectedClassId) return [];
     const selectedClass = classes.find(c => c.id === selectedClassId);
     if (!selectedClass) return [];
 
-    return allStudents.filter(s =>
-      s.classId === selectedClassId ||
-      (s as any).currentClassId === selectedClassId ||  // Support currentClassId field
-      s.classIds?.includes(selectedClassId) ||  // Support multi-class
-      s.class === selectedClass.name ||
-      s.className === selectedClass.name ||
-      (s as any).currentClassName === selectedClass.name
-    ).filter(s => s.status === 'Đang học' || s.status === 'Học thử' || s.status === 'Nợ phí');
+    // More flexible matching - check all possible class references
+    const matchedStudents = allStudents.filter(s => {
+      // Match by classId (primary)
+      if (s.classId === selectedClassId) return true;
+
+      // Match by classIds array (multi-class support)
+      if (s.classIds?.includes(selectedClassId)) return true;
+
+      // Match by class name (legacy support)
+      const className = selectedClass.name?.toLowerCase().trim();
+      if (className) {
+        if (s.class?.toLowerCase().trim() === className) return true;
+        if ((s as any).className?.toLowerCase().trim() === className) return true;
+        if ((s as any).currentClassName?.toLowerCase().trim() === className) return true;
+      }
+
+      // Match by currentClassId field (if exists)
+      if ((s as any).currentClassId === selectedClassId) return true;
+
+      return false;
+    });
+
+    // Filter by active status
+    const activeStudents = matchedStudents.filter(s =>
+      s.status === 'Đang học' || s.status === 'Học thử' || s.status === 'Nợ phí'
+    );
+
+    // Debug log when no students found
+    if (activeStudents.length === 0 && matchedStudents.length > 0) {
+      console.log('[HomeworkManager] Found', matchedStudents.length, 'students but none with active status');
+    } else if (activeStudents.length === 0) {
+      console.log('[HomeworkManager] No students matched for class:', selectedClass.name, selectedClassId);
+    }
+
+    return activeStudents;
   }, [selectedClassId, classes, allStudents]);
 
   // Check if date is a holiday
@@ -222,7 +249,36 @@ export const HomeworkManager: React.FC = () => {
           const data = record.data() as HomeworkSession;
           setExistingRecordId(record.id);
           setHomeworks(data.homeworks || []);
-          setStudentRecords(data.studentRecords || []);
+
+          // Smart merge: if stored studentRecords is empty but we have students,
+          // regenerate from current students list to fix data created before students were assigned
+          const storedRecords = data.studentRecords || [];
+          if (storedRecords.length === 0 && studentsInClass.length > 0) {
+            // No stored records, regenerate from current students
+            setStudentRecords(
+              studentsInClass.map(s => ({
+                studentId: s.id,
+                studentName: s.fullName || s.name || '',
+                homeworks: {},
+                note: ''
+              }))
+            );
+          } else if (storedRecords.length > 0) {
+            // Has stored records - use them but also add any new students not in the list
+            const existingStudentIds = new Set(storedRecords.map(r => r.studentId));
+            const newStudents = studentsInClass
+              .filter(s => !existingStudentIds.has(s.id))
+              .map(s => ({
+                studentId: s.id,
+                studentName: s.fullName || s.name || '',
+                homeworks: {},
+                note: ''
+              }));
+            setStudentRecords([...storedRecords, ...newStudents]);
+          } else {
+            // Both empty
+            setStudentRecords([]);
+          }
         } else {
           setExistingRecordId(null);
           setHomeworks([]);

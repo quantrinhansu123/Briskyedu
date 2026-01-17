@@ -614,8 +614,8 @@ const LeadModal: React.FC<LeadModalProps> = ({ lead, campaigns, staff, statusOpt
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h3 className="text-xl font-bold text-gray-800">
             {lead ? 'Sửa khách hàng' : 'Thêm khách hàng'}
           </h3>
@@ -624,7 +624,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ lead, campaigns, staff, statusOpt
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tên phụ huynh <span className="text-red-500">*</span>

@@ -98,7 +98,11 @@ export const LeaveRequestManager: React.FC = () => {
       return;
     }
     if (!staffData) {
-      alert('Không tìm thấy thông tin nhân viên');
+      alert('Không tìm thấy thông tin nhân viên. Vui lòng đăng nhập lại.');
+      return;
+    }
+    if (!staffData.id || !staffData.name) {
+      alert('Thông tin nhân viên không đầy đủ. Vui lòng liên hệ quản trị viên.');
       return;
     }
 
@@ -142,14 +146,19 @@ export const LeaveRequestManager: React.FC = () => {
 
     // Check balance for paid leave (Nghỉ phép)
     if (form.leaveType === 'Nghỉ phép') {
-      const { hasBalance, remaining, requested } = await checkBalance(
-        form.startDate,
-        form.endDate,
-        form.leaveType
-      );
-      if (!hasBalance) {
-        alert(`Không đủ ngày phép. Còn lại: ${remaining} ngày, yêu cầu: ${requested} ngày`);
-        return;
+      try {
+        const { hasBalance, remaining, requested } = await checkBalance(
+          form.startDate,
+          form.endDate,
+          form.leaveType
+        );
+        if (!hasBalance) {
+          alert(`Không đủ ngày phép. Còn lại: ${remaining} ngày, yêu cầu: ${requested} ngày`);
+          return;
+        }
+      } catch (balanceErr) {
+        console.error('Balance check error:', balanceErr);
+        // Allow submission if balance check fails (admin can review)
       }
     }
 
@@ -170,9 +179,11 @@ export const LeaveRequestManager: React.FC = () => {
       setForm({ startDate: '', endDate: '', leaveType: 'Nghỉ phép', reason: '' });
       // Refresh balance after submit
       refreshBalance();
+      alert('Đã gửi đơn xin nghỉ thành công!');
     } catch (err) {
       console.error('Submit error:', err);
-      alert('Có lỗi khi gửi đơn');
+      const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
+      alert(`Không thể gửi đơn: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }

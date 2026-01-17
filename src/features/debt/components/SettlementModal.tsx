@@ -7,9 +7,8 @@
 import React, { useState } from 'react';
 import { X, CreditCard, AlertTriangle, DollarSign, FileText, CheckCircle, Eye } from 'lucide-react';
 import { Student, SettlementInvoice, SettlementStatus } from '../../../../types';
-import { SettlementInvoiceService } from '../../../services/settlementInvoiceService';
 import { downloadSettlementInvoicePDF, previewSettlementInvoice } from '../../../services/settlementInvoicePdfService';
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, collection, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { formatCurrency } from '../../../utils/currencyUtils';
 
@@ -103,15 +102,27 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           ...(sanitizedNote && { note: sanitizedNote }),
         };
 
-        // 3. Create invoice and get ID
-        const invoiceId = await SettlementInvoiceService.create(invoiceData);
+        // 3. Generate invoice code and create document reference
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        const invoiceCode = `STL-${dateStr}-${random}`;
 
-        // 4. Build full invoice for success state (for PDF export)
-        const fullInvoice: SettlementInvoice = {
+        // Create a new document reference (generates ID without writing)
+        const invoiceRef = doc(collection(db, 'settlementInvoices'));
+        const invoiceId = invoiceRef.id;
+
+        // 4. Build full invoice data
+        const fullInvoiceData: Omit<SettlementInvoice, 'id'> = {
           ...invoiceData,
+          invoiceCode,
+          createdAt: now.toISOString(),
+        };
+
+        // 5. Build full invoice for success state (for PDF export)
+        const fullInvoice: SettlementInvoice = {
+          ...fullInvoiceData,
           id: invoiceId,
-          invoiceCode: `STL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${invoiceId.slice(-3).toUpperCase()}`,
-          createdAt: new Date().toISOString(),
         };
 
         // 5. Prepare student update
@@ -143,7 +154,10 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         // 6. Update student atomically
         transaction.update(studentRef, studentUpdate);
 
-        // 7. Return invoice for success state
+        // 7. Create invoice atomically (inside transaction)
+        transaction.set(invoiceRef, fullInvoiceData);
+
+        // 8. Return invoice for success state
         return fullInvoice;
       });
 

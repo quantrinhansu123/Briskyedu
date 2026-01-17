@@ -37,6 +37,14 @@ interface StudentAttendanceState {
   punctuality?: 'onTime' | 'late' | '';  // Đúng giờ / Trễ giờ
 }
 
+// Interface for pending attendance save (Phase 4)
+interface PendingAttendanceSave {
+  classId: string;
+  className: string;
+  date: string;
+  attendanceData: StudentAttendanceState[];
+}
+
 // Interface cho rà soát điểm danh
 interface UnmarkedStudent {
   id: string;
@@ -130,6 +138,10 @@ export const Attendance: React.FC = () => {
   const [useSessionMode, setUseSessionMode] = useState(true); // Default to session mode
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
   const [showGradeFields, setShowGradeFields] = useState(false); // Toggle hiển thị điểm số
+
+  // State for makeup confirm dialog (Phase 4)
+  const [showMakeupConfirm, setShowMakeupConfirm] = useState(false);
+  const [pendingSaveData, setPendingSaveData] = useState<PendingAttendanceSave | null>(null);
 
   // Bug 3 fix: Track session IDs that have attendance records
   const [completedSessionIds, setCompletedSessionIds] = useState<Set<string>>(new Set());
@@ -403,6 +415,27 @@ export const Attendance: React.FC = () => {
         return;
       }
 
+      // Phase 4: Check if this is non-session attendance
+      if (!selectedSession && !useSessionMode) {
+        // Check if class has sessions (either generated or existing)
+        const hasExistingSessions = allSessions.length > 0;
+
+        if (hasExistingSessions) {
+          // Class has sessions but user is saving without selecting one
+          // Store pending data and show confirm dialog
+          setPendingSaveData({
+            classId: selectedClassId,
+            className: selectedClass.name,
+            date: dateToUse,
+            attendanceData: [...attendanceData],
+          });
+          setShowMakeupConfirm(true);
+          setSaving(false);
+          return;
+        }
+        // If class has no sessions → will save as 'manual' type below
+      }
+
       const absentCount = attendanceData.filter(s => s.status === AttendanceStatus.ABSENT).length;
 
       const attendanceId = await saveAttendance(
@@ -458,6 +491,75 @@ export const Attendance: React.FC = () => {
       setSelectedSession(null);
     } catch (error) {
       console.error('[Attendance] Save error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Không thể lưu điểm danh. Vui lòng thử lại.';
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Phase 4: Save with specific attendance type (for makeup/manual attendance)
+  const saveWithType = async (type: 'makeup' | 'manual') => {
+    if (!pendingSaveData) return;
+
+    // Validate type parameter
+    if (type !== 'makeup' && type !== 'manual') {
+      console.error('[Attendance] Invalid attendance type:', type);
+      setMessage({ type: 'error', text: 'Loại điểm danh không hợp lệ' });
+      return;
+    }
+
+    setSaving(true);
+    setShowMakeupConfirm(false);
+
+    try {
+      const absentCount = pendingSaveData.attendanceData.filter(
+        s => s.status === AttendanceStatus.ABSENT
+      ).length;
+
+      await saveAttendance(
+        {
+          classId: pendingSaveData.classId,
+          className: pendingSaveData.className,
+          date: pendingSaveData.date,
+          sessionNumber: null, // No session selected
+          sessionId: null,
+          attendanceType: type, // 'makeup' or 'manual'
+          totalStudents: pendingSaveData.attendanceData.length,
+          present: pendingSaveData.attendanceData.filter(
+            s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE
+          ).length,
+          absent: absentCount,
+          reserved: pendingSaveData.attendanceData.filter(s => s.status === AttendanceStatus.RESERVED).length,
+          tutored: pendingSaveData.attendanceData.filter(s => s.status === AttendanceStatus.TUTORED).length,
+          status: 'Đã điểm danh',
+          createdBy: user?.uid ?? null,
+        },
+        pendingSaveData.attendanceData.map(s => ({
+          studentId: s.studentId,
+          studentName: s.studentName,
+          studentCode: s.studentCode,
+          status: s.status,
+          note: s.note,
+          homeworkCompletion: s.homeworkCompletion,
+          testName: s.testName,
+          score: s.score,
+          bonusPoints: s.bonusPoints,
+          punctuality: s.punctuality,
+          isLate: s.punctuality === 'late',
+        }))
+      );
+
+      setMessage({
+        type: 'success',
+        text: type === 'makeup'
+          ? `Đã lưu điểm danh học bù!${absentCount > 0 ? ` Đã tạo ${absentCount} lịch bồi bài.` : ''}`
+          : 'Lưu điểm danh thành công!',
+      });
+
+      setPendingSaveData(null);
+    } catch (error) {
+      console.error('[Attendance] SaveWithType error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Không thể lưu điểm danh. Vui lòng thử lại.';
       setMessage({ type: 'error', text: errorMessage });
     } finally {
@@ -1347,6 +1449,52 @@ export const Attendance: React.FC = () => {
                   <>
                     <Save size={18} /> Lưu điểm danh
                   </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Makeup Attendance Confirm Dialog (Phase 4) */}
+      {showMakeupConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="text-amber-500" size={24} />
+              <h3 className="text-lg font-semibold">Điểm danh học bù?</h3>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              Bạn đang điểm danh mà không chọn buổi học. Điểm danh này sẽ được
+              tính là <strong>buổi học bù</strong> và không ảnh hưởng đến số buổi
+              còn lại của học sinh.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowMakeupConfirm(false);
+                  setPendingSaveData(null);
+                  setUseSessionMode(true);
+                }}
+                disabled={saving}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Chọn buổi học
+              </button>
+              <button
+                onClick={() => saveWithType('makeup')}
+                disabled={saving}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Đang lưu...
+                  </>
+                ) : (
+                  'Xác nhận học bù'
                 )}
               </button>
             </div>

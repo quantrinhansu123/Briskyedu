@@ -391,6 +391,18 @@ export const Attendance: React.FC = () => {
       setSaving(true);
       setMessage(null);
 
+      // Check duplicate BEFORE saving (prevent race condition)
+      const duplicateCheck = await checkExisting(selectedClassId, dateToUse);
+      if (duplicateCheck && duplicateCheck.id !== existingRecord?.id) {
+        // Different record exists for same class + date - block save
+        setMessage({
+          type: 'error',
+          text: `Lớp ${selectedClass.name} đã được điểm danh ngày ${dateToUse}. Vui lòng chọn ngày khác hoặc chỉnh sửa bản ghi hiện có.`
+        });
+        setSaving(false);
+        return;
+      }
+
       const absentCount = attendanceData.filter(s => s.status === AttendanceStatus.ABSENT).length;
 
       const attendanceId = await saveAttendance(

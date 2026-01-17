@@ -289,9 +289,20 @@ Serverless functions in `/functions/src/triggers/` provide backend automation an
 ### Core Triggers (Event-driven)
 
 **Class Operations**:
-- `onClassCreate` - Auto-generate workSessions for class schedule
-- `onClassUpdate` - Cascade updates to enrollments and attendance
-- `onClassDelete` - Cleanup sessions, cascade to student records
+- `onClassCreate` - Auto-generate classSessions when class created with schedule and totalSessions
+- `onClassUpdate` - Cascade updates to enrollments and attendance; auto-regenerate classSessions when schedule/totalSessions/startDate changes (preserves sessions with attendanceId)
+- `onClassDelete` - Cleanup sessions (preserves sessions with attendance), cascade to student records
+
+**Session Auto-Sync Details** (`functions/src/triggers/classTriggers.ts`):
+- **Trigger conditions**: Schedule, totalSessions, or startDate changed
+- **Data safety**: Preserves sessions with `attendanceId` (không xóa buổi đã điểm danh)
+- **Regeneration logic**:
+  - Parse schedule to extract days and time
+  - Generate expected session dates based on startDate and totalSessions
+  - Compare existing vs expected sessions
+  - Delete excess sessions (without attendance only)
+  - Add missing sessions with sequential sessionNumber
+- **Session fields**: classId, className, sessionNumber, date, dayOfWeek, time, room, teacherId, teacherName, status, createdAt
 
 **Student Management**:
 - `onStudentCreate` - Initialize student record with default values

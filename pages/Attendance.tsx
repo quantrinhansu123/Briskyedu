@@ -469,14 +469,14 @@ export const Attendance: React.FC = () => {
         }))
       );
 
-      // Mark session as complete if using session mode AND all students are marked
-      // Bug fix: Only mark complete when all students have been marked (no PENDING status)
-      const allStudentsMarked = attendanceData.every(s => s.status && s.status !== AttendanceStatus.PENDING);
-      if (selectedSession?.id && attendanceId && allStudentsMarked) {
+      // Mark session as complete when attendance is saved (regardless of pending students)
+      // Fix: allStudentsMarked check removed - session should be marked complete once attendance saved
+      if (selectedSession?.id && attendanceId) {
         try {
           await markSessionComplete(selectedSession.id, attendanceId);
         } catch (err) {
           console.warn('Could not mark session complete:', err);
+          // Don't block attendance save if session update fails
         }
       }
 
@@ -1005,9 +1005,10 @@ export const Attendance: React.FC = () => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;
                           const isToday = s.date === today;
-                          // Bug fix: Only check session status and attendanceId (set by markSessionComplete)
-                          // Don't rely on completedSessionIds as it gets populated from any attendance record
-                          const isCompleted = s.status === 'Đã học' || !!s.attendanceId;
+                          // Fix: Check both session flags AND actual attendance existence
+                          const hasAttendanceRecord = completedSessionIds.has(s.id) ||
+                                                      (s.date && completedDates.has(s.date));
+                          const isCompleted = s.status === 'Đã học' || !!s.attendanceId || hasAttendanceRecord;
                           
                           let bgClass = 'bg-white hover:bg-gray-50';
                           let iconColor = '#9ca3af';

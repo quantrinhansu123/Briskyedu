@@ -44,6 +44,7 @@ interface StudentData {
   status: string;
   registeredSessions?: number;
   attendedSessions?: number;
+  makeupSessionsAttended?: number;
   startDate?: string;
   expectedEndDate?: string;
 }
@@ -146,50 +147,65 @@ export const onStudentAttendanceCreate = functions
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
-    const newAttended = currentAttended + 1;
-    
-    // Get class schedule for expected end date calculation
-    let daysPerWeek = 2;
-    if (classId) {
-      const classDoc = await db.collection('classes').doc(classId).get();
-      if (classDoc.exists) {
-        const classData = classDoc.data() as ClassData;
-        daysPerWeek = getDaysPerWeek(classData.schedule);
-      }
-    }
-    
-    // Calculate remaining and expected end date
-    const remaining = Math.max(0, registeredSessions - newAttended);
-    const expectedEndDate = calculateExpectedEndDate(
-      remaining,
-      daysPerWeek,
-      studentData.startDate || data.date
-    );
-    
-    // Prepare update data
+
+    // Phân loại: buổi chính thức (có sessionId) vs buổi học bù (không có sessionId)
+    const isSessionAttendance = !!data.sessionId;
+
+    // Prepare update data based on attendance type
     const updateData: Record<string, any> = {
-      attendedSessions: newAttended,
-      remainingSessions: remaining,
-      expectedEndDate: expectedEndDate,
       lastAttendanceDate: data.date || new Date().toISOString().split('T')[0]
     };
-    
-    // Set startDate if not set and this is first attendance
-    if (!studentData.startDate && newAttended === 1) {
-      updateData.startDate = data.date || new Date().toISOString().split('T')[0];
+
+    if (isSessionAttendance) {
+      // Buổi chính thức → tính vào attendedSessions và remaining
+      const newAttended = currentAttended + 1;
+
+      // Get class schedule for expected end date calculation
+      let daysPerWeek = 2;
+      if (classId) {
+        const classDoc = await db.collection('classes').doc(classId).get();
+        if (classDoc.exists) {
+          const classData = classDoc.data() as ClassData;
+          daysPerWeek = getDaysPerWeek(classData.schedule);
+        }
+      }
+
+      // Calculate remaining and expected end date
+      const remaining = Math.max(0, registeredSessions - newAttended);
+      const expectedEndDate = calculateExpectedEndDate(
+        remaining,
+        daysPerWeek,
+        studentData.startDate || data.date
+      );
+
+      updateData.attendedSessions = newAttended;
+      updateData.remainingSessions = remaining;
+      updateData.expectedEndDate = expectedEndDate;
+
+      // Set startDate if not set and this is first attendance
+      if (!studentData.startDate && newAttended === 1) {
+        updateData.startDate = data.date || new Date().toISOString().split('T')[0];
+      }
+
+      // Check debt status
+      if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
+        updateData.status = 'Nợ phí';
+        updateData.debtStartDate = new Date().toISOString();
+        updateData.debtSessions = newAttended - registeredSessions;
+        console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
+      }
+
+      console.log(`[onStudentAttendanceCreate] Session attendance - Updated student ${studentId}: attended=${newAttended}, remaining=${remaining}`);
+    } else {
+      // Buổi học bù → chỉ tính makeupSessionsAttended, không ảnh hưởng remaining
+      const currentMakeup = studentData.makeupSessionsAttended || 0;
+      updateData.makeupSessionsAttended = currentMakeup + 1;
+
+      console.log(`[onStudentAttendanceCreate] Makeup attendance for ${studentId}, total: ${currentMakeup + 1}`);
     }
-    
-    // Check debt status
-    if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
-      updateData.status = 'Nợ phí';
-      updateData.debtStartDate = new Date().toISOString();
-      updateData.debtSessions = newAttended - registeredSessions;
-      console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
-    }
-    
+
     await studentRef.update(updateData);
-    console.log(`[onStudentAttendanceCreate] Updated student ${studentId}: attended=${newAttended}, remaining=${remaining}`);
-    
+
     return null;
   });
 
@@ -240,52 +256,65 @@ export const onStudentAttendanceUpdate = functions
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
-    
-    // Calculate new attended count
-    let newAttended: number;
-    if (isPresentAfter && !wasPresentBefore) {
-      // Changed from absent to present
-      newAttended = currentAttended + 1;
-    } else {
-      // Changed from present to absent
-      newAttended = Math.max(0, currentAttended - 1);
-    }
-    
-    // Get class schedule
-    let daysPerWeek = 2;
-    if (classId) {
-      const classDoc = await db.collection('classes').doc(classId).get();
-      if (classDoc.exists) {
-        const classData = classDoc.data() as ClassData;
-        daysPerWeek = getDaysPerWeek(classData.schedule);
+
+    // Phân loại: buổi chính thức vs buổi học bù
+    const isSessionAttendance = !!after.sessionId;
+
+    // Prepare update based on attendance type
+    const updateData: Record<string, any> = {};
+
+    if (isSessionAttendance) {
+      // Buổi chính thức → adjust attendedSessions
+      let newAttended: number;
+      if (isPresentAfter && !wasPresentBefore) {
+        newAttended = currentAttended + 1;
+      } else {
+        newAttended = Math.max(0, currentAttended - 1);
       }
+
+      // Get class schedule
+      let daysPerWeek = 2;
+      if (classId) {
+        const classDoc = await db.collection('classes').doc(classId).get();
+        if (classDoc.exists) {
+          const classData = classDoc.data() as ClassData;
+          daysPerWeek = getDaysPerWeek(classData.schedule);
+        }
+      }
+
+      // Calculate expected end date
+      const remaining = Math.max(0, registeredSessions - newAttended);
+      const expectedEndDate = calculateExpectedEndDate(remaining, daysPerWeek, studentData.startDate);
+
+      updateData.attendedSessions = newAttended;
+      updateData.remainingSessions = remaining;
+      updateData.expectedEndDate = expectedEndDate;
+
+      // Check debt status
+      if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
+        updateData.status = 'Nợ phí';
+        updateData.debtStartDate = new Date().toISOString();
+        updateData.debtSessions = newAttended - registeredSessions;
+      } else if (newAttended <= registeredSessions && studentData.status === 'Nợ phí') {
+        updateData.status = 'Đang học';
+        updateData.debtSessions = admin.firestore.FieldValue.delete();
+      }
+
+      console.log(`[onStudentAttendanceUpdate] Session attendance - Updated student ${studentId}: attended=${newAttended}`);
+    } else {
+      // Buổi học bù → adjust makeupSessionsAttended
+      const currentMakeup = studentData.makeupSessionsAttended || 0;
+      if (isPresentAfter && !wasPresentBefore) {
+        updateData.makeupSessionsAttended = currentMakeup + 1;
+      } else {
+        updateData.makeupSessionsAttended = Math.max(0, currentMakeup - 1);
+      }
+
+      console.log(`[onStudentAttendanceUpdate] Makeup attendance - Updated student ${studentId}: makeup=${updateData.makeupSessionsAttended}`);
     }
-    
-    // Calculate expected end date
-    const remaining = Math.max(0, registeredSessions - newAttended);
-    const expectedEndDate = calculateExpectedEndDate(remaining, daysPerWeek, studentData.startDate);
-    
-    // Prepare update
-    const updateData: Record<string, any> = {
-      attendedSessions: newAttended,
-      remainingSessions: remaining,
-      expectedEndDate: expectedEndDate
-    };
-    
-    // Check debt status
-    if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
-      updateData.status = 'Nợ phí';
-      updateData.debtStartDate = new Date().toISOString();
-      updateData.debtSessions = newAttended - registeredSessions;
-    } else if (newAttended <= registeredSessions && studentData.status === 'Nợ phí') {
-      // Potentially restore to active if no longer in debt
-      updateData.status = 'Đang học';
-      updateData.debtSessions = admin.firestore.FieldValue.delete();
-    }
-    
+
     await studentRef.update(updateData);
-    console.log(`[onStudentAttendanceUpdate] Updated student ${studentId}: attended=${newAttended}`);
-    
+
     return null;
   });
 
@@ -324,15 +353,32 @@ export const onStudentAttendanceDelete = functions
     }
     
     const studentData = studentDoc.data() as StudentData;
-    const currentAttended = studentData.attendedSessions || 0;
-    const newAttended = Math.max(0, currentAttended - 1);
-    
-    await studentRef.update({
-      attendedSessions: newAttended
-    });
-    
-    console.log(`[onStudentAttendanceDelete] Decremented attended for student ${studentId}: ${currentAttended} → ${newAttended}`);
-    
+
+    // Phân loại: buổi chính thức vs buổi học bù
+    const isSessionAttendance = !!data.sessionId;
+
+    if (isSessionAttendance) {
+      // Buổi chính thức → decrement attendedSessions
+      const currentAttended = studentData.attendedSessions || 0;
+      const newAttended = Math.max(0, currentAttended - 1);
+
+      await studentRef.update({
+        attendedSessions: newAttended
+      });
+
+      console.log(`[onStudentAttendanceDelete] Session attendance - Decremented attended for student ${studentId}: ${currentAttended} → ${newAttended}`);
+    } else {
+      // Buổi học bù → decrement makeupSessionsAttended
+      const currentMakeup = studentData.makeupSessionsAttended || 0;
+      const newMakeup = Math.max(0, currentMakeup - 1);
+
+      await studentRef.update({
+        makeupSessionsAttended: newMakeup
+      });
+
+      console.log(`[onStudentAttendanceDelete] Makeup attendance - Decremented makeup for student ${studentId}: ${currentMakeup} → ${newMakeup}`);
+    }
+
     return null;
   });
 

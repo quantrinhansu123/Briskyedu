@@ -224,24 +224,17 @@ exports.onClassUpdate = functions
     // 4. Regenerate sessions if schedule or totalSessions changed
     const scheduleChanged = before.schedule !== after.schedule;
     const sessionsChanged = before.totalSessions !== after.totalSessions;
+    const startDateChanged = before.startDate !== after.startDate;
     console.log(`[onClassUpdate] Schedule check: before="${before.schedule}", after="${after.schedule}", changed=${scheduleChanged}`);
     console.log(`[onClassUpdate] TotalSessions check: before=${before.totalSessions}, after=${after.totalSessions}, changed=${sessionsChanged}`);
-    if ((scheduleChanged || sessionsChanged) && after.schedule && after.totalSessions) {
+    if ((scheduleChanged || sessionsChanged || startDateChanged) && after.schedule && after.totalSessions) {
         console.log(`[onClassUpdate] Schedule/sessions changed - regenerating sessions`);
-        // Check if sessions already exist
-        const existingSessions = await db
-            .collection('classSessions')
-            .where('classId', '==', classId)
-            .limit(1)
-            .get();
-        if (existingSessions.empty) {
-            // No existing sessions - generate new ones
-            const count = await generateClassSessions(classId, after);
-            console.log(`[onClassUpdate] Generated ${count} new sessions`);
+        try {
+            const result = await regenerateSessionsForClass(classId, after);
+            console.log(`[onClassUpdate] Regeneration result: +${result.added} -${result.removed}`);
         }
-        else {
-            console.log(`[onClassUpdate] Sessions already exist - skipping regeneration`);
-            // TODO: Could add option to regenerate/update existing sessions
+        catch (error) {
+            console.error(`[onClassUpdate] Error regenerating sessions:`, error);
         }
     }
     // Wait for all cascade updates
@@ -252,9 +245,8 @@ exports.onClassUpdate = functions
     if (historyEntries.length > 0) {
         console.log(`[onClassUpdate] Adding ${historyEntries.length} training history entries`);
         try {
-            const existingHistory = after.trainingHistory || [];
             await db.collection('classes').doc(classId).update({
-                trainingHistory: [...existingHistory, ...historyEntries]
+                trainingHistory: admin.firestore.FieldValue.arrayUnion(...historyEntries)
             });
             console.log(`[onClassUpdate] Training history updated successfully`);
         }
@@ -279,9 +271,23 @@ exports.onClassDelete = functions
     const classId = context.params.classId;
     const classData = snap.data();
     console.log(`[onClassDelete] Class deleted: ${classData.name} (${classId})`);
-    // 1. Delete all sessions for this class
-    const sessionsDeleted = await (0, batchUtils_1.cascadeDelete)('classSessions', 'classId', classId);
-    console.log(`[onClassDelete] Deleted ${sessionsDeleted} sessions`);
+    // 1. Delete sessions WITHOUT attendanceId, preserve sessions with attendance
+    const sessionsSnap = await db.collection('classSessions')
+        .where('classId', '==', classId)
+        .get();
+    const sessionsToDelete = sessionsSnap.docs.filter(doc => {
+        const data = doc.data();
+        return !data.attendanceId;
+    });
+    const sessionsPreserved = sessionsSnap.size - sessionsToDelete.length;
+    if (sessionsToDelete.length > 0) {
+        const operations = sessionsToDelete.map(doc => ({
+            type: 'delete',
+            ref: doc.ref
+        }));
+        await (0, batchUtils_1.executeBatch)(operations);
+    }
+    console.log(`[onClassDelete] Deleted ${sessionsToDelete.length} sessions, preserved ${sessionsPreserved} with attendance`);
     // 2. Update students - clear class reference
     const studentsUpdated = await (0, batchUtils_1.cascadeUpdate)('students', 'classId', classId, {
         classId: null,
@@ -298,6 +304,108 @@ exports.onClassDelete = functions
     return null;
 });
 /**
+ * Helper: Convert Firestore startDate to ISO string
+ */
+function normalizeStartDate(startDate) {
+    if (!startDate) {
+        return new Date().toISOString().split('T')[0];
+    }
+    if (typeof startDate === 'string') {
+        // Validate format YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+            return startDate;
+        }
+        // Try to parse other formats
+        const parsed = new Date(startDate);
+        if (!isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+        }
+        return new Date().toISOString().split('T')[0];
+    }
+    if (startDate.toDate) {
+        // Firestore Timestamp
+        return startDate.toDate().toISOString().split('T')[0];
+    }
+    return new Date().toISOString().split('T')[0];
+}
+/**
+ * Helper: Regenerate sessions for a class when schedule changes
+ * - Preserves sessions that have attendanceId (already taken attendance)
+ * - Adds new sessions based on new schedule
+ * - Removes excess sessions without attendance
+ */
+async function regenerateSessionsForClass(classId, classData) {
+    if (!classData.schedule || !classData.totalSessions) {
+        console.log(`[regenerateSessionsForClass] Missing schedule or totalSessions`);
+        return { added: 0, removed: 0 };
+    }
+    console.log(`[regenerateSessionsForClass] Starting for class ${classData.name} (${classId})`);
+    // 1. Get existing sessions
+    const existingSnap = await db.collection('classSessions')
+        .where('classId', '==', classId)
+        .get();
+    const existingSessions = existingSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    console.log(`[regenerateSessionsForClass] Found ${existingSessions.length} existing sessions`);
+    // 2. Parse schedule and generate expected sessions
+    const { time, days } = (0, scheduleParser_1.parseSchedule)(classData.schedule);
+    if (days.length === 0) {
+        console.log(`[regenerateSessionsForClass] Could not parse schedule: ${classData.schedule}`);
+        return { added: 0, removed: 0 };
+    }
+    // Determine start date using normalized helper
+    const startDate = normalizeStartDate(classData.startDate);
+    const expectedSessionDates = (0, scheduleParser_1.generateSessionDates)(startDate, classData.totalSessions, days);
+    // 3. Create maps for comparison
+    const existingByDate = new Map();
+    existingSessions.forEach(s => existingByDate.set(s.date, s));
+    const expectedDatesSet = new Set(expectedSessionDates.map(s => s.date));
+    // 4. Find sessions to add (in expected but not existing)
+    const toAdd = expectedSessionDates.filter(s => !existingByDate.has(s.date));
+    // 5. Find sessions to remove (in existing but not expected, AND no attendanceId)
+    const toRemove = existingSessions.filter(s => !expectedDatesSet.has(s.date) && !s.attendanceId);
+    // 6. Find max sessionNumber for new sessions
+    const maxSessionNumber = existingSessions.reduce((max, s) => Math.max(max, s.sessionNumber || 0), 0);
+    console.log(`[regenerateSessionsForClass] +${toAdd.length} -${toRemove.length} sessions`);
+    // 7. Execute batch operations
+    const operations = [];
+    // Delete excess sessions (without attendance)
+    toRemove.forEach(s => {
+        operations.push({
+            type: 'delete',
+            ref: db.collection('classSessions').doc(s.id)
+        });
+    });
+    // Add new sessions
+    toAdd.forEach((sessionDate, index) => {
+        const sessionNumber = maxSessionNumber + index + 1;
+        operations.push({
+            type: 'set',
+            ref: db.collection('classSessions').doc(),
+            data: {
+                classId,
+                className: classData.name,
+                sessionNumber,
+                date: sessionDate.date,
+                dayOfWeek: sessionDate.dayOfWeek,
+                time: time,
+                room: classData.room || null,
+                teacherId: classData.teacherId || null,
+                teacherName: classData.teacher || null,
+                status: 'Chưa học',
+                createdAt: new Date().toISOString()
+            }
+        });
+    });
+    if (operations.length > 0) {
+        await (0, batchUtils_1.executeBatch)(operations);
+    }
+    console.log(`[regenerateSessionsForClass] Completed: added ${toAdd.length}, removed ${toRemove.length}`);
+    return { added: toAdd.length, removed: toRemove.length };
+}
+/**
  * Helper: Generate sessions for a class
  */
 async function generateClassSessions(classId, classData) {
@@ -312,23 +420,8 @@ async function generateClassSessions(classId, classData) {
         console.log(`[generateClassSessions] Could not parse schedule: ${classData.schedule}`);
         return 0;
     }
-    // Handle startDate which can be string or Firestore Timestamp
-    let startDate;
-    if (classData.startDate) {
-        if (typeof classData.startDate === 'string') {
-            startDate = classData.startDate;
-        }
-        else if (classData.startDate.toDate) {
-            // Firestore Timestamp
-            startDate = classData.startDate.toDate().toISOString().split('T')[0];
-        }
-        else {
-            startDate = new Date().toISOString().split('T')[0];
-        }
-    }
-    else {
-        startDate = new Date().toISOString().split('T')[0];
-    }
+    // Use normalized helper for startDate
+    const startDate = normalizeStartDate(classData.startDate);
     console.log(`[generateClassSessions] Start date: ${startDate}`);
     const sessionDates = (0, scheduleParser_1.generateSessionDates)(startDate, classData.totalSessions, days);
     if (sessionDates.length === 0) {

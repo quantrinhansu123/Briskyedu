@@ -107,7 +107,7 @@ export const getScheduleDays = (schedule: string): string => {
 export const parseScheduleDays = (schedule: string): number[] => {
   const daysStr = getScheduleDays(schedule);
   const days: number[] = [];
-  
+
   const matches = daysStr.match(/T(\d)/gi);
   if (matches) {
     matches.forEach(match => {
@@ -117,6 +117,37 @@ export const parseScheduleDays = (schedule: string): number[] => {
       }
     });
   }
-  
+
   return days.sort((a, b) => a - b);
+};
+
+/**
+ * Validate schedule format and extract info
+ * Returns validation result with days and time if valid
+ */
+export const validateScheduleFormat = (schedule: string): {
+  valid: boolean;
+  error?: string;
+  days?: number[];
+  time?: string;
+} => {
+  if (!schedule?.trim()) {
+    return { valid: false, error: 'Vui lòng nhập lịch học' };
+  }
+
+  const days = parseScheduleDays(schedule);
+  if (days.length === 0) {
+    return {
+      valid: false,
+      error: 'Không nhận diện được ngày học. VD: T2, T4, T6 hoặc Thứ 2, Thứ 4'
+    };
+  }
+
+  const time = getScheduleTime(schedule);
+
+  return {
+    valid: true,
+    days,
+    time: time || undefined
+  };
 };

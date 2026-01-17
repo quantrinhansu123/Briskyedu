@@ -5,11 +5,12 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, AlertTriangle } from 'lucide-react';
 import { ClassStatus, ClassModel, DayScheduleConfig } from '@/types';
 import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
 import { CLASS_COLOR_PALETTE, hashClassName } from '@/pages/Schedule';
+import { parseScheduleDays } from '@/src/utils/scheduleUtils';
 
 export interface ClassFormModalProps {
   classData?: ClassModel;
@@ -97,6 +98,22 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
   // All classes for room conflict validation
   const [allClasses, setAllClasses] = useState<{ id: string; room: string; schedule: string; scheduleDays?: string[] }[]>([]);
   const [roomConflictError, setRoomConflictError] = useState<string | null>(null);
+
+  // Schedule change warning state
+  const scheduleChanged = useMemo(() => {
+    if (!classData) return false;
+
+    // Get original days from class schedule string
+    const originalDays = classData.schedule ? parseScheduleDays(classData.schedule) : [];
+    const currentDays = formData.scheduleDays.map(d => d === 'CN' ? 0 : parseInt(d)).sort();
+    const originalDaysSorted = originalDays.sort();
+
+    return (
+      formData.startDate !== classData.startDate ||
+      formData.totalSessions !== classData.totalSessions ||
+      currentDays.join(',') !== originalDaysSorted.join(',')
+    );
+  }, [classData, formData.startDate, formData.totalSessions, formData.scheduleDays]);
 
   // Curriculum autocomplete state
   const [curriculumList, setCurriculumList] = useState<string[]>([]);
@@ -571,6 +588,23 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
           {roomConflictError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               <strong>⚠️ Xung đột phòng học:</strong> {roomConflictError}
+            </div>
+          )}
+
+          {/* Schedule change warning */}
+          {classData && scheduleChanged && (
+            <div className="mb-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-yellow-700 text-sm font-medium">
+                    Thay đổi lịch học sẽ tự động cập nhật các buổi học
+                  </p>
+                  <p className="text-yellow-600 text-xs mt-1">
+                    Các buổi đã điểm danh sẽ được giữ nguyên. Hệ thống sẽ tự động thêm/bớt buổi học theo lịch mới.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

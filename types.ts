@@ -53,6 +53,8 @@ export interface Student {
   registeredSessions?: number; // Số buổi đã đăng ký/đóng tiền
   attendedSessions?: number; // Số buổi đã học (tự động tính từ điểm danh)
   remainingSessions?: number; // Số buổi còn lại (âm = nợ phí, auto set status)
+  /** Số buổi học bù/thêm đã tham gia (không tính vào nợ phí) */
+  makeupSessionsAttended?: number;
   startSessionNumber?: number; // Buổi học bắt đầu (khi đăng ký giữa khoá)
   enrollmentDate?: string; // Ngày đăng ký
   startDate?: string; // Ngày bắt đầu học
@@ -357,6 +359,13 @@ export interface AttendanceRecord {
   status: 'Đã điểm danh' | 'Chưa điểm danh' | 'LỊCH NGHỈ CHUNG';
   holidayId?: string;  // Reference to holiday that created this record
   holidayName?: string; // Holiday name for display
+  /**
+   * Loại điểm danh:
+   * - 'session': Điểm danh theo buổi học (mặc định khi có sessionId)
+   * - 'makeup': Học bù (không trừ remainingSessions)
+   * - 'manual': Admin override hoặc lớp chưa có schedule
+   */
+  attendanceType?: 'session' | 'makeup' | 'manual';
   createdBy?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -385,6 +394,9 @@ export interface StudentAttendance {
   // Thông tin đúng giờ / trễ giờ
   punctuality?: 'onTime' | 'late' | '';  // Đúng giờ / Trễ giờ
   isLate?: boolean;             // Đi trễ (legacy)
+
+  /** Loại điểm danh - kế thừa từ parent attendance record */
+  attendanceType?: 'session' | 'makeup' | 'manual';
 
   createdAt?: string;
   updatedAt?: string;

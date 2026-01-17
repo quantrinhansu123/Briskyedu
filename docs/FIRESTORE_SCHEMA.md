@@ -51,6 +51,7 @@
     sessions: number
     amount: number
   }]
+  makeupSessionsAttended?: number // Số buổi học bù (không tính vào nợ phí)
   careHistory: [{
     id: string
     date: Timestamp
@@ -175,6 +176,8 @@
   classId: string (reference to classes, indexed)
   className: string
   date: Timestamp (indexed)
+  sessionId?: string (reference to classSessions)
+  sessionNumber?: number
   teacherId: string
   teacherName: string
   records: [{
@@ -187,6 +190,8 @@
   present: number
   absent: number
   status: 'Đã điểm danh' | 'Chưa điểm danh'
+  // Loại điểm danh: session (có sessionId), makeup (học bù), manual (admin override)
+  attendanceType?: 'session' | 'makeup' | 'manual'
   createdAt: Timestamp
   createdBy: string
 }

@@ -4,56 +4,45 @@
  * This script finds sessions that have `status: 'Chưa học'` but have matching
  * attendance records, and updates them to `status: 'Đã học'` with the correct attendanceId.
  *
- * Prerequisites:
- *   - Set GOOGLE_APPLICATION_CREDENTIALS environment variable to your service account key
- *   - Or place serviceAccountKey.json in project root
- *
  * Usage:
  *   npx tsx scripts/backfill-session-attendance-links.ts --dry-run   # Preview changes
  *   npx tsx scripts/backfill-session-attendance-links.ts --execute   # Apply changes
+ *
+ * Note: Run with Firebase emulator or ensure you're authenticated via browser first.
  */
 
-import admin from 'firebase-admin';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
+import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { existsSync, readFileSync } from 'fs';
 
 // ESM compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Initialize Firebase Admin
-const serviceAccountPath = resolve(__dirname, '../serviceAccountKey.json');
-const hasServiceAccount = existsSync(serviceAccountPath);
+// Load environment variables from .env.local
+dotenv.config({ path: resolve(__dirname, '../.env.local') });
 
-if (!admin.apps.length) {
-  if (hasServiceAccount) {
-    const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    console.log('Initialized Firebase Admin with service account');
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault()
-    });
-    console.log('Initialized Firebase Admin with application default credentials');
-  } else {
-    console.error(`
-Error: No Firebase credentials found.
+// Firebase config from environment
+const firebaseConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+};
 
-Option 1: Create serviceAccountKey.json in project root
-  - Go to Firebase Console > Project Settings > Service Accounts
-  - Generate new private key and save as serviceAccountKey.json
-
-Option 2: Set GOOGLE_APPLICATION_CREDENTIALS environment variable
-  - export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
-`);
-    process.exit(1);
-  }
+if (!firebaseConfig.projectId) {
+  console.error('Error: Firebase config not found. Make sure .env.local exists with VITE_FIREBASE_* variables.');
+  process.exit(1);
 }
 
-const db = admin.firestore();
+console.log(`Connecting to Firebase project: ${firebaseConfig.projectId}`);
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 interface BackfillResult {
   sessionsChecked: number;
@@ -73,14 +62,16 @@ async function backfillSessionAttendanceLinks(dryRun = true): Promise<BackfillRe
 
   // 1. Get all sessions with status='Chưa học'
   console.log('Fetching sessions with status="Chưa học"...');
-  const sessionsSnap = await db.collection('classSessions')
-    .where('status', '==', 'Chưa học')
-    .get();
+  const sessionsQuery = query(
+    collection(db, 'classSessions'),
+    where('status', '==', 'Chưa học')
+  );
+  const sessionsSnap = await getDocs(sessionsQuery);
   console.log(`Found ${sessionsSnap.size} incomplete sessions\n`);
 
   // 2. Get all attendance records (for matching)
   console.log('Fetching attendance records...');
-  const attendanceSnap = await db.collection('attendance').get();
+  const attendanceSnap = await getDocs(collection(db, 'attendance'));
   console.log(`Found ${attendanceSnap.size} attendance records\n`);
 
   // Build lookup maps for matching
@@ -133,7 +124,7 @@ async function backfillSessionAttendanceLinks(dryRun = true): Promise<BackfillRe
 
       if (!dryRun) {
         try {
-          await db.collection('classSessions').doc(sessionDoc.id).update({
+          await updateDoc(doc(db, 'classSessions', sessionDoc.id), {
             status: 'Đã học',
             attendanceId: matchedAttendance.id
           });
@@ -184,5 +175,9 @@ backfillSessionAttendanceLinks(dryRun)
   })
   .catch(err => {
     console.error('Fatal error:', err);
+    if (err.code === 'permission-denied') {
+      console.log('\nTip: Run with Firebase emulator or temporarily adjust Firestore rules');
+      console.log('  firebase emulators:start --only firestore');
+    }
     process.exit(1);
   });

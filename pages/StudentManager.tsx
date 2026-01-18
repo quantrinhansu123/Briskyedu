@@ -30,6 +30,25 @@ import {
   RemoveClassModal,
 } from '../src/features/students/components';
 
+// Constants for table column count
+const STUDENT_TABLE_COLUMNS = {
+  base: 13,  // Standard columns count
+  withDropoutReason: 14  // When showing dropout reason column
+};
+
+// Helper function to get student's class progress (DRY)
+const getStudentClassProgress = (student: Student) => {
+  const classId = student.classId;
+  if (!classId || !student.classProgress?.[classId]) return null;
+  return student.classProgress[classId];
+};
+
+// Helper to get makeupOwed value
+const getStudentMakeupOwed = (student: Student): number => {
+  const progress = getStudentClassProgress(student);
+  return progress?.makeupOwed ?? 0;
+};
+
 interface StudentManagerProps {
   initialStatusFilter?: StudentStatus;
   title?: string;
@@ -608,6 +627,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     <th className="px-4 py-3 bg-gray-50 text-center">Gói học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Đã học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Còn lại</th>
+                    <th className="px-4 py-3 bg-gray-50 text-center">Nợ bù</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày BĐ</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày KT</th>
                     <th className="px-4 py-3 bg-gray-50">HĐ gần nhất</th>
@@ -621,7 +641,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                 <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-gray-500">
+                    <td colSpan={filterStatus === StudentStatus.DROPPED ? STUDENT_TABLE_COLUMNS.withDropoutReason : STUDENT_TABLE_COLUMNS.base} className="text-center py-10 text-gray-500">
                       <div className="flex items-center justify-center gap-2">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
                         Đang tải dữ liệu...
@@ -630,7 +650,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-red-500">
+                    <td colSpan={filterStatus === StudentStatus.DROPPED ? STUDENT_TABLE_COLUMNS.withDropoutReason : STUDENT_TABLE_COLUMNS.base} className="text-center py-10 text-red-500">
                       Lỗi: {error}
                     </td>
                   </tr>
@@ -673,6 +693,17 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                              {remaining < 0 && <span className="text-xs ml-1">(nợ)</span>}
                            </span>
                          );
+                       })()}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                       {(() => {
+                         const makeupOwed = getStudentMakeupOwed(student);
+                         if (makeupOwed > 0) {
+                           return (
+                             <span className="font-semibold text-orange-600">{makeupOwed}</span>
+                           );
+                         }
+                         return <span className="text-gray-400">0</span>;
                        })()}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600">
@@ -850,7 +881,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     </tr>
                 )) : (
                     <tr>
-                        <td colSpan={filterStatus === StudentStatus.DROPPED ? 13 : 12} className="text-center py-10 text-gray-500">
+                        <td colSpan={filterStatus === StudentStatus.DROPPED ? STUDENT_TABLE_COLUMNS.withDropoutReason : STUDENT_TABLE_COLUMNS.base} className="text-center py-10 text-gray-500">
                             Không tìm thấy học viên nào.
                         </td>
                     </tr>
@@ -885,6 +916,44 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                         <p className="font-medium text-blue-600">{normalizeStudentStatus(selectedStudent.status)}</p>
                     </div>
                  </div>
+
+                 {/* Class Progress Display */}
+                 {(() => {
+                   const progress = getStudentClassProgress(selectedStudent);
+                   // Fallback to student-level data if classProgress not available
+                   const registered = progress?.registeredSessions ?? selectedStudent.registeredSessions ?? 0;
+                   const attended = progress?.attendedSessions ?? selectedStudent.attendedSessions ?? 0;
+                   const makeupOwed = progress?.makeupOwed ?? 0;
+
+                   // Only show if there's any data
+                   if (registered === 0 && attended === 0) return null;
+
+                   const percent = registered > 0 ? Math.round((attended / registered) * 100) : 0;
+                   const displayPercent = Math.min(percent, 100); // Cap at 100% for progress bar
+                   return (
+                     <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                       <div className="flex items-center gap-2 mb-2">
+                         <BookOpen size={14} className="text-indigo-600" />
+                         <span className="text-xs font-semibold text-indigo-700">Tiến độ học tập</span>
+                       </div>
+                       <div className="flex justify-between text-sm mb-1">
+                         <span className="text-gray-600">Đã học: <span className="font-bold text-green-600">{attended}</span>/{registered}</span>
+                         {makeupOwed > 0 && (
+                           <span className="text-orange-600 font-semibold">Nợ bù: {makeupOwed}</span>
+                         )}
+                       </div>
+                       <div className="w-full bg-gray-200 rounded-full h-2">
+                         <div
+                           className={`h-2 rounded-full transition-all ${percent > 100 ? 'bg-green-500' : 'bg-indigo-500'}`}
+                           style={{ width: `${displayPercent}%` }}
+                         />
+                       </div>
+                       <p className="text-xs text-gray-500 mt-1">
+                         {percent}% hoàn thành{percent > 100 && ' (vượt mức)'}
+                       </p>
+                     </div>
+                   );
+                 })()}
               </div>
               
               <div>

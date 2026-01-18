@@ -573,6 +573,47 @@ export const Attendance: React.FC = () => {
     setAttendanceDate(session.date);
   };
 
+  // Phase 1: Handle date change with auto-detect session logic
+  const handleDateChange = (newDate: string) => {
+    setAttendanceDate(newDate);
+
+    // Skip auto-detect if sessions still loading
+    if (sessionsLoading) {
+      setSelectedSession(null);
+      return;
+    }
+
+    // Auto-detect: Find session matching this date
+    const matchingSession = allSessions.find(s => s.date === newDate);
+
+    if (matchingSession) {
+      // Check if session already has attendance
+      const hasAttendance = completedSessionIds.has(matchingSession.id) ||
+                           completedDates.has(matchingSession.date) ||
+                           matchingSession.attendanceId;
+
+      if (hasAttendance) {
+        // Phase 1.2: Warning - session already has attendance
+        setMessage({
+          type: 'error',
+          text: `Buổi ${matchingSession.sessionNumber} (${matchingSession.dayOfWeek}) đã được điểm danh. Vui lòng chọn buổi khác hoặc chỉnh sửa bản ghi hiện có.`
+        });
+        setSelectedSession(null);
+      } else {
+        // Phase 1.1: Auto-link - select the matching session
+        setSelectedSession(matchingSession);
+        setMessage({
+          type: 'success',
+          text: `Đã tự động chọn Buổi ${matchingSession.sessionNumber} (${matchingSession.dayOfWeek})`
+        });
+      }
+    } else {
+      // No matching session - clear selection (will trigger makeup confirm on save)
+      setSelectedSession(null);
+      setMessage(null);
+    }
+  };
+
   const getStatusStyle = (status: AttendanceStatus, current: AttendanceStatus) => {
     const isActive = status === current && status !== AttendanceStatus.PENDING;
     const styles: Record<string, string> = {
@@ -1056,10 +1097,7 @@ export const Attendance: React.FC = () => {
                     type="date"
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     value={attendanceDate}
-                    onChange={(e) => {
-                      setAttendanceDate(e.target.value);
-                      setSelectedSession(null);
-                    }}
+                    onChange={(e) => handleDateChange(e.target.value)}
                   />
                 )}
               </div>

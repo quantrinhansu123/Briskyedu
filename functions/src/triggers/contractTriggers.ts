@@ -129,6 +129,23 @@ export const onContractUpdate = functions
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
+    // Phase 3.4: Initialize classProgress for this class
+    const classId = after.classId || after.items[0]?.id;
+    if (classId) {
+      const existingProgress = studentData?.classProgress?.[classId] || {
+        registeredSessions: 0,
+        attendedSessions: 0,
+        absentSessions: 0,
+        makeupOwed: 0,
+        makeupDone: 0,
+        reservedSessions: 0
+      };
+      // Add new paid sessions to registered
+      existingProgress.registeredSessions += paidSessions;
+      updateData[`classProgress.${classId}`] = existingProgress;
+      console.log(`[onContractUpdate] Init/update classProgress[${classId}]:`, existingProgress);
+    }
+
     // Update student status based on contract status
     if (after.status === 'Nợ hợp đồng') {
       // Set student status to CONTRACT_DEBT

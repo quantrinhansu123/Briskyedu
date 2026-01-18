@@ -113,6 +113,7 @@ async function updateClassProgress(classId) {
     });
     const progress = `${completed}/${total}`;
     await db.collection('classes').doc(classId).update({
+        completedSessions: completed,
         progress,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });

@@ -1,29 +1,65 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
   Timestamp,
   QueryConstraint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ClassModel, ClassStatus } from '../../types';
-import { 
-  validateDeleteClass, 
-  cascadeDeleteClass, 
-  cascadeUpdateClassName 
+import {
+  validateDeleteClass,
+  cascadeDeleteClass,
+  cascadeUpdateClassName
 } from './dataIntegrityService';
 
 const COLLECTION_NAME = 'classes';
 
 // NOTE: Session generation is now handled by Cloud Functions (onClassCreate trigger)
 // See: functions/src/triggers/classTriggers.ts
+
+/**
+ * Validate if totalSessions can be reduced
+ * BLOCKS reduction if any sessions beyond new count have attendance
+ */
+export async function validateTotalSessionsChange(
+  classId: string,
+  currentTotal: number,
+  newTotal: number
+): Promise<{ valid: boolean; message: string }> {
+  // Allow increase
+  if (newTotal >= currentTotal) {
+    return { valid: true, message: '' };
+  }
+
+  // Check if sessions beyond newTotal have attendance
+  const sessionsQuery = query(
+    collection(db, 'classSessions'),
+    where('classId', '==', classId),
+    where('sessionNumber', '>', newTotal)
+  );
+  const sessionsSnap = await getDocs(sessionsQuery);
+
+  const sessionsWithAttendance = sessionsSnap.docs.filter(
+    doc => doc.data().attendanceId
+  );
+
+  if (sessionsWithAttendance.length > 0) {
+    return {
+      valid: false,
+      message: `Không thể giảm số buổi vì có ${sessionsWithAttendance.length} buổi học (từ buổi ${newTotal + 1}) đã có điểm danh. Vui lòng xóa điểm danh trước.`
+    };
+  }
+
+  return { valid: true, message: '' };
+}
 
 export class ClassService {
   

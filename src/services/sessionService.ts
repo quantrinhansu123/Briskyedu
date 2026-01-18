@@ -50,7 +50,7 @@ const DAY_MAP: Record<string, number> = {
   'thứ 7': 6, 'thứ bảy': 6, 't7': 6,
 };
 
-const DAY_NAMES = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 
 /**
  * Parse schedule string to get days of week

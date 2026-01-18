@@ -1000,7 +1000,13 @@ export const Attendance: React.FC = () => {
                       >
                         {[...allSessions]
                           .filter(s => s.sessionNumber > 0) // Bug 2 fix: Filter out sessions with invalid sessionNumber
-                          .sort((a, b) => a.sessionNumber - b.sessionNumber)
+                          .sort((a, b) => {
+                            // Primary: sort by date (chronological order)
+                            const dateCompare = a.date.localeCompare(b.date);
+                            if (dateCompare !== 0) return dateCompare;
+                            // Fallback: sort by sessionNumber if same date
+                            return a.sessionNumber - b.sessionNumber;
+                          })
                           .map(s => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;

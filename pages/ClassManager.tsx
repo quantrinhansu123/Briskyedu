@@ -12,6 +12,7 @@ import { CLASS_FIELDS, CLASS_MAPPING, prepareClassExport } from '../src/utils/ex
 import { CLASS_COLOR_PALETTE, hashClassName } from './Schedule';
 import { formatDisplayDate } from '../src/utils/dateUtils';
 import { normalizeStudentStatus as normalizeStatus } from '../src/utils/statusUtils';
+import { validateTotalSessionsChange } from '../src/services/classService';
 import {
   ClassFormModal,
   TestScheduleModal,
@@ -345,6 +346,20 @@ export const ClassManager: React.FC = () => {
       const existingClass = classes.find(c => c.id === id);
       if (!existingClass) {
         throw new Error('Không tìm thấy lớp học');
+      }
+
+      // Validate totalSessions change (BLOCK if reducing with attendance)
+      if (data.totalSessions !== undefined && data.totalSessions !== existingClass.totalSessions) {
+        const validation = await validateTotalSessionsChange(
+          id,
+          existingClass.totalSessions || 0,
+          data.totalSessions
+        );
+        if (!validation.valid) {
+          setToast({ type: 'error', message: validation.message });
+          setTimeout(() => setToast(null), 5000);
+          return;
+        }
       }
 
       // Detect changes and create training history entries

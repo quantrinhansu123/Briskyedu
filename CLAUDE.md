@@ -151,6 +151,27 @@ export class StudentService {
 }
 ```
 
+### Firestore Query Guidelines (MCP Firebase)
+
+**CRITICAL**: Before querying Firestore via MCP tools:
+
+1. **Check `types.ts`** for enum values - this is the SINGLE source of truth
+2. **Use Vietnamese with diacritics** - all status values are in Vietnamese
+
+**Quick Reference - Common Status Values:**
+
+| Collection | Field | Values |
+|------------|-------|--------|
+| students | status | `Đang học`, `Học thử`, `Nợ phí`, `Bảo lưu`, `Nghỉ học` |
+| classes | status | `Đang học`, `Tạm dừng`, `Kết thúc` |
+| staff | status | `Đang làm việc`, `Nghỉ việc` |
+| contracts | status | `Đã thanh toán`, `Chưa thanh toán` |
+| classSessions | status | `Đã học`, `Chưa học` |
+| workSessions | status | `Đã xác nhận`, `Chờ xác nhận` |
+| enrollments | status | `Đã xác nhận` |
+
+**If unsure**: Query with `NOT_EQUAL ""` filter on a known field (e.g., `name`, `code`) to discover actual data structure first.
+
 ### Firestore Collections
 
 Core collections (see `docs/FIRESTORE_SCHEMA.md` for full schema):

@@ -34,6 +34,19 @@ export interface ClassSession {
   dayOfWeek: string;
 }
 
+/**
+ * ClassProgress: Track student progress per class
+ * Used for student-level session counting
+ */
+export interface ClassProgress {
+  registeredSessions: number;   // = class.totalSessions hoặc contract.sessions
+  attendedSessions: number;     // present + late
+  absentSessions: number;       // vắng
+  makeupOwed: number;           // = absent - makeupDone
+  makeupDone: number;           // buổi đã bù
+  reservedSessions: number;     // bảo lưu
+}
+
 export interface Student {
   id: string;
   code: string;
@@ -77,6 +90,9 @@ export interface Student {
   // Nợ hợp đồng (trả góp)
   contractDebt?: number; // Số tiền còn nợ hợp đồng
   nextPaymentDate?: string; // Ngày hẹn thanh toán tiếp theo
+
+  // Student progress per class (Phase 3.1)
+  classProgress?: Record<string, ClassProgress>; // { [classId]: ClassProgress }
 }
 
 export interface CareLog {

@@ -2,19 +2,19 @@
 
 EduManager Pro is a comprehensive web-based application for Vietnamese language learning centers. Built with React 19, TypeScript, and Firebase, it manages students, classes, attendance, staff, contracts, and financials with real-time synchronization across 35+ Firestore collections.
 
-**Status**: v1.0.1 Stable | Multi-Module Bug Fixes Complete (Jan 5, 2026) | 6.5/10 Quality Score
+**Status**: v1.0.1 Stable | ClassProgress Feature + Bug Fixes (Jan 18, 2026) | 6.5/10 Quality Score
 
 ## Quick Stats
 
 | Metric | Value | Location |
 |--------|-------|----------|
-| **Pages** | 40 | 8 domains + dashboards |
-| **Services** | 37 | Static class methods (CRUD + logic) |
-| **Hooks** | 35+ | Real-time listeners (onSnapshot) |
+| **Pages** | 44 | 8 domains + dashboards |
+| **Services** | 42 | 79% functions, 21% classes |
+| **Hooks** | 38 | 30% real-time, 70% fetch |
 | **Collections** | 37+ | Firestore (NoSQL) |
-| **Cloud Functions** | 15+ | Event-driven triggers + utilities |
-| **Test Coverage** | 294+ | Unit, integration, permissions, dashboards |
-| **Feature Modules** | 7 | Encapsulated domain-specific logic |
+| **Cloud Functions** | 16 | Event-driven triggers + utilities |
+| **Test Coverage** | 294+ | Unit, integration, permissions |
+| **Scripts** | 58 | Maintenance, migrations, audits |
 
 ## Key Features
 
@@ -87,24 +87,25 @@ For production deployment guide, see `docs/deployment-guide.md`.
 
 EduManager Pro uses a strict **three-layer architecture**:
 
-1. **Services** (`src/services/` - 37 files): Firestore CRUD with static methods
-2. **Hooks** (`src/hooks/` - 35 files): Real-time listeners with `onSnapshot`
-3. **Pages** (`pages/` - 37 files): UI components consuming hooks
-4. **Features** (`src/features/` - 7 modules): Domain-specific encapsulated logic
+1. **Services** (`src/services/` - 42 files): 79% named functions, 21% static classes
+2. **Hooks** (`src/hooks/` - 38 files): 30% onSnapshot (real-time), 70% getDocs (fetch)
+3. **Pages** (`pages/` - 44 files): UI components consuming hooks
+4. **Features** (`src/features/` - 32 files): Domain-specific encapsulated logic
 
-This pattern ensures clean separation of concerns and maintainable code.
+**Hybrid Service Pattern**: Modern services use function exports, legacy use static classes (StudentService, ClassService, StaffService, AuthService).
 
-For detailed architecture documentation, refer to `docs/system-architecture.md`.
+See `docs/system-architecture.md` for details.
 
-## Recent Changes (January 5, 2026)
+## Recent Changes (January 18, 2026)
 
-**Multi-Module Bug Fixes** ✅
-- **Training**: Fixed attendance sessions, schedule room conflicts, tutoring reserves, homework filters
-- **Customer**: Fixed modal scroll issues, trial student filtering, contract class/discount selection
-- **HR**: Fixed staff 18+ age validation, salary custom buttons, work confirmation saves/filters, leave request validations, salary report edits
-- **Test Coverage**: 294+ tests covering all modules and recent fixes
-- **Build Status**: All tests passing, production build successful
-- **Commit**: b0faa06 (Multi-module bug fixes)
+**ClassProgress Feature** ✅ (commits 2feb5cc → d2e412b)
+- **Frontend**: Display student class progress with fallback (2feb5cc)
+- **Scripts**: Backfill classProgress for existing students (d7655fb)
+- **Functions**: Init classProgress on contract payment (3659e7e)
+- **Triggers**: Track classProgress on attendance updates (8687704)
+- **Types**: Added ClassProgress interface for session tracking (d2e412b)
+
+**Previous Work** (Jan 5, 2026): Multi-module bug fixes (Training, Customer, HR)
 
 ## Development
 

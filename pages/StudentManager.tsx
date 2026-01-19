@@ -32,8 +32,8 @@ import {
 
 // Constants for table column count
 const STUDENT_TABLE_COLUMNS = {
-  base: 13,  // Standard columns count
-  withDropoutReason: 14  // When showing dropout reason column
+  base: 12,  // Standard columns count (removed "Nợ bù" column)
+  withDropoutReason: 13  // When showing dropout reason column
 };
 
 // Helper function to get student's class progress (DRY)
@@ -41,12 +41,6 @@ const getStudentClassProgress = (student: Student) => {
   const classId = student.classId;
   if (!classId || !student.classProgress?.[classId]) return null;
   return student.classProgress[classId];
-};
-
-// Helper to get makeupOwed value
-const getStudentMakeupOwed = (student: Student): number => {
-  const progress = getStudentClassProgress(student);
-  return progress?.makeupOwed ?? 0;
 };
 
 interface StudentManagerProps {
@@ -627,7 +621,6 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     <th className="px-4 py-3 bg-gray-50 text-center">Gói học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Đã học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Còn lại</th>
-                    <th className="px-4 py-3 bg-gray-50 text-center">Nợ bù</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày BĐ</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày KT</th>
                     <th className="px-4 py-3 bg-gray-50">HĐ gần nhất</th>
@@ -693,17 +686,6 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                              {remaining < 0 && <span className="text-xs ml-1">(nợ)</span>}
                            </span>
                          );
-                       })()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                       {(() => {
-                         const makeupOwed = getStudentMakeupOwed(student);
-                         if (makeupOwed > 0) {
-                           return (
-                             <span className="font-semibold text-orange-600">{makeupOwed}</span>
-                           );
-                         }
-                         return <span className="text-gray-400">0</span>;
                        })()}
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600">

@@ -89,7 +89,7 @@ export function generateContractHTML(
 
       return `
       <tr>
-        <td style="border: 1px solid #000; padding: 6px 4px; text-align: left; vertical-align: middle; line-height: 1.4;">${item.name}</td>
+        <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${item.name}</td>
         <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${item.className || ''}</td>
         <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${item.quantity}</td>
         <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">${startDate}</td>
@@ -156,7 +156,7 @@ export function generateContractHTML(
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Khoá học/ Sản phẩm</th>
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Lớp học</th>
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4; width: 50px;">Số buổi</th>
-            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Bắt đầu</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Ngày bắt đầu</th>
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Ngày KT dự kiến</th>
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4;">Giá trị</th>
             <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.4; width: 50px;">ƯĐHĐ</th>

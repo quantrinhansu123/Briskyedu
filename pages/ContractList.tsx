@@ -16,6 +16,65 @@ import { useAuth } from '../src/hooks/useAuth';
 import { useStaff } from '../src/hooks/useStaff';
 import { getCenters, Center } from '../src/services/centerService';
 import { StudentService } from '../src/services/studentService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../src/config/firebase';
+
+/**
+ * Enrich contract items with className for PDF display.
+ * Prioritizes: item.className > item.classId lookup > student's current class
+ */
+const enrichContractItemsWithClassName = async (contract: Contract): Promise<Contract> => {
+  if (!contract.items?.length) return contract;
+
+  // Check if any item needs className
+  const needsEnrichment = contract.items.some(item => !item.className && item.classId);
+  if (!needsEnrichment) {
+    // All items have className or no classId to lookup - use student fallback if needed
+    if (contract.items.every(item => item.className)) return contract;
+  }
+
+  // Collect unique classIds needing lookup
+  const classIdsToFetch = new Set<string>();
+  contract.items.forEach(item => {
+    if (!item.className && item.classId) classIdsToFetch.add(item.classId);
+  });
+  if (contract.classId && !contract.className) classIdsToFetch.add(contract.classId);
+
+  // Batch fetch all classes
+  const classNameMap: Record<string, string> = {};
+  await Promise.all(
+    Array.from(classIdsToFetch).map(async (classId) => {
+      try {
+        const classDoc = await getDoc(doc(db, 'classes', classId));
+        if (classDoc.exists()) {
+          classNameMap[classId] = classDoc.data().name || '';
+        }
+      } catch (e) {
+        console.error('Error fetching class:', classId, e);
+      }
+    })
+  );
+
+  // Get fallback from student if still needed
+  let fallbackClassName = contract.className || classNameMap[contract.classId || ''] || '';
+  if (!fallbackClassName && contract.studentId) {
+    try {
+      const student = await StudentService.getStudentById(contract.studentId);
+      fallbackClassName = student?.class || '';
+    } catch (e) {
+      console.error('Error fetching student:', e);
+    }
+  }
+
+  // Enrich items
+  const updatedItems = contract.items.map(item => {
+    if (item.className) return item;
+    const className = classNameMap[item.classId || ''] || fallbackClassName;
+    return className ? { ...item, className } : item;
+  });
+
+  return { ...contract, items: updatedItems };
+};
 
 export const ContractList: React.FC = () => {
   const navigate = useNavigate();
@@ -129,6 +188,9 @@ export const ContractList: React.FC = () => {
       }
     }
 
+    // Enrich items with className for PDF display
+    contractWithLatestData = await enrichContractItemsWithClassName(contractWithLatestData);
+
     await printContract(contractWithLatestData, centerInfo);
   };
 
@@ -154,6 +216,9 @@ export const ContractList: React.FC = () => {
         console.error('Error fetching student data for download:', error);
       }
     }
+
+    // Enrich items with className for PDF display
+    contractWithLatestData = await enrichContractItemsWithClassName(contractWithLatestData);
 
     await downloadContractAsPdf(contractWithLatestData, centerInfo);
   };

@@ -758,11 +758,12 @@ export const ContractCreation: React.FC = () => {
       // Get selected class info
       const selectedClass = classes.find(c => c.id === selectedClassId);
 
-      // Add startDate/endDate to each item for PDF display
+      // Add startDate/endDate/className to each item for PDF display
       const itemsWithDates = items.map(item => ({
         ...item,
         startDate: item.startDate || startDate,
         endDate: item.endDate || endDate,
+        className: item.className || selectedClass?.name || '',
       }));
 
       const contractData: Partial<Contract> = {

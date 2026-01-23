@@ -162,12 +162,21 @@ service cloud.firestore {
     // COLLECTION-SPECIFIC VALIDATORS
     // ========================================
 
-    // Staff collection validator
+    // Staff collection validator - validates merged document state
+    // Accepts both English (Active/Inactive) and Vietnamese (Đang làm việc/Nghỉ việc) status
     function isValidStaffData(data) {
-      return hasRequiredFields(data, ['name', 'position', 'status']) &&
+      return data.keys().hasAll(['name', 'position', 'status']) &&
              isNonEmptyString(data.name) &&
              isNonEmptyString(data.position) &&
-             data.status in ['Active', 'Inactive'];
+             data.status in ['Active', 'Inactive', 'Đang làm việc', 'Nghỉ việc'];
+    }
+
+    // Staff update validator - allows partial updates as long as changed fields are valid
+    function isValidStaffUpdate(data) {
+      let validName = !('name' in data.keys()) || isNonEmptyString(data.name);
+      let validPosition = !('position' in data.keys()) || isNonEmptyString(data.position);
+      let validStatus = !('status' in data.keys()) || data.status in ['Active', 'Inactive', 'Đang làm việc', 'Nghỉ việc'];
+      return validName && validPosition && validStatus;
     }
 
     // Student collection validator
@@ -220,6 +229,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         (request.auth.uid == staffId || isAdmin() || isTeamLead());
       allow create: if isAdmin() && isValidStaffData(request.resource.data);
+      // Update uses merged document state validation
       allow update: if isAdmin() && isValidStaffData(request.resource.data);
       allow delete: if isAdmin();
     }

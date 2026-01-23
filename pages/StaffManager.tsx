@@ -367,7 +367,20 @@ export const StaffManager: React.FC = () => {
       setShowModal(false);
     } catch (err: any) {
       console.error('Error saving staff:', err);
-      alert('Có lỗi xảy ra: ' + (err.message || 'Vui lòng thử lại.'));
+
+      // Better error messages for common Firebase errors
+      let errorMessage = 'Có lỗi xảy ra: ';
+      if (err.code === 'permission-denied') {
+        errorMessage = 'Bạn không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại hoặc liên hệ Admin.';
+      } else if (err.code === 'failed-precondition') {
+        errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.';
+      } else if (err.code === 'unavailable') {
+        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+      } else {
+        errorMessage += err.message || err.code || 'Vui lòng thử lại.';
+      }
+
+      alert(errorMessage);
     }
   };
 

@@ -284,7 +284,7 @@ export interface Staff {
   position: string;
   phone: string;
   email?: string;
-  status: 'Active' | 'Inactive';
+  status: 'Active' | 'Inactive' | 'Đang làm việc' | 'Nghỉ việc';
   dob?: string;
   startDate?: string;
   branch?: string; // Cơ sở làm việc

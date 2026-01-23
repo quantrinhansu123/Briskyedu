@@ -205,13 +205,13 @@ export const WorkConfirmation: React.FC = () => {
         // Search filter
         if (searchTerm && !s.staffName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
 
-        // Branch filter
+        // Branch filter - lọc theo cơ sở từ class.branch
         if (branchFilter !== 'all') {
-          const sessionBranch = (s as any).branch || (s as any).center || (s as any).centerName || '';
+          const sessionCenter = s.center || '';
           if (branchFilter === 'unassigned') {
-            if (sessionBranch && sessionBranch.trim() !== '') return false;
+            if (sessionCenter.trim() !== '') return false;
           } else {
-            if (sessionBranch !== branchFilter) return false;
+            if (sessionCenter !== branchFilter) return false;
           }
         }
 

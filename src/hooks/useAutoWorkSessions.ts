@@ -23,6 +23,7 @@ export interface WorkSession {
   timeEnd: string;
   classId?: string;
   className: string;
+  center?: string; // Cơ sở/chi nhánh của lớp học
   type: 'Dạy chính' | 'Trợ giảng' | 'Nhận xét' | 'Dạy thay' | 'Bồi bài';
   status: 'Chờ xác nhận' | 'Đã xác nhận' | 'Từ chối';
   isFromTKB?: boolean; // true = auto from schedule, false = manual
@@ -302,12 +303,13 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
               timeEnd,
               classId: cls.id,
               className: cls.name,
+              center: cls.branch || '',
               type: 'Dạy chính',
               status: 'Chờ xác nhận',
               isFromTKB: true,
             });
           }
-          
+
           // Foreign teacher
           if (cls.foreignTeacher && !isConfirmed(cls.foreignTeacher)) {
             sessions.push({
@@ -318,12 +320,13 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
               timeEnd,
               classId: cls.id,
               className: cls.name,
+              center: cls.branch || '',
               type: 'Dạy chính',
               status: 'Chờ xác nhận',
               isFromTKB: true,
             });
           }
-          
+
           // Assistant
           if (cls.assistant && !isConfirmed(cls.assistant)) {
             sessions.push({
@@ -334,6 +337,7 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
               timeEnd,
               classId: cls.id,
               className: cls.name,
+              center: cls.branch || '',
               type: 'Trợ giảng',
               status: 'Chờ xác nhận',
               isFromTKB: true,

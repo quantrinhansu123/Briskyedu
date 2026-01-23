@@ -151,12 +151,33 @@ export class StudentService {
 }
 ```
 
+### Firebase Region Configuration
+
+**CRITICAL**: This project uses Firebase in **`asia-southeast1`** region.
+
+- **Firestore**: `asia-southeast1` (Singapore)
+- **Cloud Functions**: `asia-southeast1`
+- **MCP Firebase queries**: May timeout if region not specified correctly
+
+**For MCP Firebase tools**: Always be aware queries go to the correct regional endpoint to avoid `DEADLINE_EXCEEDED` or readtime errors.
+
+**For scripts**: Use **Firebase REST API** instead of MCP tools for data operations:
+```bash
+# Example: Query Firestore via REST API
+curl -X POST \
+  "https://firestore.googleapis.com/v1/projects/PROJECT_ID/databases/(default)/documents:runQuery" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"structuredQuery": {...}}'
+```
+
 ### Firestore Query Guidelines (MCP Firebase)
 
 **CRITICAL**: Before querying Firestore via MCP tools:
 
 1. **Check `types.ts`** for enum values - this is the SINGLE source of truth
 2. **Use Vietnamese with diacritics** - all status values are in Vietnamese
+3. **Region awareness**: Project uses `asia-southeast1` - queries may timeout if MCP defaults to different region
 
 **Quick Reference - Common Status Values:**
 
@@ -338,14 +359,20 @@ npx tsx scripts/checkDataConsistency.ts
 # Review firestore.indexes.json and Firebase Console
 ```
 
-### Data Migrations
+### Data Migrations & Scripts
 
 When schema changes require data migration:
 1. Create a script in `scripts/` directory
-2. Use `npx tsx scripts/[migration-name].ts` to run
-3. Test on emulator first: `firebase emulators:start`
-4. Run with caution on production data
-5. Document the migration in `docs/`
+2. **Use Firebase REST API** for data operations (not MCP tools)
+3. Use `npx tsx scripts/[migration-name].ts` to run
+4. Test on emulator first: `firebase emulators:start`
+5. Run with caution on production data
+6. Document the migration in `docs/`
+
+**Script Requirements**:
+- Use Firebase Admin SDK or REST API (not client SDK)
+- Handle `asia-southeast1` region explicitly
+- Include proper error handling and logging
 
 Example migration script pattern:
 ```typescript

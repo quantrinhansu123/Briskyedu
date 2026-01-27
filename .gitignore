@@ -39,6 +39,12 @@ edumanager-context.txt
 # Firebase cache
 .firebase/
 
+# Service Account Keys (NEVER commit these!)
+*-firebase-adminsdk-*.json
+*-adminsdk-*.json
+serviceAccount*.json
+*service-account*.json
+
 # Temporary/Debug files
 *.txt
 debug-*.cjs

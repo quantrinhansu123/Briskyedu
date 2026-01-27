@@ -233,7 +233,37 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 GEMINI_API_KEY=  # For AI features
+
+# Firebase Admin SDK (for scripts only - NOT for frontend)
+GOOGLE_APPLICATION_CREDENTIALS=./edumanager-pro-6180f-firebase-adminsdk-fbsvc-0637614afa.json
 ```
+
+### Firebase Admin SDK Scripts
+
+**When writing scripts that need Firestore admin access:**
+
+1. **Load env first** using `dotenv`:
+```typescript
+import 'dotenv/config';  // Auto-loads .env.local
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize Admin SDK (only once)
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS!)
+  });
+}
+
+const db = getFirestore();
+```
+
+2. **Run script**: `npx tsx scripts/your-script.ts`
+
+**IMPORTANT**:
+- Service account key file is gitignored - NEVER commit it
+- Use Admin SDK for scripts only, NOT for frontend code
+- Frontend uses client SDK with security rules
 
 ### Path Aliases
 

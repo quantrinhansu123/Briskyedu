@@ -8,6 +8,7 @@ import { BarChart3, Users, BookOpen, Calendar, TrendingUp, Clock, Award } from '
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { formatCurrency } from '../src/utils/currencyUtils';
+import { getStudentSessionData } from '../src/utils/student-session-utils';
 
 interface TrainingSummary {
   totalClasses: number;
@@ -128,13 +129,10 @@ export const TrainingReport: React.FC = () => {
       const completedTutoring = tutoring.filter((t: any) => t.status === 'Đã bồi' || t.status === 'Completed').length;
 
       // Renewal rate calculation
-      // HS hết phí = registeredSessions <= attendedSessions (đã học hết buổi đăng ký)
-      // hoặc status = 'Nghỉ học' với lý do hết phí
+      // HS hết phí = remaining <= 0 (đã học hết buổi đăng ký)
       const expiredStudents = students.filter((s: any) => {
-        const registered = s.registeredSessions || 0;
-        const attended = s.attendedSessions || 0;
-        // Đã học hết hoặc gần hết (còn <= 0 buổi)
-        return registered > 0 && attended >= registered;
+        const { registered, remaining } = getStudentSessionData(s);
+        return registered > 0 && remaining <= 0;
       });
       
       // HS đã gia hạn = có hợp đồng tái phí (category = 'Hợp đồng tái phí') và đã thanh toán

@@ -22,7 +22,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, updateDoc, doc, query, where, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, updateDoc, doc, query, where, writeBatch, connectFirestoreEmulator } from 'firebase/firestore';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
@@ -30,6 +30,9 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, '../.env.local') });
+
+// Check for emulator flag
+const USE_EMULATOR = process.argv.includes('--emulator');
 
 // Firebase config từ .env.local
 const firebaseConfig = {
@@ -49,6 +52,12 @@ if (!firebaseConfig.projectId) {
 console.log(`Connecting to: ${firebaseConfig.projectId}`);
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// Connect to emulator if flag is set
+if (USE_EMULATOR) {
+  console.log('🔧 Using Firestore Emulator at localhost:8080');
+  connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // TypeScript interfaces
 interface ClassProgress {

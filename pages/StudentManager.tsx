@@ -20,6 +20,7 @@ import { STUDENT_FIELDS, STUDENT_MAPPING, prepareStudentExport } from '../src/ut
 import { getCenters, Center } from '../src/services/centerService';
 import { normalizeStudentStatus } from '../src/utils/statusUtils';
 import { formatDisplayDate } from '../src/utils/dateUtils';
+import { getStudentSessionData } from '../src/utils/student-session-utils';
 import {
   CreateStudentModal,
   EditStudentModal,
@@ -34,13 +35,6 @@ import {
 const STUDENT_TABLE_COLUMNS = {
   base: 12,  // Standard columns count (removed "Nợ bù" column)
   withDropoutReason: 13  // When showing dropout reason column
-};
-
-// Helper function to get student's class progress (DRY)
-const getStudentClassProgress = (student: Student) => {
-  const classId = student.classId;
-  if (!classId || !student.classProgress?.[classId]) return null;
-  return student.classProgress[classId];
 };
 
 interface StudentManagerProps {
@@ -672,14 +666,14 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                        <p>{student.class || '---'}</p>
                     </td>
                     <td className="px-4 py-3 text-center">
-                       <span className="font-semibold text-blue-600">{student.registeredSessions || 0}</span>
+                       <span className="font-semibold text-blue-600">{getStudentSessionData(student).registered}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                       <span className="font-semibold text-green-600">{student.attendedSessions || 0}</span>
+                       <span className="font-semibold text-green-600">{getStudentSessionData(student).attended}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                        {(() => {
-                         const remaining = (student.registeredSessions || 0) - (student.attendedSessions || 0);
+                         const { remaining } = getStudentSessionData(student);
                          return (
                            <span className={`font-bold ${remaining < 0 ? 'text-red-600' : remaining <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
                              {remaining}
@@ -901,10 +895,10 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
                  {/* Class Progress Display */}
                  {(() => {
-                   const progress = getStudentClassProgress(selectedStudent);
-                   // Fallback to student-level data if classProgress not available
-                   const registered = progress?.registeredSessions ?? selectedStudent.registeredSessions ?? 0;
-                   const attended = progress?.attendedSessions ?? selectedStudent.attendedSessions ?? 0;
+                   // Use helper to get session data (reads from classProgress or fallback to legacy)
+                   const { registered, attended } = getStudentSessionData(selectedStudent);
+                   const classId = selectedStudent.classId;
+                   const progress = classId ? selectedStudent.classProgress?.[classId] : null;
                    const makeupOwed = progress?.makeupOwed ?? 0;
 
                    // Only show if there's any data
@@ -1202,10 +1196,40 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           }}
           onSubmit={async (data) => {
             const oldClass = actionStudent.class || '';
+            const oldClassId = actionStudent.classId;
+
+            // Archive lớp cũ vào classProgress (giữ lịch sử)
+            const oldProgress = oldClassId && actionStudent.classProgress?.[oldClassId]
+              ? actionStudent.classProgress[oldClassId]
+              : {
+                  registeredSessions: actionStudent.registeredSessions || 0,
+                  attendedSessions: actionStudent.attendedSessions || 0,
+                  absentSessions: 0,
+                  makeupOwed: 0,
+                  makeupDone: 0,
+                  reservedSessions: 0
+                };
+
+            // Build classProgress mới: giữ lớp cũ + init lớp mới với 0 buổi đã học
+            const newClassProgress = {
+              ...actionStudent.classProgress,
+              ...(oldClassId ? { [oldClassId]: oldProgress } : {}),
+              [data.newClassId]: {
+                registeredSessions: data.sessions,
+                attendedSessions: 0,  // RESET - đây là fix chính!
+                absentSessions: 0,
+                makeupOwed: 0,
+                makeupDone: 0,
+                reservedSessions: 0
+              }
+            };
+
             await updateStudent(actionStudent.id, {
               classId: data.newClassId,
               class: data.newClassName,
-              registeredSessions: data.sessions
+              registeredSessions: data.sessions,
+              attendedSessions: 0,               // RESET legacy field cho backward compat
+              classProgress: newClassProgress    // Single source of truth
             });
             // Log enrollment
             await createEnrollment({
@@ -1238,11 +1262,12 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             setActionStudent(null);
           }}
           onSubmit={async (data) => {
+            const { remaining } = getStudentSessionData(actionStudent);
             await updateStudent(actionStudent.id, {
               status: StudentStatus.RESERVED,
               reserveDate: data.reserveDate,
               reserveNote: data.note,
-              reserveSessions: (actionStudent.registeredSessions || 0) - (actionStudent.attendedSessions || 0)
+              reserveSessions: remaining
             });
             setShowReserveModal(false);
             setActionStudent(null);

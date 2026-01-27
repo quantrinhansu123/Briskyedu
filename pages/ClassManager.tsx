@@ -13,6 +13,7 @@ import { CLASS_COLOR_PALETTE, hashClassName } from './Schedule';
 import { formatDisplayDate } from '../src/utils/dateUtils';
 import { normalizeStudentStatus as normalizeStatus } from '../src/utils/statusUtils';
 import { validateTotalSessionsChange } from '../src/services/classService';
+import { getStudentSessionData } from '../src/utils/student-session-utils';
 import {
   ClassFormModal,
   TestScheduleModal,
@@ -188,9 +189,7 @@ export const ClassManager: React.FC = () => {
             // Calculate remaining sessions (công nợ buổi học còn lại)
             // Chỉ tính cho học viên đang học, học thử (không tính nghỉ học, bảo lưu)
             if (status !== StudentStatus.DROPPED && status !== StudentStatus.RESERVED) {
-              const registered = student.registeredSessions || 0;
-              const attended = student.attendedSessions || 0;
-              const remaining = registered - attended;
+              const { remaining } = getStudentSessionData(student as Student);
               if (remaining > 0) {
                 counts[matchedClassId].remainingSessions += remaining;
                 counts[matchedClassId].remainingValue += remaining * PRICE_PER_SESSION;

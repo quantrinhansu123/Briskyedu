@@ -18,6 +18,7 @@ import { doc, updateDoc, collection, getDocs, query, where } from 'firebase/fire
 import { db } from '../src/config/firebase';
 import { Student } from '../types';
 import { SettlementModal, SettlementHistoryTable } from '../src/features/debt/components';
+import { getStudentSessionData } from '../src/utils/student-session-utils';
 
 const SESSIONS_WARNING_THRESHOLD = 6; // Cảnh báo khi còn <= 6 buổi
 
@@ -492,7 +493,7 @@ export const DebtManagement: React.FC = () => {
                     </td>
                   </tr>
                 ) : almostOutStudents.map(student => {
-                  const remaining = (student.registeredSessions || 0) - (student.attendedSessions || 0);
+                  const { registered, attended, remaining } = getStudentSessionData(student);
                   const contractData = contractMap[student.id];
                   return (
                     <tr key={student.id} className="hover:bg-orange-50">
@@ -503,8 +504,8 @@ export const DebtManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3">{getClassName(student.classId)}</td>
-                      <td className="px-4 py-3 text-center">{student.attendedSessions || 0}</td>
-                      <td className="px-4 py-3 text-center">{student.registeredSessions || 0}</td>
+                      <td className="px-4 py-3 text-center">{attended}</td>
+                      <td className="px-4 py-3 text-center">{registered}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                           remaining <= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
@@ -577,7 +578,8 @@ export const DebtManagement: React.FC = () => {
                     </td>
                   </tr>
                 ) : debtStudents.map(student => {
-                  const exceeded = (student.attendedSessions || 0) - (student.registeredSessions || 0);
+                  const { registered, attended, remaining } = getStudentSessionData(student);
+                  const exceeded = -remaining; // remaining âm = nợ
                   const debtAmount = exceeded * 150000;
                   return (
                     <tr key={student.id} className="hover:bg-red-50">
@@ -588,8 +590,8 @@ export const DebtManagement: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3">{getClassName(student.classId)}</td>
-                      <td className="px-4 py-3 text-center">{student.attendedSessions || 0}</td>
-                      <td className="px-4 py-3 text-center">{student.registeredSessions || 0}</td>
+                      <td className="px-4 py-3 text-center">{attended}</td>
+                      <td className="px-4 py-3 text-center">{registered}</td>
                       <td className="px-4 py-3 text-center">
                         <span className="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
                           +{exceeded} buổi

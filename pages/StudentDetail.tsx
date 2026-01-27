@@ -16,6 +16,7 @@ import { generateFeedbackPDF, generateFeedbackExcel } from '../src/services/feed
 import { useAuth } from '../src/hooks/useAuth';
 import { Plus, Minus } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { getStudentSessionData } from '../src/utils/student-session-utils';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -173,9 +174,8 @@ export const StudentDetail: React.FC = () => {
   // Calculate remaining sessions and warning
   const remainingSessions = useMemo(() => {
     if (!student) return 0;
-    const registered = student.registeredSessions || 0;
-    const attended = student.attendedSessions || 0;
-    return Math.max(0, registered - attended);
+    const { remaining } = getStudentSessionData(student);
+    return Math.max(0, remaining);
   }, [student]);
   
   const showSessionWarning = remainingSessions > 0 && remainingSessions <= 6;
@@ -767,14 +767,14 @@ export const StudentDetail: React.FC = () => {
                               <BookOpen size={18} className="text-blue-600" />
                               <span className="text-sm font-medium text-blue-700">Buổi đăng ký</span>
                            </div>
-                           <p className="text-2xl font-bold text-blue-700">{student?.registeredSessions || 0}</p>
+                           <p className="text-2xl font-bold text-blue-700">{student ? getStudentSessionData(student).registered : 0}</p>
                         </div>
                         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border border-emerald-200">
                            <div className="flex items-center gap-2 mb-2">
                               <CheckCircle2 size={18} className="text-emerald-600" />
                               <span className="text-sm font-medium text-emerald-700">Đã học</span>
                            </div>
-                           <p className="text-2xl font-bold text-emerald-700">{student?.attendedSessions || 0}</p>
+                           <p className="text-2xl font-bold text-emerald-700">{student ? getStudentSessionData(student).attended : 0}</p>
                         </div>
                         <div className={`bg-gradient-to-br p-4 rounded-xl border ${remainingSessions <= 6 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-gray-50 to-gray-100 border-gray-200'}`}>
                            <div className="flex items-center gap-2 mb-2">
@@ -1598,7 +1598,7 @@ export const StudentDetail: React.FC = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">Số buổi hiện tại:</p>
                 <p className="text-2xl font-bold text-gray-800">
-                  {student.registeredSessions || 0} buổi
+                  {getStudentSessionData(student).registered} buổi
                 </p>
                 {student.className && (
                   <p className="text-sm text-gray-500 mt-1">Lớp: {student.className}</p>
@@ -1663,10 +1663,12 @@ export const StudentDetail: React.FC = () => {
                 <p className="text-sm">
                   <span className="text-gray-600">Số buổi sau thay đổi: </span>
                   <span className={`font-bold ${manualEnrollForm.action === 'add' ? 'text-green-700' : 'text-red-700'}`}>
-                    {manualEnrollForm.action === 'add' 
-                      ? (student.registeredSessions || 0) + manualEnrollForm.sessions
-                      : Math.max(0, (student.registeredSessions || 0) - manualEnrollForm.sessions)
-                    } buổi
+                    {(() => {
+                      const { registered } = getStudentSessionData(student);
+                      return manualEnrollForm.action === 'add'
+                        ? registered + manualEnrollForm.sessions
+                        : Math.max(0, registered - manualEnrollForm.sessions);
+                    })()} buổi
                   </span>
                 </p>
               </div>
@@ -1691,7 +1693,7 @@ export const StudentDetail: React.FC = () => {
                   
                   setProcessingManual(true);
                   try {
-                    const currentSessions = student.registeredSessions || 0;
+                    const { registered: currentSessions } = getStudentSessionData(student);
                     const newSessions = manualEnrollForm.action === 'add'
                       ? currentSessions + manualEnrollForm.sessions
                       : Math.max(0, currentSessions - manualEnrollForm.sessions);

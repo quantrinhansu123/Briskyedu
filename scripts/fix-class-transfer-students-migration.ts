@@ -222,22 +222,22 @@ async function fixAffectedStudents(
     return;
   }
 
-  // Apply fixes using batch writes
+  // Apply fixes using batch writes with fresh data fetch
   const BATCH_SIZE = 400; // Firestore limit is 500
   let batchCount = 0;
   let batch = writeBatch(db);
 
-  // Fetch full student data for building classProgress
-  const studentsSnap = await getDocs(collection(db, 'students'));
-  const studentsMap = new Map<string, Student>();
-  for (const docSnap of studentsSnap.docs) {
-    const data = docSnap.data() as Omit<Student, 'id'>;
-    studentsMap.set(docSnap.id, { ...data, id: docSnap.id });
-  }
-
   for (const affectedStudent of affected) {
-    const student = studentsMap.get(affectedStudent.id);
-    if (!student) continue;
+    // Fetch fresh student data to avoid stale writes (Cloud Functions may have modified)
+    const studentDocSnap = await getDocs(
+      query(collection(db, 'students'), where('__name__', '==', affectedStudent.id))
+    );
+    if (studentDocSnap.empty) {
+      console.log(`   ⚠️ Skipping ${affectedStudent.id} - not found`);
+      continue;
+    }
+    const studentData = studentDocSnap.docs[0].data() as Omit<Student, 'id'>;
+    const student: Student = { ...studentData, id: affectedStudent.id };
 
     const correctProgress = buildCorrectClassProgress(student, affectedStudent.enrollments);
 

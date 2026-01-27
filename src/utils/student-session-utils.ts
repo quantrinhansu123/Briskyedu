@@ -38,8 +38,8 @@ export function getStudentSessionData(student: Student | null): StudentSessionDa
 
   const classId = student.classId;
 
-  // Ưu tiên: đọc từ classProgress nếu có
-  const progress = classId ? student.classProgress?.[classId] : null;
+  // Ưu tiên: đọc từ classProgress nếu classId valid và có data
+  const progress = (classId && student.classProgress) ? student.classProgress[classId] : null;
 
   if (progress) {
     const registered = progress.registeredSessions || 0;

@@ -1419,17 +1419,10 @@ export const ContractCreation: React.FC = () => {
           </button>
           <button
             onClick={() => {
-              setPartialPaidAmount(0);
+              // Pre-fill with full amount for convenience
+              setPartialPaidAmount(calculations.totalAmount);
               setShowPartialPaymentModal(true);
             }}
-            disabled={loading || items.length === 0}
-            className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            <DollarSign size={18} />
-            Nợ hợp đồng
-          </button>
-          <button
-            onClick={() => handleSubmit(ContractStatus.PAID)}
             disabled={loading || items.length === 0}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
@@ -1439,12 +1432,12 @@ export const ContractCreation: React.FC = () => {
         </div>
       </div>
 
-      {/* Partial Payment Modal */}
+      {/* Payment Modal - Unified flow for full/partial payment */}
       {showPartialPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Thanh toán một phần</h3>
-            
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Xác nhận thanh toán</h3>
+
             {/* Tổng tiền */}
             <div className="bg-indigo-50 p-3 rounded-lg mb-4">
               <p className="text-sm text-gray-600">
@@ -1461,14 +1454,14 @@ export const ContractCreation: React.FC = () => {
                 type="date"
                 value={partialPaymentDate}
                 onChange={(e) => setPartialPaymentDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               />
             </div>
 
-            {/* Số tiền đã thanh toán */}
+            {/* Số tiền thanh toán */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Số tiền đã thanh toán
+                Số tiền thanh toán
               </label>
               <input
                 type="number"
@@ -1477,34 +1470,84 @@ export const ContractCreation: React.FC = () => {
                 step="10000"
                 value={partialPaidAmount}
                 onChange={(e) => setPartialPaidAmount(parseInt(e.target.value) || 0)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Nhập số tiền đã nhận..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Nhập số tiền thanh toán..."
               />
+              {/* Quick buttons */}
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setPartialPaidAmount(calculations.totalAmount)}
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    partialPaidAmount === calculations.totalAmount
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Thanh toán đủ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPartialPaidAmount(Math.round(calculations.totalAmount / 2))}
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    partialPaidAmount === Math.round(calculations.totalAmount / 2)
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  50%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPartialPaidAmount(0)}
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    partialPaidAmount === 0
+                      ? 'bg-red-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Chưa thanh toán
+                </button>
+              </div>
             </div>
 
-            {/* Còn nợ */}
-            <div className="bg-red-50 p-3 rounded-lg mb-4">
-              <p className="text-sm text-gray-600">
-                Còn nợ: <span className="font-bold text-red-600">{formatCurrency(calculations.totalAmount - partialPaidAmount)}</span>
-              </p>
-            </div>
+            {/* Còn nợ - only show if not fully paid */}
+            {partialPaidAmount < calculations.totalAmount && (
+              <div className="bg-red-50 p-3 rounded-lg mb-4">
+                <p className="text-sm text-gray-600">
+                  Còn nợ: <span className="font-bold text-red-600">{formatCurrency(calculations.totalAmount - partialPaidAmount)}</span>
+                </p>
+              </div>
+            )}
 
-            {/* Ngày hẹn thanh toán tiếp theo */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ngày hẹn thanh toán tiếp theo <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={nextPaymentDate}
-                onChange={(e) => setNextPaymentDate(e.target.value)}
-                min={partialPaymentDate}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Thông tin này sẽ được đồng bộ với Quản lý công nợ
-              </p>
-            </div>
+            {/* Thanh toán đủ indicator */}
+            {partialPaidAmount >= calculations.totalAmount && (
+              <div className="bg-green-50 p-3 rounded-lg mb-4">
+                <p className="text-sm text-green-700 font-medium flex items-center gap-2">
+                  <FileCheck size={16} />
+                  Thanh toán đủ - Hợp đồng sẽ được đánh dấu hoàn tất
+                </p>
+              </div>
+            )}
+
+            {/* Ngày hẹn thanh toán tiếp theo - only show if partial payment */}
+            {partialPaidAmount < calculations.totalAmount && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ngày hẹn thanh toán tiếp theo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={nextPaymentDate}
+                  onChange={(e) => setNextPaymentDate(e.target.value)}
+                  min={partialPaymentDate}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Thông tin này sẽ được đồng bộ với Quản lý công nợ
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-3 justify-end">
               <button
@@ -1518,11 +1561,24 @@ export const ContractCreation: React.FC = () => {
                 Hủy
               </button>
               <button
-                onClick={() => handleSubmit(ContractStatus.PARTIAL)}
-                disabled={loading || partialPaidAmount <= 0 || partialPaidAmount >= calculations.totalAmount || !nextPaymentDate}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2"
+                onClick={() => {
+                  // Auto-determine status based on payment amount
+                  if (partialPaidAmount >= calculations.totalAmount) {
+                    handleSubmit(ContractStatus.PAID);
+                  } else {
+                    handleSubmit(ContractStatus.PARTIAL);
+                  }
+                }}
+                disabled={loading || (partialPaidAmount < calculations.totalAmount && !nextPaymentDate)}
+                className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 ${
+                  partialPaidAmount >= calculations.totalAmount
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-orange-500 hover:bg-orange-600'
+                }`}
               >
-                {loading ? 'Đang xử lý...' : 'Xác nhận'}
+                {loading ? 'Đang xử lý...' : (
+                  partialPaidAmount >= calculations.totalAmount ? 'Xác nhận thanh toán' : 'Xác nhận nợ hợp đồng'
+                )}
               </button>
             </div>
           </div>

@@ -9,6 +9,11 @@
  * @example formatCurrency(1000000) => "1.000.000 ₫"
  */
 export const formatCurrency = (amount: number): string => {
+  // Guard against NaN, undefined, null, Infinity
+  if (!isFinite(amount) || amount === null || amount === undefined) {
+    return '0 ₫';
+  }
+
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',

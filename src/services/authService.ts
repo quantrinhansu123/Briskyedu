@@ -72,12 +72,38 @@ export class AuthService {
     }
   ): Promise<string> {
     try {
+      // Client-side validation before Cloud Function call
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        throw new Error('Email không hợp lệ');
+      }
+      if (!password || password.length < 6) {
+        throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+      }
+      if (!staffData.name?.trim()) {
+        throw new Error('Tên nhân viên là bắt buộc');
+      }
+      if (!staffData.code?.trim()) {
+        throw new Error('Mã nhân viên là bắt buộc');
+      }
+      if (!staffData.role) {
+        throw new Error('Vai trò là bắt buộc');
+      }
+
       const registerFn = httpsCallable<
         { email: string; password: string; staffData: typeof staffData },
         { success: boolean; message: string; uid?: string }
       >(functions, 'registerStaffWithAccount');
 
-      const result = await registerFn({ email, password, staffData });
+      // Add timeout to prevent hanging (30s)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+      });
+
+      const result = await Promise.race([
+        registerFn({ email, password, staffData }),
+        timeoutPromise
+      ]);
 
       if (!result.data.success || !result.data.uid) {
         throw new Error(result.data.message || 'Không thể tạo tài khoản');
@@ -86,6 +112,9 @@ export class AuthService {
       return result.data.uid;
     } catch (error: any) {
       console.error('Register error:', error);
+      if (error.message === 'TIMEOUT') {
+        throw new Error('Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.');
+      }
       throw new Error(sanitizeFirebaseError(error));
     }
   }
@@ -124,10 +153,28 @@ export class AuthService {
               staffData
             } as AuthUser);
           },
-          (error) => {
+          async (error) => {
             console.error('Staff listener error:', error);
-            // Fallback to user without staff data on error
-            callback(user as AuthUser);
+            // Fallback: fetch staff data once, or logout if critical
+            try {
+              const staffDoc = await getDoc(doc(db, 'staff', user.uid));
+              if (!staffDoc.exists()) {
+                console.warn('Staff document not found - forcing logout');
+                await this.signOut();
+                callback(null);
+                return;
+              }
+              const staffData = { id: staffDoc.id, ...staffDoc.data() } as Staff;
+              callback({
+                ...user,
+                role: staffData.role,
+                staffData
+              } as AuthUser);
+            } catch (fallbackError) {
+              console.error('Fallback fetch failed - forcing logout:', fallbackError);
+              await this.signOut();
+              callback(null);
+            }
           }
         );
       } else {
@@ -147,15 +194,32 @@ export class AuthService {
   // Update staff password (admin only - uses Cloud Function)
   static async updateStaffPassword(staffId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     try {
+      // Client-side validation
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+      }
+
       const updatePasswordFn = httpsCallable<
         { staffId: string; newPassword: string },
         { success: boolean; message: string }
       >(functions, 'updateStaffPassword');
 
-      const result = await updatePasswordFn({ staffId, newPassword });
+      // Add timeout to prevent hanging (30s)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+      });
+
+      const result = await Promise.race([
+        updatePasswordFn({ staffId, newPassword }),
+        timeoutPromise
+      ]);
+
       return result.data;
     } catch (error: any) {
       console.error('Error updating password:', error);
+      if (error.message === 'TIMEOUT') {
+        throw new Error('Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.');
+      }
       throw new Error(error.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
     }
   }
@@ -167,15 +231,36 @@ export class AuthService {
     password: string
   ): Promise<{ success: boolean; message: string; uid?: string }> {
     try {
+      // Client-side validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        throw new Error('Email không hợp lệ');
+      }
+      if (!password || password.length < 6) {
+        throw new Error('Mật khẩu phải có ít nhất 6 ký tự');
+      }
+
       const createAccountFn = httpsCallable<
         { staffId: string; email: string; password: string },
         { success: boolean; message: string; uid?: string }
       >(functions, 'createStaffAccount');
 
-      const result = await createAccountFn({ staffId, email, password });
+      // Add timeout to prevent hanging (30s)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 30000);
+      });
+
+      const result = await Promise.race([
+        createAccountFn({ staffId, email, password }),
+        timeoutPromise
+      ]);
+
       return result.data;
     } catch (error: any) {
       console.error('Error creating account:', error);
+      if (error.message === 'TIMEOUT') {
+        throw new Error('Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.');
+      }
       throw new Error(error.message || 'Có lỗi xảy ra khi tạo tài khoản.');
     }
   }

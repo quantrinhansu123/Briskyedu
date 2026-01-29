@@ -753,6 +753,11 @@ export const ContractCreation: React.FC = () => {
         paidAmount = calculations.totalAmount;
         remainingAmount = 0;
       } else if (status === ContractStatus.PARTIAL) {
+        // Validate partial payment amount
+        if (partialPaidAmount > calculations.totalAmount) {
+          alert('Số tiền thanh toán không thể vượt quá tổng tiền hợp đồng');
+          return;
+        }
         paidAmount = partialPaidAmount;
         remainingAmount = calculations.totalAmount - partialPaidAmount;
       }
@@ -1477,7 +1482,11 @@ export const ContractCreation: React.FC = () => {
                 max={calculations.totalAmount}
                 step="10000"
                 value={partialPaidAmount}
-                onChange={(e) => setPartialPaidAmount(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  // Cap at totalAmount to prevent overpayment
+                  setPartialPaidAmount(Math.min(value, calculations.totalAmount));
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="Nhập số tiền thanh toán..."
               />

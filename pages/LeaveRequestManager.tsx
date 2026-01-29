@@ -22,6 +22,7 @@ import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
 import { useLeaveBalance } from '../src/hooks/useLeaveBalance';
 import { LeaveRequest, LeaveType, LeaveRequestStatus } from '../types';
+import { isValidDateRange, getDateRangeErrorMessage } from '../src/utils/validators';
 
 // Leave types for dropdown
 const LEAVE_TYPES: LeaveType[] = [
@@ -106,6 +107,13 @@ export const LeaveRequestManager: React.FC = () => {
       return;
     }
 
+    // Validate date range
+    if (!isValidDateRange(form.startDate, form.endDate)) {
+      const error = getDateRangeErrorMessage(form.startDate, form.endDate);
+      alert(error || 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
+      return;
+    }
+
     // Validation: No past dates
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -114,11 +122,6 @@ export const LeaveRequestManager: React.FC = () => {
 
     if (startDate < today) {
       alert('Không thể chọn ngày nghỉ trong quá khứ');
-      return;
-    }
-
-    if (endDate < startDate) {
-      alert('Ngày kết thúc phải sau ngày bắt đầu');
       return;
     }
 

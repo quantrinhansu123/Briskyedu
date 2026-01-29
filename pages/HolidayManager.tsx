@@ -4,6 +4,7 @@ import { useHolidays } from '../src/hooks/useHolidays';
 import { useClasses } from '../src/hooks/useClasses';
 import { HolidayApplyType } from '../types';
 import { applyHoliday, unapplyHoliday } from '../src/services/holidayService';
+import { isValidDateRange, getDateRangeErrorMessage } from '../src/utils/validators';
 
 export const HolidayManager: React.FC = () => {
   const { holidays, loading, createHoliday, updateHoliday, deleteHoliday } = useHolidays();
@@ -56,6 +57,13 @@ export const HolidayManager: React.FC = () => {
   const handleCreate = async () => {
     if (!formData.name || !formData.startDate || !formData.endDate) {
       alert('Vui lòng điền đầy đủ thông tin!');
+      return;
+    }
+
+    // Validate date range
+    if (!isValidDateRange(formData.startDate, formData.endDate)) {
+      const error = getDateRangeErrorMessage(formData.startDate, formData.endDate);
+      alert(error || 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
       return;
     }
 

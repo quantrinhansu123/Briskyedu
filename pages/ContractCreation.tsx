@@ -25,6 +25,7 @@ import {
   numberToWords,
   calculateDiscount
 } from '../src/utils/currencyUtils';
+import { isValidDateRange, getDateRangeErrorMessage } from '../src/utils/validators';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect';
 import { db } from '../src/config/firebase';
 import { doc, updateDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
@@ -731,6 +732,13 @@ export const ContractCreation: React.FC = () => {
 
     if (items.length === 0) {
       alert('Vui lòng thêm ít nhất một khóa học hoặc sản phẩm');
+      return;
+    }
+
+    // Validate date range
+    if (!isValidDateRange(startDate, endDate)) {
+      const error = getDateRangeErrorMessage(startDate, endDate);
+      alert(error || 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
       return;
     }
 

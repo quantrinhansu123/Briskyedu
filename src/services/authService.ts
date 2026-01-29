@@ -4,7 +4,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from '../config/firebase';
 import app from '../config/firebase';
@@ -97,23 +97,51 @@ export class AuthService {
   
   // Listen to auth state changes
   static onAuthStateChange(callback: (user: AuthUser | null) => void): () => void {
-    return onAuthStateChanged(auth, async (user) => {
+    let unsubscribeStaff: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // Cleanup previous staff listener
+      if (unsubscribeStaff) {
+        unsubscribeStaff();
+        unsubscribeStaff = null;
+      }
+
       if (user) {
-        // Fetch staff data
-        const staffDoc = await getDoc(doc(db, 'staff', user.uid));
-        if (staffDoc.exists()) {
-          callback({
-            ...user,
-            role: staffDoc.data().role,
-            staffData: { id: staffDoc.id, ...staffDoc.data() }
-          } as AuthUser);
-        } else {
-          callback(user as AuthUser);
-        }
+        // Setup real-time listener for staff document
+        unsubscribeStaff = onSnapshot(
+          doc(db, 'staff', user.uid),
+          (staffDoc) => {
+            if (!staffDoc.exists()) {
+              console.warn('Staff document deleted - forcing logout');
+              this.signOut().catch(console.error);
+              callback(null);
+              return;
+            }
+            const staffData = { id: staffDoc.id, ...staffDoc.data() } as Staff;
+            callback({
+              ...user,
+              role: staffData.role,
+              staffData
+            } as AuthUser);
+          },
+          (error) => {
+            console.error('Staff listener error:', error);
+            // Fallback to user without staff data on error
+            callback(user as AuthUser);
+          }
+        );
       } else {
         callback(null);
       }
     });
+
+    // Return combined unsubscribe function
+    return () => {
+      if (unsubscribeStaff) {
+        unsubscribeStaff();
+      }
+      unsubscribeAuth();
+    };
   }
 
   // Update staff password (admin only - uses Cloud Function)

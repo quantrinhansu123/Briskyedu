@@ -742,6 +742,12 @@ export const ContractCreation: React.FC = () => {
       return;
     }
 
+    // Validate contract date not after start date
+    if (contractDate && startDate && new Date(contractDate) > new Date(startDate)) {
+      alert('Ngày tạo hợp đồng không thể sau ngày bắt đầu khóa học');
+      return;
+    }
+
     try {
       setLoading(true);
 

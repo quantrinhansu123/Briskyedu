@@ -8,6 +8,7 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const db = admin.firestore();
 const REGION = 'asia-southeast1';
@@ -166,15 +167,19 @@ export const onAttendanceWrite = functions
       const studentData = studentDoc.data() as StudentData;
       const currentAttended = studentData.attendedSessions || 0;
       const registeredSessions = studentData.registeredSessions || 0;
-      
-      // Calculate new attended count
+
+      // Calculate new attended count and prepare update
+      let attendedIncrement = 0;
       let newAttended = currentAttended;
+
       if (wasPresent && !wasPresentBefore) {
+        attendedIncrement = 1;
         newAttended = currentAttended + 1;
       } else if (!wasPresent && wasPresentBefore) {
+        attendedIncrement = -1;
         newAttended = Math.max(0, currentAttended - 1);
       }
-      
+
       // Calculate remaining and expected end date
       const remaining = Math.max(0, registeredSessions - newAttended);
       const expectedEndDate = calculateExpectedEndDate(
@@ -182,10 +187,10 @@ export const onAttendanceWrite = functions
         daysPerWeek,
         studentData.startDate || record.date
       );
-      
-      // Update student
-      const updateData: Partial<StudentData> = {
-        attendedSessions: newAttended,
+
+      // Update student using atomic increment
+      const updateData: Record<string, any> = {
+        attendedSessions: FieldValue.increment(attendedIncrement),
         expectedEndDate: expectedEndDate
       };
       

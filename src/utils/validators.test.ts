@@ -9,7 +9,9 @@ import {
   validateDateOfBirth,
   validateContractCode,
   validateStudentData,
-  validateContractData
+  validateContractData,
+  isValidDateRange,
+  getDateRangeErrorMessage
 } from './validators';
 
 describe('validatePhone', () => {
@@ -181,5 +183,62 @@ describe('validateContractData', () => {
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Số tiền không hợp lệ');
+  });
+});
+
+describe('isValidDateRange', () => {
+  it('should accept valid date ranges', () => {
+    expect(isValidDateRange('2025-01-01', '2025-01-31')).toBe(true);
+    expect(isValidDateRange('2025-01-15', '2025-01-15')).toBe(true); // Same date is valid
+    expect(isValidDateRange('2024-12-01', '2025-12-31')).toBe(true);
+  });
+
+  it('should reject invalid date ranges (startDate > endDate)', () => {
+    expect(isValidDateRange('2025-01-31', '2025-01-01')).toBe(false);
+    expect(isValidDateRange('2025-12-31', '2025-01-01')).toBe(false);
+  });
+
+  it('should allow empty dates (optional fields)', () => {
+    expect(isValidDateRange('', '')).toBe(true);
+    expect(isValidDateRange('2025-01-01', '')).toBe(true);
+    expect(isValidDateRange('', '2025-01-31')).toBe(true);
+  });
+
+  it('should reject invalid date formats', () => {
+    expect(isValidDateRange('not-a-date', '2025-01-31')).toBe(false);
+    expect(isValidDateRange('2025-01-01', 'invalid')).toBe(false);
+    expect(isValidDateRange('invalid', 'invalid')).toBe(false);
+  });
+
+  it('should handle Date objects converted to ISO strings', () => {
+    const start = new Date('2025-01-01').toISOString().split('T')[0];
+    const end = new Date('2025-01-31').toISOString().split('T')[0];
+    expect(isValidDateRange(start, end)).toBe(true);
+  });
+});
+
+describe('getDateRangeErrorMessage', () => {
+  it('should return null for valid date ranges', () => {
+    expect(getDateRangeErrorMessage('2025-01-01', '2025-01-31')).toBeNull();
+    expect(getDateRangeErrorMessage('2025-01-15', '2025-01-15')).toBeNull();
+  });
+
+  it('should return null for empty dates', () => {
+    expect(getDateRangeErrorMessage('', '')).toBeNull();
+    expect(getDateRangeErrorMessage('2025-01-01', '')).toBeNull();
+  });
+
+  it('should return error message for invalid date ranges', () => {
+    const error = getDateRangeErrorMessage('2025-01-31', '2025-01-01');
+    expect(error).toBe('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
+  });
+
+  it('should return error message for invalid date formats', () => {
+    const error = getDateRangeErrorMessage('not-a-date', '2025-01-31');
+    expect(error).toBe('Định dạng ngày không hợp lệ');
+  });
+
+  it('should handle edge cases gracefully', () => {
+    expect(getDateRangeErrorMessage('invalid', 'invalid')).toBe('Định dạng ngày không hợp lệ');
   });
 });

@@ -9,6 +9,7 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const db = admin.firestore();
 const REGION = 'asia-southeast1';
@@ -218,7 +219,7 @@ export const onStudentAttendanceCreate = functions
           studentData.startDate || data.date
         );
 
-        updateData.attendedSessions = newAttended;
+        updateData.attendedSessions = FieldValue.increment(1);
         updateData.remainingSessions = remaining;
         updateData.expectedEndDate = expectedEndDate;
 
@@ -239,7 +240,7 @@ export const onStudentAttendanceCreate = functions
       } else {
         // Buổi học bù → chỉ tính makeupSessionsAttended, không ảnh hưởng remaining
         const currentMakeup = studentData.makeupSessionsAttended || 0;
-        updateData.makeupSessionsAttended = currentMakeup + 1;
+        updateData.makeupSessionsAttended = FieldValue.increment(1);
 
         console.log(`[onStudentAttendanceCreate] Makeup attendance for ${studentId}, total: ${currentMakeup + 1}`);
       }
@@ -332,10 +333,13 @@ export const onStudentAttendanceUpdate = functions
 
     if (isSessionAttendance) {
       // Buổi chính thức → adjust attendedSessions
+      let attendedIncrement: number;
       let newAttended: number;
       if (isPresentAfter && !wasPresentBefore) {
+        attendedIncrement = 1;
         newAttended = currentAttended + 1;
       } else {
+        attendedIncrement = -1;
         newAttended = Math.max(0, currentAttended - 1);
       }
 
@@ -353,7 +357,7 @@ export const onStudentAttendanceUpdate = functions
       const remaining = Math.max(0, registeredSessions - newAttended);
       const expectedEndDate = calculateExpectedEndDate(remaining, daysPerWeek, studentData.startDate);
 
-      updateData.attendedSessions = newAttended;
+      updateData.attendedSessions = FieldValue.increment(attendedIncrement);
       updateData.remainingSessions = remaining;
       updateData.expectedEndDate = expectedEndDate;
 
@@ -370,14 +374,16 @@ export const onStudentAttendanceUpdate = functions
       console.log(`[onStudentAttendanceUpdate] Session attendance - Updated student ${studentId}: attended=${newAttended}`);
     } else {
       // Buổi học bù → adjust makeupSessionsAttended
-      const currentMakeup = studentData.makeupSessionsAttended || 0;
+      let makeupIncrement: number;
       if (isPresentAfter && !wasPresentBefore) {
-        updateData.makeupSessionsAttended = currentMakeup + 1;
+        makeupIncrement = 1;
       } else {
-        updateData.makeupSessionsAttended = Math.max(0, currentMakeup - 1);
+        makeupIncrement = -1;
       }
 
-      console.log(`[onStudentAttendanceUpdate] Makeup attendance - Updated student ${studentId}: makeup=${updateData.makeupSessionsAttended}`);
+      updateData.makeupSessionsAttended = FieldValue.increment(makeupIncrement);
+
+      console.log(`[onStudentAttendanceUpdate] Makeup attendance - Updated student ${studentId}: increment=${makeupIncrement}`);
     }
 
     // === Phase 3.2: Update classProgress[classId] ===
@@ -469,12 +475,10 @@ export const onStudentAttendanceDelete = functions
     // Update legacy fields
     if (wasPresent) {
       if (isSessionAttendance) {
-        const currentAttended = studentData.attendedSessions || 0;
-        updateData.attendedSessions = Math.max(0, currentAttended - 1);
+        updateData.attendedSessions = FieldValue.increment(-1);
         console.log(`[onStudentAttendanceDelete] Session attendance - Decremented attended for student ${studentId}`);
       } else {
-        const currentMakeup = studentData.makeupSessionsAttended || 0;
-        updateData.makeupSessionsAttended = Math.max(0, currentMakeup - 1);
+        updateData.makeupSessionsAttended = FieldValue.increment(-1);
         console.log(`[onStudentAttendanceDelete] Makeup attendance - Decremented makeup for student ${studentId}`);
       }
     }

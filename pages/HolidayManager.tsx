@@ -60,7 +60,7 @@ export const HolidayManager: React.FC = () => {
     }
 
     // Validate apply type specific requirements
-    if (formData.applyType === 'specific_classes' && formData.classIds.length === 0) {
+    if (formData.applyType === 'specific_classes' && (!formData.classIds || formData.classIds.length === 0)) {
       alert('Vui lòng chọn ít nhất 1 lớp!');
       return;
     }

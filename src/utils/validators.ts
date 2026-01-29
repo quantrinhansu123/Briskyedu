@@ -119,3 +119,50 @@ export const validateContractData = (data: {
     errors
   };
 };
+
+/**
+ * Validate date range: startDate must be <= endDate
+ * Allows empty dates (optional fields)
+ * Returns true if valid, false if invalid
+ */
+export const isValidDateRange = (startDate: string, endDate: string): boolean => {
+  // Allow empty dates (optional fields)
+  if (!startDate || !endDate) return true;
+
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Check if dates are valid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+
+    // startDate must be <= endDate
+    return start <= end;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Get error message for invalid date range
+ */
+export const getDateRangeErrorMessage = (startDate: string, endDate: string): string | null => {
+  if (!startDate || !endDate) return null;
+
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 'Định dạng ngày không hợp lệ';
+    }
+
+    if (start > end) {
+      return 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc';
+    }
+
+    return null;
+  } catch {
+    return 'Lỗi xác thực ngày tháng';
+  }
+};

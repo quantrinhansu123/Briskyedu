@@ -24,3 +24,4 @@ export * from './triggers/contractTriggers';
 export * from './triggers/staffTriggers';
 export * from './triggers/salaryTriggers';
 export * from './triggers/backfillTriggers';
+export * from './triggers/parentTriggers';

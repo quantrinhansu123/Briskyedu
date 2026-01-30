@@ -2,8 +2,8 @@
 
 Vietnamese education center management system built with React 19, TypeScript, and Firebase. Manages students, classes, attendance, staff salaries, contracts, and financial operations for language learning centers.
 
-**Status**: v1.0.1 Stable | Jan 22, 2026 | Quality 6.5/10
-**Tech Stack**: React 19 + TypeScript + Firebase + Vite 7
+**Status**: v1.0.1 Stable | Jan 30, 2026 | Quality 6.5/10
+**Tech Stack**: React 19 + TypeScript + Firebase (asia-southeast1) + Vite 7
 **Architecture**: Three-Layer Pattern (Services → Hooks → Pages)
 
 ## Quick Stats
@@ -13,7 +13,7 @@ Vietnamese education center management system built with React 19, TypeScript, a
 | **Pages** | 44 | 8 domains (Training, Customers, HR, Finance, etc.) |
 | **Services** | 42 | Hybrid: 79% functions, 21% classes |
 | **Hooks** | 38 | 30% real-time (onSnapshot), 70% fetch |
-| **Collections** | 37+ | Firestore NoSQL database |
+| **Collections** | 46 | Firestore NoSQL database |
 | **Cloud Functions** | 16 | Event triggers + scheduled jobs |
 | **Tests** | 294+ | Unit + integration + permissions |
 | **Scripts** | 58 | Maintenance + migrations |
@@ -156,7 +156,7 @@ npx tsx scripts/checkDataConsistency.ts   # Verify integrity
 
 ## Firebase Backend
 
-### Firestore Collections (37+)
+### Firestore Collections (46)
 
 **Core**: students, classes, staff
 **Operational**: attendance, contracts, enrollments, workSessions
@@ -219,7 +219,7 @@ See [Deployment Guide](docs/deployment-guide.md) for detailed instructions.
 - [Code Standards](docs/code-standards.md) - Coding patterns, guidelines
 - [Codebase Summary](docs/codebase-summary.md) - Stats, structure, recent changes
 - [Deployment Guide](docs/deployment-guide.md) - Firebase deployment, monitoring
-- [Firestore Schema](docs/FIRESTORE_SCHEMA.md) - Database schema (37+ collections)
+- [Firestore Schema](docs/FIRESTORE_SCHEMA.md) - Database schema (46 collections, complete reference)
 - [Project Roadmap](docs/project-roadmap.md) - Timeline, milestones, v1.1/v1.2 plans
 - [Architecture Decisions](docs/decisions/) - 9 ADRs explaining key choices
 
@@ -231,12 +231,12 @@ See [Deployment Guide](docs/deployment-guide.md) for detailed instructions.
 
 ## Recent Changes
 
-**Jan 22, 2026**: Documentation comprehensive update
+**Jan 30, 2026**: All docs updated with latest codebase metrics (328 files, 104k LOC)
+**Jan 22, 2026**: Edge case fixes & contract date validation
 **Jan 18, 2026**: ClassProgress feature (frontend + scripts + functions)
 **Jan 5, 2026**: Multi-module bug fixes (Training, Customer, HR)
-**Dec 31, 2025**: v1.0.1 Dashboard & Salary system
 
-See [Codebase Summary](docs/codebase-summary.md) for detailed change history.
+See [Codebase Summary](docs/codebase-summary.md) for detailed history.
 
 ## Current Status & Roadmap
 
@@ -348,4 +348,4 @@ Private - Educational use only
 **Project**: edumanager-pro
 **Repository**: GitHub (private)
 **Firebase Project**: edumanager-pro
-**Last Updated**: January 22, 2026
+**Last Updated**: January 30, 2026

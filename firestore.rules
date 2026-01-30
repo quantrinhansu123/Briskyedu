@@ -475,12 +475,7 @@ service cloud.firestore {
       allow write: if isStaff();
     }
     
-    // Homework & Comments collections (bài tập, nhận xét)
-    match /homeworkRecords/{recordId} {
-      allow read: if isStaff();
-      allow write: if isStaff();
-    }
-    
+    // Comments collections (nhận xét)
     match /testComments/{commentId} {
       allow read: if isStaff();
       allow write: if isStaff();
@@ -543,6 +538,24 @@ service cloud.firestore {
       allow update: if isStaff() && resource.data.staffId == request.auth.uid;
       // Only admin can delete
       allow delete: if isAdmin();
+    }
+
+    // Audit Logs (general audit trail)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if isStaff();
+    }
+
+    // Wifi Locations (vị trí wifi đã lưu)
+    match /wifiLocations/{locationId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // Work Session Audit Logs (lịch sử thay đổi công)
+    match /workSessionAuditLogs/{logId} {
+      allow read: if isOfficeStaff() || isAdmin();
+      allow write: if isOfficeStaff() || isAdmin();
     }
 
     // Default: deny all other collections

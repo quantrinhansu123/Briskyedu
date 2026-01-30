@@ -13,7 +13,7 @@ Vietnamese education center management system built with React 19, TypeScript, a
 | **Pages** | 44 | 8 domains (Training, Customers, HR, Finance, etc.) |
 | **Services** | 42 | Hybrid: 79% functions, 21% classes |
 | **Hooks** | 38 | 30% real-time (onSnapshot), 70% fetch |
-| **Collections** | 46 | Firestore NoSQL database |
+| **Collections** | 38 active | Firestore NoSQL (49 in rules) |
 | **Cloud Functions** | 16 | Event triggers + scheduled jobs |
 | **Tests** | 294+ | Unit + integration + permissions |
 | **Scripts** | 58 | Maintenance + migrations |
@@ -156,7 +156,7 @@ npx tsx scripts/checkDataConsistency.ts   # Verify integrity
 
 ## Firebase Backend
 
-### Firestore Collections (46)
+### Firestore Collections (38 active)
 
 **Core**: students, classes, staff
 **Operational**: attendance, contracts, enrollments, workSessions
@@ -219,7 +219,7 @@ See [Deployment Guide](docs/deployment-guide.md) for detailed instructions.
 - [Code Standards](docs/code-standards.md) - Coding patterns, guidelines
 - [Codebase Summary](docs/codebase-summary.md) - Stats, structure, recent changes
 - [Deployment Guide](docs/deployment-guide.md) - Firebase deployment, monitoring
-- [Firestore Schema](docs/FIRESTORE_SCHEMA.md) - Database schema (46 collections, complete reference)
+- [Firestore Schema](docs/FIRESTORE_SCHEMA.md) - Database schema (38 active collections)
 - [Project Roadmap](docs/project-roadmap.md) - Timeline, milestones, v1.1/v1.2 plans
 - [Architecture Decisions](docs/decisions/) - 9 ADRs explaining key choices
 

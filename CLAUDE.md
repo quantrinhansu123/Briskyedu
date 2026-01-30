@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL: Active Migration Plan
+
+**Status:** Schema Simplification in Progress (Jan 2026)
+
+### Branch Strategy
+```
+main branch     →  PRODUCTION (DO NOT MODIFY)
+                   - 49 collections (legacy schema)
+                   - Firebase: edumanager-pro-6180f
+                   - Vercel: edumanager.vercel.app
+
+staging branch  →  DEVELOPMENT (WORK HERE)
+                   - 18 collections (new schema)
+                   - Firebase: edumanager-pro-staging
+                   - Vercel: staging.edumanager.vercel.app
+```
+
+### ⛔ BEFORE ANY COMMIT:
+1. **Check current branch:** `git branch --show-current`
+2. **If on `main`:** Switch to `staging` first: `git checkout staging`
+3. **DO NOT commit V2 code to main** — main is production V1
+
+### Active Plan
+- Plan: `plans/260130-2231-schema-simplification-staging/`
+- Phase 0: Firebase staging project setup
+- Phases 1-7: Schema migration 49 → 18 collections
+
+---
+
 ## Project Overview
 
 EduManager Pro is a Vietnamese education center management system built with React 19, TypeScript, and Firebase. It manages students, classes, attendance, staff salaries, contracts, and financial operations for language learning centers.

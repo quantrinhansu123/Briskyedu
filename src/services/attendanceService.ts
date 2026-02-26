@@ -361,13 +361,13 @@ export const createTutoringFromAbsent = async (data: {
       className: data.className,
       absentDate: data.absentDate,
       type: data.type,
-      status: 'Chưa bồi',
+      status: 'Đã hẹn',
       scheduledDate: null,
       tutor: null,
       studentAttendanceId: attendanceId || null,  // Link to studentAttendance
       deletedAt: null,
       statusHistory: [{  // Initial status for audit trail
-        status: 'Chưa bồi',
+        status: 'Đã hẹn',
         changedAt: now,
         changedBy: 'system',
         reason: 'Auto-created from attendance'

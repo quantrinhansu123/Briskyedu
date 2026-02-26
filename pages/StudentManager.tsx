@@ -29,6 +29,7 @@ import {
   TransferClassModal,
   ReserveModal,
   RemoveClassModal,
+  LegacyImportModal,
 } from '../src/features/students/components';
 
 // Constants for table column count
@@ -69,6 +70,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showRemoveClassModal, setShowRemoveClassModal] = useState(false);
   const [actionDropdownId, setActionDropdownId] = useState<string | null>(null);
+  const [showLegacyImportModal, setShowLegacyImportModal] = useState(false);
   
   // Post-creation modal state
   const [showPostCreateModal, setShowPostCreateModal] = useState(false);
@@ -533,11 +535,20 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           )}
 
           {canCreateStudent && (
-            <button 
+            <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
             >
               <Plus size={16} /> Tạo mới
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setShowLegacyImportModal(true)}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+            >
+              <BookOpen size={16} /> Import buổi học cũ
             </button>
           )}
         </div>
@@ -1292,9 +1303,19 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
       {/* Click outside to close dropdown */}
       {actionDropdownId && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setActionDropdownId(null)}
+        />
+      )}
+
+      {/* Legacy Import Modal - admin only */}
+      {showLegacyImportModal && (
+        <LegacyImportModal
+          onClose={() => setShowLegacyImportModal(false)}
+          onComplete={() => {
+            setShowLegacyImportModal(false);
+          }}
         />
       )}
     </div>

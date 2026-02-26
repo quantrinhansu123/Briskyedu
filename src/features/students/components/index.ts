@@ -23,3 +23,5 @@ export type { ReserveModalProps } from './ReserveModal';
 
 export { RemoveClassModal } from './RemoveClassModal';
 export type { RemoveClassModalProps } from './RemoveClassModal';
+
+export { LegacyImportModal } from './LegacyImportModal';

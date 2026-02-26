@@ -15,12 +15,7 @@ import * as XLSX from 'xlsx';
 const RECORDS_PER_PAGE = 10;
 
 // Edit permission time limits (in hours)
-const EDIT_TIME_LIMITS: Record<string, number> = {
-  'teacher': 24,        // Giáo viên: 24 giờ
-  'receptionist': 72,   // Lễ tân: 3 ngày
-  'admin': Infinity,    // Admin: không giới hạn
-  'manager': Infinity,  // Quản lý: không giới hạn
-};
+// Edit permission time limits removed - all roles can edit at any time
 
 interface EditingStudent {
   id: string;
@@ -440,54 +435,9 @@ export const AttendanceHistory: React.FC = () => {
     }
   };
 
-  // Get user role for edit permission
-  const getUserRole = (): string => {
-    const position = staffData?.position?.toLowerCase() || '';
-    const role = staffData?.role?.toLowerCase() || '';
-    
-    if (role === 'admin' || position.includes('admin') || position.includes('quản lý')) {
-      return 'admin';
-    }
-    if (position.includes('lễ tân') || position.includes('receptionist')) {
-      return 'receptionist';
-    }
-    if (position.includes('giáo viên') || position.includes('trợ giảng') || role === 'teacher') {
-      return 'teacher';
-    }
-    return 'teacher'; // Default to most restrictive
-  };
 
   // Check if user can edit this attendance record
-  const canEditAttendance = (record: AttendanceRecord): { canEdit: boolean; reason?: string } => {
-    const userRole = getUserRole();
-    const timeLimit = EDIT_TIME_LIMITS[userRole] || 24;
-    
-    // Admin/Manager: no time limit
-    if (timeLimit === Infinity) {
-      return { canEdit: true };
-    }
-    
-    // Check if record belongs to user's class (for teachers)
-    if (userRole === 'teacher') {
-      const myClassIds = classes.map(c => c.id);
-      if (!myClassIds.includes(record.classId)) {
-        return { canEdit: false, reason: 'Bạn chỉ có thể sửa điểm danh của lớp mình' };
-      }
-    }
-    
-    // Check time limit
-    const recordDate = new Date(record.date);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - recordDate.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursDiff > timeLimit) {
-      const days = Math.ceil(timeLimit / 24);
-      return { 
-        canEdit: false, 
-        reason: `Đã quá ${days} ngày, không thể sửa điểm danh` 
-      };
-    }
-    
+  const canEditAttendance = (_record: AttendanceRecord): { canEdit: boolean; reason?: string } => {
     return { canEdit: true };
   };
 

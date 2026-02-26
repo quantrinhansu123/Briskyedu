@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Users, Search, UserPlus, UserMinus, ArrowRightLeft } from 'lucide-react';
+import { X, Users, Search, UserPlus, UserMinus, ArrowRightLeft, ExternalLink } from 'lucide-react';
 import { ClassModel, Student } from '@/types';
 import { collection, doc, updateDoc, arrayUnion, arrayRemove, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
@@ -13,6 +13,7 @@ import { removeStudentFromClass as adminRemoveStudent } from '@/src/services/adm
 import { TransferClassModal } from '@/src/features/students/components/TransferClassModal';
 import { useClasses } from '@/src/hooks/useClasses';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 export interface StudentsInClassModalProps {
   classData: ClassModel;
@@ -21,6 +22,7 @@ export interface StudentsInClassModalProps {
 }
 
 export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ classData, onClose, onUpdate }) => {
+  const navigate = useNavigate();
   const [studentsInClass, setStudentsInClass] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -339,9 +341,15 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
                     key={student.id}
                     className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-green-300 transition-colors"
                   >
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{student.fullName || student.name}</span>
+                        <button
+                          onClick={() => { onClose(); navigate(`/customers/student-detail/${student.id}`); }}
+                          className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline text-left"
+                          title="Xem chi tiết học viên"
+                        >
+                          {student.fullName || student.name}
+                        </button>
                         <span className="text-xs text-gray-500">({student.code})</span>
                       </div>
                       <div className="flex items-center gap-3 mt-1">

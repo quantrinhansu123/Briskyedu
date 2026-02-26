@@ -729,12 +729,20 @@ export const DebtManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => navigate(`/customers/student-detail/${student.id}?tab=finance`)}
-                        className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                      >
-                        Xem chi tiết
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setSettlementStudent(student)}
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                        >
+                          Tất toán
+                        </button>
+                        <button
+                          onClick={() => navigate(`/customers/student-detail/${student.id}?tab=finance`)}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm"
+                        >
+                          Chi tiết
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

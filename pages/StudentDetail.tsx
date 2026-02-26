@@ -888,7 +888,7 @@ export const StudentDetail: React.FC = () => {
                                        </td>
                                     </tr>
                                  ) : contracts.map((contract: any) => (
-                                    <tr key={contract.id} className="hover:bg-gray-50">
+                                    <tr key={contract.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/finance/contracts?view=${contract.id}`)}>
                                        <td className="px-4 py-3 font-medium text-indigo-600">{contract.code || contract.id.slice(0, 8)}</td>
                                        <td className="px-4 py-3">{contract.category || contract.type}</td>
                                        <td className="px-4 py-3">{contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('vi-VN') : '--'}</td>

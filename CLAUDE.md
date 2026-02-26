@@ -265,9 +265,11 @@ GOOGLE_APPLICATION_CREDENTIALS=./edumanager-pro-6180f-firebase-adminsdk-fbsvc-06
 
 **When writing scripts that need Firestore admin access:**
 
-1. **Load env first** using `dotenv`:
+1. **Load `.env.local` explicitly** (NOT `import 'dotenv/config'` which only loads `.env`):
 ```typescript
-import 'dotenv/config';  // Auto-loads .env.local
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -287,6 +289,8 @@ const db = getFirestore();
 - Service account key file is gitignored - NEVER commit it
 - Use Admin SDK for scripts only, NOT for frontend code
 - Frontend uses client SDK with security rules
+- **DO NOT use** `import * as admin from 'firebase-admin'` - it fails in ESM (`"type": "module"`). Use modular imports above.
+- **Client SDK CANNOT be used for scripts** - Firestore security rules block unauthenticated access
 
 ### Path Aliases
 
@@ -423,26 +427,91 @@ When schema changes require data migration:
 6. Document the migration in `docs/`
 
 **Script Requirements**:
-- Use Firebase Admin SDK or REST API (not client SDK)
+- **MUST use Firebase Admin SDK** (not client SDK - security rules block unauthenticated access)
 - Handle `asia-southeast1` region explicitly
 - Include proper error handling and logging
+- Always implement **dry-run mode** (default) with `--execute` flag for production scripts
 
 Example migration script pattern:
 ```typescript
-import { db } from '../src/config/firebase';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+if (!getApps().length) {
+  initializeApp({ credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS!) });
+}
+const db = getFirestore();
+const IS_DRY_RUN = !process.argv.includes('--execute');
 
 async function migrateStudentData() {
-  const studentsSnap = await getDocs(collection(db, 'students'));
+  const studentsSnap = await db.collection('students').get();
 
   for (const studentDoc of studentsSnap.docs) {
     const data = studentDoc.data();
     // Migration logic here
-    await updateDoc(doc(db, 'students', studentDoc.id), {
-      newField: computeNewValue(data)
-    });
+    if (!IS_DRY_RUN) {
+      await db.collection('students').doc(studentDoc.id).update({
+        newField: computeNewValue(data)
+      });
+    }
   }
 }
 
 migrateStudentData().catch(console.error);
 ```
+
+---
+
+## Lessons Learned (Production Bug Fixes - Feb 2026)
+
+### Attendance System Architecture
+
+**Session counting is EXCLUSIVELY handled by Cloud Functions** (`functions/src/triggers/studentAttendanceTriggers.ts`):
+- `onStudentAttendanceCreate` - Recalculates `attendedSessions`, `remainingSessions`, and student status
+- `onStudentAttendanceUpdate` - Handles status changes
+- `onStudentAttendanceDelete` - Recalculates on deletion
+
+**DO NOT count sessions on client-side** - this causes race conditions with Cloud Function triggers, leading to double-counting of `attendedSessions`.
+
+### Attendance Record Types
+- Records **WITH `sessionId`** = regular class attendance (counts toward `attendedSessions`)
+- Records **WITHOUT `sessionId`** = makeup sessions (tracked separately)
+
+### Status Values - Legacy Data Trap
+
+`PRESENT_STATUSES` in Cloud Functions MUST include both legacy and current values:
+```typescript
+const PRESENT_STATUSES = ['Đúng giờ', 'Trễ giờ', 'Đã bồi', 'Có mặt', 'Đến trễ'];
+```
+If only current values are used, Cloud Functions will NEVER detect present students for records saved with legacy statuses. This was the root cause of all 9 classes showing wrong data.
+
+### Firebase CLI Deploy Caching
+
+Firebase CLI caches source hashes. When code changes aren't detected:
+1. Delete `.firebase/` directory
+2. Clean `functions/lib/` directory
+3. Deploy specific functions by name:
+```bash
+firebase deploy --only functions:onStudentAttendanceCreate,functions:onStudentAttendanceUpdate
+```
+
+### Student Status Transitions
+```
+registeredSessions > 0:
+  remaining > 0  → 'Đang học'
+  remaining == 0 → 'Đã học hết phí'
+  remaining < 0  → 'Nợ phí' (with debtSessions = abs(remaining))
+
+Skip statuses (don't auto-update): 'Nghỉ học', 'Bảo lưu', 'Học thử', 'Nợ hợp đồng'
+```
+
+### Admin Fix Service (`src/services/adminFixService.ts`)
+
+Utility functions for one-time data repairs:
+- `recalculateClassStudentData(classId)` - Recalculate from actual attendance records
+- `resetClassAttendance(classId)` - Destructively reset all attendance
+- `removeStudentFromClass(studentId, classId)` - Remove with cleanup
+- `fixStudentRegisteredSessions(studentId, classId, correctSessions)` - Fix session count

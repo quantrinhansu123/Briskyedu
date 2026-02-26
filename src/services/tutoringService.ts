@@ -15,6 +15,7 @@ import {
   where,
   orderBy,
   QueryConstraint,
+  increment,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AttendanceStatus } from '../../types';
@@ -333,6 +334,14 @@ export const markChargedAbsence = async (
       updatedAt: now,
     });
 
+    // Decrement makeupOwed - makeup obligation resolved (waived)
+    if (tutoring.studentId && tutoring.classId) {
+      const studentRef = doc(db, 'students', tutoring.studentId);
+      await updateDoc(studentRef, {
+        [`classProgress.${tutoring.classId}.makeupOwed`]: increment(-1),
+      });
+    }
+
     // Note: studentAttendance stays as "Vắng" - session is counted as used
     console.log('markChargedAbsence success');
   } catch (error: any) {
@@ -395,6 +404,15 @@ export const markReservedAbsence = async (
     // Extend student's expectedEndDate
     await extendStudentCourse(tutoring.studentId, tutoring.classId);
 
+    // Decrement absentSessions + makeupOwed - absence is excused
+    if (tutoring.studentId && tutoring.classId) {
+      const studentRef = doc(db, 'students', tutoring.studentId);
+      await updateDoc(studentRef, {
+        [`classProgress.${tutoring.classId}.makeupOwed`]: increment(-1),
+        [`classProgress.${tutoring.classId}.absentSessions`]: increment(-1),
+      });
+    }
+
     console.log('markReservedAbsence success');
   } catch (error: any) {
     console.error('Error marking reserved absence:', error);
@@ -456,6 +474,19 @@ export const undoTutoring = async (
     // This would require storing the extension amount - log warning for manual adjustment
     if (previousStatus === 'Nghỉ bảo lưu') {
       console.warn('Undo from Nghỉ bảo lưu - expectedEndDate NOT reverted automatically');
+    }
+
+    // Revert classProgress counters that were decremented during resolution
+    if ((previousStatus === 'Nghỉ tính phí' || previousStatus === 'Nghỉ bảo lưu')
+        && tutoring.studentId && tutoring.classId) {
+      const studentRef = doc(db, 'students', tutoring.studentId);
+      const revertUpdate: Record<string, any> = {
+        [`classProgress.${tutoring.classId}.makeupOwed`]: increment(1),
+      };
+      if (previousStatus === 'Nghỉ bảo lưu') {
+        revertUpdate[`classProgress.${tutoring.classId}.absentSessions`] = increment(1);
+      }
+      await updateDoc(studentRef, revertUpdate);
     }
 
     console.log('undoTutoring success');

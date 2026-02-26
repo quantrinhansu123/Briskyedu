@@ -2,12 +2,13 @@ import { Student } from '@/types';
 
 /**
  * StudentSessionData - Dữ liệu session đã được normalize
- * Trả về số buổi đăng ký, đã học, và còn lại cho học sinh
+ * Trả về số buổi đăng ký, đã học (mới + cũ), và còn lại cho học sinh
  */
 export interface StudentSessionData {
-  registered: number;  // Số buổi đăng ký/đóng tiền
-  attended: number;    // Số buổi đã học
-  remaining: number;   // Số buổi còn lại (âm = nợ)
+  registered: number;      // Số buổi đăng ký/đóng tiền
+  attended: number;        // Số buổi đã học (hệ thống mới)
+  legacyAttended: number;  // Số buổi đã học (hệ thống cũ)
+  remaining: number;       // Số buổi còn lại (âm = nợ)
 }
 
 /**
@@ -19,23 +20,18 @@ export interface StudentSessionData {
  * 3. Nếu student null → trả về zeros
  *
  * @param student - Student object (có thể null)
- * @returns StudentSessionData với registered, attended, remaining
+ * @returns StudentSessionData với registered, attended, legacyAttended, remaining
  *
  * @example
- * // Sử dụng trong component
- * const { registered, attended, remaining } = getStudentSessionData(student);
+ * const { registered, attended, legacyAttended, remaining } = getStudentSessionData(student);
  * if (remaining < 0) showDebtWarning();
- *
- * @example
- * // Destructure chỉ remaining
- * const { remaining } = getStudentSessionData(student);
  */
 export function getStudentSessionData(student: Student | null): StudentSessionData {
-  // Edge case: student null hoặc undefined
   if (!student) {
-    return { registered: 0, attended: 0, remaining: 0 };
+    return { registered: 0, attended: 0, legacyAttended: 0, remaining: 0 };
   }
 
+  const legacyAttended = student.legacyAttendedSessions || 0;
   const classId = student.classId;
 
   // Ưu tiên: đọc từ classProgress nếu classId valid và có data
@@ -47,7 +43,8 @@ export function getStudentSessionData(student: Student | null): StudentSessionDa
     return {
       registered,
       attended,
-      remaining: registered - attended
+      legacyAttended,
+      remaining: registered - attended - legacyAttended
     };
   }
 
@@ -57,6 +54,7 @@ export function getStudentSessionData(student: Student | null): StudentSessionDa
   return {
     registered,
     attended,
-    remaining: registered - attended
+    legacyAttended,
+    remaining: registered - attended - legacyAttended
   };
 }

@@ -66,6 +66,8 @@ export interface Student {
   registeredSessions?: number; // Số buổi đã đăng ký/đóng tiền
   attendedSessions?: number; // Số buổi đã học (tự động tính từ điểm danh)
   remainingSessions?: number; // Số buổi còn lại (âm = nợ phí, auto set status)
+  /** Số buổi đã học ở hệ thống cũ (nhập thủ công, dùng để tính remaining chính xác) */
+  legacyAttendedSessions?: number;
   /** Số buổi học bù/thêm đã tham gia (không tính vào nợ phí) */
   makeupSessionsAttended?: number;
   startSessionNumber?: number; // Buổi học bắt đầu (khi đăng ký giữa khoá)

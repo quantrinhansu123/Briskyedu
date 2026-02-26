@@ -82,7 +82,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Permissions
-  const { canCreate, canEdit, canDelete, shouldHideParentPhone, shouldShowOnlyOwnClasses, staffId } = usePermissions();
+  const { canCreate, canEdit, canDelete, shouldHideParentPhone, shouldShowOnlyOwnClasses, staffId, isAdmin } = usePermissions();
   const { staffData } = useAuth();
   const canCreateStudent = canCreate('students');
   const canEditStudent = canEdit('students');
@@ -1059,6 +1059,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
         <EditStudentModal
           student={editingStudent}
           centers={centers}
+          isAdmin={isAdmin}
           onClose={() => {
             setShowEditModal(false);
             setEditingStudent(null);

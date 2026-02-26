@@ -68,7 +68,7 @@ export const RemoveClassModal: React.FC<RemoveClassModalProps> = ({ student, sta
           <p className="font-medium text-red-800">{student.fullName}</p>
           <p className="text-sm text-red-700">Lớp hiện tại: {student.class || '---'}</p>
           <p className="text-sm text-red-700">
-            Số buổi còn: {(student.registeredSessions || 0) - (student.attendedSessions || 0)}
+            Số buổi còn: {(student.registeredSessions || 0) - (student.attendedSessions || 0) - (student.legacyAttendedSessions || 0)}
             {hasDebt && <span className="text-red-600 font-bold"> (Nợ {debtSessions} buổi)</span>}
           </p>
         </div>

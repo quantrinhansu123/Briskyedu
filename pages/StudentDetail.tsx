@@ -774,7 +774,20 @@ export const StudentDetail: React.FC = () => {
                               <CheckCircle2 size={18} className="text-emerald-600" />
                               <span className="text-sm font-medium text-emerald-700">Đã học</span>
                            </div>
-                           <p className="text-2xl font-bold text-emerald-700">{student ? getStudentSessionData(student).attended : 0}</p>
+                           {(() => {
+                              const sessionData = student ? getStudentSessionData(student) : { attended: 0, legacyAttended: 0 };
+                              const total = sessionData.attended + (sessionData.legacyAttended || 0);
+                              return (
+                                <>
+                                  <p className="text-2xl font-bold text-emerald-700">{total}</p>
+                                  {(sessionData.legacyAttended || 0) > 0 && (
+                                    <p className="text-xs text-emerald-600 mt-1">
+                                      Mới: {sessionData.attended} | Cũ: {sessionData.legacyAttended}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                           })()}
                         </div>
                         <div className={`bg-gradient-to-br p-4 rounded-xl border ${remainingSessions <= 6 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-gray-50 to-gray-100 border-gray-200'}`}>
                            <div className="flex items-center gap-2 mb-2">

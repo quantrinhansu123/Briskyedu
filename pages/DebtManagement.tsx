@@ -211,11 +211,11 @@ export const DebtManagement: React.FC = () => {
   // 1. Học viên chuẩn bị hết phí (còn <= 6 buổi, đang học)
   const almostOutStudents = useMemo(() => {
     return students.filter(s => {
-      const remaining = (s.registeredSessions || 0) - (s.attendedSessions || 0);
+      const remaining = (s.registeredSessions || 0) - (s.attendedSessions || 0) - (s.legacyAttendedSessions || 0);
       return remaining > 0 && remaining <= SESSIONS_WARNING_THRESHOLD && s.status === 'Đang học';
     }).sort((a, b) => {
-      const remainA = (a.registeredSessions || 0) - (a.attendedSessions || 0);
-      const remainB = (b.registeredSessions || 0) - (b.attendedSessions || 0);
+      const remainA = (a.registeredSessions || 0) - (a.attendedSessions || 0) - (a.legacyAttendedSessions || 0);
+      const remainB = (b.registeredSessions || 0) - (b.attendedSessions || 0) - (b.legacyAttendedSessions || 0);
       return remainA - remainB; // Ít buổi hơn lên trước
     });
   }, [students]);
@@ -223,11 +223,11 @@ export const DebtManagement: React.FC = () => {
   // 2. Học viên đang nợ phí (học vượt số buổi đăng ký)
   const debtStudents = useMemo(() => {
     return students.filter(s => {
-      const exceeded = (s.attendedSessions || 0) - (s.registeredSessions || 0);
+      const exceeded = (s.attendedSessions || 0) + (s.legacyAttendedSessions || 0) - (s.registeredSessions || 0);
       return exceeded > 0 && s.status === 'Nợ phí';
     }).sort((a, b) => {
-      const exceedA = (a.attendedSessions || 0) - (a.registeredSessions || 0);
-      const exceedB = (b.attendedSessions || 0) - (b.registeredSessions || 0);
+      const exceedA = (a.attendedSessions || 0) + (a.legacyAttendedSessions || 0) - (a.registeredSessions || 0);
+      const exceedB = (b.attendedSessions || 0) + (b.legacyAttendedSessions || 0) - (b.registeredSessions || 0);
       return exceedB - exceedA; // Nợ nhiều hơn lên trước
     });
   }, [students]);
@@ -255,7 +255,7 @@ export const DebtManagement: React.FC = () => {
     students.forEach(s => {
       if (!s.classId || s.status === 'Nghỉ học' || s.status === 'Bảo lưu') return;
       
-      const remaining = (s.registeredSessions || 0) - (s.attendedSessions || 0);
+      const remaining = (s.registeredSessions || 0) - (s.attendedSessions || 0) - (s.legacyAttendedSessions || 0);
       if (remaining <= 0) return; // Chỉ tính khi còn buổi
       
       if (!classMap[s.classId]) {
@@ -440,7 +440,7 @@ export const DebtManagement: React.FC = () => {
           <p className="text-3xl font-bold">{debtStudents.length}</p>
           <p className="text-sm opacity-80">
             {formatCurrency(debtStudents.reduce((sum, s) => {
-              const exceeded = (s.attendedSessions || 0) - (s.registeredSessions || 0);
+              const exceeded = (s.attendedSessions || 0) + (s.legacyAttendedSessions || 0) - (s.registeredSessions || 0);
               return sum + exceeded * 150000;
             }, 0))}
           </p>

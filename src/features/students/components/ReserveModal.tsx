@@ -19,7 +19,7 @@ export const ReserveModal: React.FC<ReserveModalProps> = ({ student, staffData, 
   const [reserveDate, setReserveDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
 
-  const remainingSessions = (student.registeredSessions || 0) - (student.attendedSessions || 0);
+  const remainingSessions = (student.registeredSessions || 0) - (student.attendedSessions || 0) - (student.legacyAttendedSessions || 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

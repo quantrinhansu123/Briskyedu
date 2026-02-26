@@ -337,7 +337,7 @@ export const prepareStudentExport = (students: any[]): Record<string, any>[] => 
     'Địa chỉ': s.address || '',
     'Lớp học': s.class || '',
     'Số buổi đăng ký': s.registeredSessions || 0,
-    'Số buổi còn lại': s.remainingSessions ?? ((s.registeredSessions || 0) - (s.attendedSessions || 0)),
+    'Số buổi còn lại': s.remainingSessions ?? ((s.registeredSessions || 0) - (s.attendedSessions || 0) - (s.legacyAttendedSessions || 0)),
     'Trạng thái': s.status || '',
     'Ghi chú': s.note || '',
   }));

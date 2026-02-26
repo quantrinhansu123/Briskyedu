@@ -18,8 +18,8 @@ export interface TransferClassModalProps {
 
 export const TransferClassModal: React.FC<TransferClassModalProps> = ({ student, classes, staffData, onClose, onSubmit }) => {
   const [newClassId, setNewClassId] = useState('');
-  // Calculate remaining sessions (registered - attended) for transfer
-  const remainingSessions = Math.max(0, (student.registeredSessions || 0) - (student.attendedSessions || 0));
+  // Calculate remaining sessions (registered - attended - legacy) for transfer
+  const remainingSessions = Math.max(0, (student.registeredSessions || 0) - (student.attendedSessions || 0) - (student.legacyAttendedSessions || 0));
   const [sessions, setSessions] = useState(remainingSessions);
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');

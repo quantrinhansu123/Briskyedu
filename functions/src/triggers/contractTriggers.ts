@@ -123,9 +123,10 @@ export const onContractUpdate = functions
 
     // Update student
     const attendedSessions = studentData?.attendedSessions || 0;
+    const legacyAttended = studentData?.legacyAttendedSessions || 0;
     const updateData: any = {
       registeredSessions: newSessions,
-      remainingSessions: newSessions - attendedSessions,
+      remainingSessions: newSessions - attendedSessions - legacyAttended,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
@@ -161,7 +162,7 @@ export const onContractUpdate = functions
       console.log('[onContractUpdate] Updating student status from Học thử to Đang học');
     } else if ((after.category === 'Hợp đồng tái phí' || after.category === 'Hợp đồng liên kết')
                && (studentData?.status === 'Nợ phí' || studentData?.status === 'Đã học hết phí')
-               && (newSessions - attendedSessions) > 0) {
+               && (newSessions - attendedSessions - legacyAttended) > 0) {
       // Renew contract cleared the debt - restore to ACTIVE
       updateData.status = 'Đang học';
       updateData.debtStartDate = null;
@@ -274,9 +275,10 @@ export const onContractCreate = functions
     }
 
     const attendedSessions = studentData?.attendedSessions || 0;
+    const legacyAttended = studentData?.legacyAttendedSessions || 0;
     const updateData: any = {
       registeredSessions: newSessions,
-      remainingSessions: newSessions - attendedSessions,
+      remainingSessions: newSessions - attendedSessions - legacyAttended,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
@@ -292,7 +294,7 @@ export const onContractCreate = functions
       updateData.status = 'Đang học';
     } else if ((contract.category === 'Hợp đồng tái phí' || contract.category === 'Hợp đồng liên kết')
                && (studentData?.status === 'Nợ phí' || studentData?.status === 'Đã học hết phí')
-               && (newSessions - attendedSessions) > 0) {
+               && (newSessions - attendedSessions - legacyAttended) > 0) {
       // Renew contract cleared the debt - restore to ACTIVE
       updateData.status = 'Đang học';
       updateData.debtStartDate = null;

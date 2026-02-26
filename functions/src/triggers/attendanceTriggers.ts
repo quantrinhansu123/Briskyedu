@@ -32,6 +32,7 @@ interface StudentData {
   class?: string;
   registeredSessions?: number;
   attendedSessions?: number;
+  legacyAttendedSessions?: number;
   startDate?: string;
   expectedEndDate?: string;
 }
@@ -271,11 +272,12 @@ export const onSessionComplete = functions
       const studentData = studentDoc.data() as StudentData;
       const registeredSessions = studentData.registeredSessions || 0;
       const attendedSessions = studentData.attendedSessions || 0;
-      
-      // Remaining = registered - attended (absent sessions need makeup = add more days)
-      const remaining = Math.max(0, registeredSessions - attendedSessions);
+      const legacyAttended = studentData.legacyAttendedSessions || 0;
+
+      // Remaining = registered - attended - legacy (absent sessions need makeup = add more days)
+      const remaining = Math.max(0, registeredSessions - attendedSessions - legacyAttended);
       const expectedEndDate = calculateExpectedEndDate(remaining, daysPerWeek, studentData.startDate);
-      
+
       batch.update(studentDoc.ref, { expectedEndDate });
     }
     
@@ -313,7 +315,8 @@ export const recalculateStudentStats = functions
       // Recalculate expectedEndDate based on current attendedSessions
       const registeredSessions = studentData.registeredSessions || 0;
       const attendedSessions = studentData.attendedSessions || 0;
-      const remaining = Math.max(0, registeredSessions - attendedSessions);
+      const legacyAttended = studentData.legacyAttendedSessions || 0;
+      const remaining = Math.max(0, registeredSessions - attendedSessions - legacyAttended);
       
       // Get class for schedule
       let daysPerWeek = 2;

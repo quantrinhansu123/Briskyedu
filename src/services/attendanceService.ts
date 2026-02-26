@@ -469,8 +469,9 @@ export const checkAndUpdateStudentDebtStatus = async (
       }
     }
 
-    // Calculate remaining sessions
-    const remainingSessions = registeredSessions - attendedSessions;
+    // Calculate remaining sessions (include legacy sessions from old system)
+    const legacyAttended = studentData.legacyAttendedSessions || 0;
+    const remainingSessions = registeredSessions - attendedSessions - legacyAttended;
 
     // Prepare update data
     const updateData: Record<string, unknown> = {
@@ -680,7 +681,8 @@ export const recalculateStudentStatus = async (
 
     // Use session attendance count as the source of truth
     const attendedSessions = sessionAttended;
-    const remainingSessions = registeredSessions - attendedSessions;
+    const legacyAttended = studentData.legacyAttendedSessions || 0;
+    const remainingSessions = registeredSessions - attendedSessions - legacyAttended;
 
     console.log(`[recalculateStudentStatus] Student ${studentId}: stored=${currentAttended}, counted=${sessionAttended}, makeup=${makeupAttended}, registered=${registeredSessions}, remaining=${remainingSessions}`);
 

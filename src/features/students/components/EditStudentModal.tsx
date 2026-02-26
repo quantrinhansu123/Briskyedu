@@ -10,11 +10,12 @@ import { Student, StudentStatus, Center } from '@/types';
 export interface EditStudentModalProps {
   student: Student;
   centers: Center[];
+  isAdmin?: boolean;
   onClose: () => void;
   onSubmit: (data: Partial<Student>) => void;
 }
 
-export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, centers, onClose, onSubmit }) => {
+export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, centers, isAdmin = false, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
     fullName: student.fullName || '',
     dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : '',
@@ -26,8 +27,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
     branch: student.branch || '',
     // Note: 'class' field is intentionally excluded - use "Chuyển lớp" feature instead
     registeredSessions: student.registeredSessions || 0,
-    remainingSessions: (student.registeredSessions || 0) - (student.attendedSessions || 0),
+    remainingSessions: (student.registeredSessions || 0) - (student.attendedSessions || 0) - (student.legacyAttendedSessions || 0),
     attendedSessions: student.attendedSessions || 0,
+    legacyAttendedSessions: student.legacyAttendedSessions || 0,
     startDate: student.startDate ? new Date(student.startDate).toISOString().split('T')[0] : '',
     // Nghỉ học
     dropoutReason: student.dropoutReason || '',
@@ -36,13 +38,18 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
 
   // Auto-recalculate remainingSessions when registeredSessions or attendedSessions changes
   const handleRegisteredChange = (value: number) => {
-    const remaining = value - formData.attendedSessions;
+    const remaining = value - formData.attendedSessions - formData.legacyAttendedSessions;
     setFormData({ ...formData, registeredSessions: value, remainingSessions: remaining });
   };
 
   const handleAttendedChange = (value: number) => {
-    const remaining = formData.registeredSessions - value;
+    const remaining = formData.registeredSessions - value - formData.legacyAttendedSessions;
     setFormData({ ...formData, attendedSessions: value, remainingSessions: remaining });
+  };
+
+  const handleLegacyChange = (value: number) => {
+    const remaining = formData.registeredSessions - formData.attendedSessions - value;
+    setFormData({ ...formData, legacyAttendedSessions: value, remainingSessions: remaining });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -270,6 +277,24 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, cen
               />
               <p className="text-xs text-gray-500 mt-1">Nhập thủ công nếu cần điều chỉnh</p>
             </div>
+
+            {/* Đã học (hệ thống cũ) - Admin/Manager only */}
+            {isAdmin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Đã học (hệ thống cũ)
+                  <span className="text-gray-400 font-normal ml-1">(migration)</span>
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.legacyAttendedSessions}
+                  onChange={(e) => handleLegacyChange(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-amber-50"
+                />
+                <p className="text-xs text-amber-600 mt-1">Số buổi đã học ở hệ thống cũ (trước khi chuyển sang EduManager)</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

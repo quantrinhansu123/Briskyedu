@@ -171,8 +171,9 @@ export const recalculateClassStudentData = async (
             }
         });
 
-        // Calculate correct values
-        const actualRemaining = registeredSessions - actualAttended;
+        // Calculate correct values (include legacy sessions from old system)
+        const legacyAttended = student.legacyAttendedSessions || 0;
+        const actualRemaining = registeredSessions - actualAttended - legacyAttended;
 
         // Determine correct status
         let newStatus = student.status;
@@ -518,7 +519,8 @@ export const fixStudentRegisteredSessions = async (
     }
     const student = studentDoc.data();
     const attended = student.attendedSessions || 0;
-    const remaining = correctRegisteredSessions - attended;
+    const legacyAttended = student.legacyAttendedSessions || 0;
+    const remaining = correctRegisteredSessions - attended - legacyAttended;
 
     const updateData: Record<string, any> = {
         registeredSessions: correctRegisteredSessions,
@@ -624,4 +626,76 @@ export const batchRecalculateClasses = async (
         totalFixed,
         results,
     };
+};
+
+// ===========================
+// 6. UPDATE LEGACY ATTENDED SESSIONS
+// ===========================
+
+/**
+ * Update legacyAttendedSessions for a student migrated from old system.
+ * Recalculates remainingSessions and updates status accordingly.
+ *
+ * @param studentId - Firestore student document ID
+ * @param legacySessions - Number of sessions attended in old system
+ */
+export const updateLegacyAttendedSessions = async (
+    studentId: string,
+    legacySessions: number
+): Promise<{ success: boolean; studentName: string; before: Record<string, any>; after: Record<string, any> }> => {
+    const studentDoc = await getDoc(doc(db, 'students', studentId));
+    if (!studentDoc.exists()) {
+        throw new Error('Không tìm thấy học viên');
+    }
+    const student = studentDoc.data();
+    const studentName = student.fullName || student.name || 'N/A';
+    const registered = student.registeredSessions || 0;
+    const attended = student.attendedSessions || 0;
+    const oldLegacy = student.legacyAttendedSessions || 0;
+
+    const before = {
+        legacyAttendedSessions: oldLegacy,
+        remainingSessions: registered - attended - oldLegacy,
+        status: student.status,
+    };
+
+    const newRemaining = registered - attended - legacySessions;
+
+    const updateData: Record<string, any> = {
+        legacyAttendedSessions: legacySessions,
+        remainingSessions: newRemaining,
+    };
+
+    // Update status based on new remaining
+    const skipStatuses = [StudentStatus.DROPPED, StudentStatus.RESERVED, StudentStatus.TRIAL, StudentStatus.CONTRACT_DEBT];
+    if (!skipStatuses.includes(student.status)) {
+        if (registered > 0) {
+            if (newRemaining < 0) {
+                updateData.status = StudentStatus.DEBT;
+                updateData.debtSessions = Math.abs(newRemaining);
+                if (!student.debtStartDate) {
+                    updateData.debtStartDate = new Date().toISOString();
+                }
+            } else if (newRemaining === 0) {
+                updateData.status = StudentStatus.EXPIRED_FEE;
+                updateData.debtSessions = 0;
+            } else {
+                updateData.status = StudentStatus.ACTIVE;
+                updateData.debtSessions = 0;
+                updateData.debtStartDate = null;
+            }
+        }
+    }
+
+    await updateDoc(doc(db, 'students', studentId), updateData);
+
+    const after = {
+        legacyAttendedSessions: legacySessions,
+        remainingSessions: newRemaining,
+        status: updateData.status || student.status,
+    };
+
+    console.log(`[updateLegacyAttendedSessions] ${studentName}: legacy ${oldLegacy} → ${legacySessions}, remaining ${before.remainingSessions} → ${newRemaining}`);
+
+    return { success: true, studentName, before, after };
 };

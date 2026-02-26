@@ -45,6 +45,7 @@ interface StudentData {
   status: string;
   registeredSessions?: number;
   attendedSessions?: number;
+  legacyAttendedSessions?: number;
   makeupSessionsAttended?: number;
   startDate?: string;
   expectedEndDate?: string;
@@ -186,6 +187,7 @@ export const onStudentAttendanceCreate = functions
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
+    const legacyAttended = studentData.legacyAttendedSessions || 0;
 
     // Phân loại: buổi chính thức (có sessionId) vs buổi học bù (không có sessionId)
     const isSessionAttendance = !!data.sessionId;
@@ -212,7 +214,7 @@ export const onStudentAttendanceCreate = functions
         }
 
         // Calculate remaining sessions (can be negative = debt)
-        const remaining = registeredSessions - newAttended;
+        const remaining = registeredSessions - newAttended - legacyAttended;
         const expectedEndDate = calculateExpectedEndDate(
           Math.max(0, remaining),
           daysPerWeek,
@@ -230,12 +232,12 @@ export const onStudentAttendanceCreate = functions
 
         // Check debt/expired status
         if (registeredSessions > 0 && studentData.status === 'Đang học') {
-          if (newAttended > registeredSessions) {
+          if ((newAttended + legacyAttended) > registeredSessions) {
             updateData.status = 'Nợ phí';
             updateData.debtStartDate = new Date().toISOString();
-            updateData.debtSessions = newAttended - registeredSessions;
-            console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
-          } else if (newAttended === registeredSessions) {
+            updateData.debtSessions = (newAttended + legacyAttended) - registeredSessions;
+            console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, legacy: ${legacyAttended}, registered: ${registeredSessions})`);
+          } else if ((newAttended + legacyAttended) === registeredSessions) {
             updateData.status = 'Đã học hết phí';
             updateData.debtSessions = 0;
             console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Đã học hết phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
@@ -330,6 +332,7 @@ export const onStudentAttendanceUpdate = functions
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
+    const legacyAttended = studentData.legacyAttendedSessions || 0;
 
     // Phân loại: buổi chính thức vs buổi học bù
     const isSessionAttendance = !!after.sessionId;
@@ -360,7 +363,7 @@ export const onStudentAttendanceUpdate = functions
       }
 
       // Calculate remaining sessions (can be negative = debt)
-      const remaining = registeredSessions - newAttended;
+      const remaining = registeredSessions - newAttended - legacyAttended;
       const expectedEndDate = calculateExpectedEndDate(Math.max(0, remaining), daysPerWeek, studentData.startDate);
 
       updateData.attendedSessions = FieldValue.increment(attendedIncrement);
@@ -368,11 +371,11 @@ export const onStudentAttendanceUpdate = functions
       updateData.expectedEndDate = expectedEndDate;
 
       // Check debt status
-      if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
+      if (registeredSessions > 0 && (newAttended + legacyAttended) > registeredSessions && studentData.status === 'Đang học') {
         updateData.status = 'Nợ phí';
         updateData.debtStartDate = new Date().toISOString();
-        updateData.debtSessions = newAttended - registeredSessions;
-      } else if (newAttended <= registeredSessions && studentData.status === 'Nợ phí') {
+        updateData.debtSessions = (newAttended + legacyAttended) - registeredSessions;
+      } else if ((newAttended + legacyAttended) <= registeredSessions && studentData.status === 'Nợ phí') {
         updateData.status = 'Đang học';
         updateData.debtSessions = admin.firestore.FieldValue.delete();
       }
@@ -486,8 +489,9 @@ export const onStudentAttendanceDelete = functions
         // Recalculate remainingSessions and debt status
         const currentAttended = studentData.attendedSessions || 0;
         const registeredSessions = studentData.registeredSessions || 0;
+        const legacyAttended = studentData.legacyAttendedSessions || 0;
         const newAttended = Math.max(0, currentAttended - 1);
-        const remaining = registeredSessions - newAttended;
+        const remaining = registeredSessions - newAttended - legacyAttended;
         updateData.remainingSessions = remaining;
 
         // Restore status if no longer in debt

@@ -9,6 +9,7 @@ import { X, Users, Search, UserPlus, UserMinus, ArrowRightLeft } from 'lucide-re
 import { ClassModel, Student } from '@/types';
 import { collection, doc, updateDoc, arrayUnion, arrayRemove, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
+import { removeStudentFromClass as adminRemoveStudent } from '@/src/services/adminFixService';
 import { TransferClassModal } from '@/src/features/students/components/TransferClassModal';
 import { useClasses } from '@/src/hooks/useClasses';
 import { useAuth } from '@/src/hooks/useAuth';
@@ -182,25 +183,19 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
     }
   };
 
-  // Remove student from class
+  // Remove student from class using admin fix service (cleans up attendance data)
   const removeStudentFromClass = async (student: any) => {
-    if (!confirm(`Bạn có chắc muốn xóa ${student.fullName || student.name} khỏi lớp ${classData.name}?`)) return;
+    if (!confirm(`Bạn có chắc muốn xóa ${student.fullName || student.name} khỏi lớp ${classData.name}? Tất cả dữ liệu điểm danh của học viên trong lớp này sẽ bị xoá.`)) return;
 
     try {
-      const studentRef = doc(db, 'students', student.id);
-
-      // Remove class reference
-      await updateDoc(studentRef, {
-        classId: null,
-        className: null,
-        class: null,
-        classIds: arrayRemove(classData.id),
-      });
-
-      // Update local state
-      setStudentsInClass(prev => prev.filter(s => s.id !== student.id));
-      setAllStudents(prev => [...prev, { ...student, classId: null, className: null }]);
-      onUpdate();
+      const result = await adminRemoveStudent(student.id, classData.id);
+      if (result.success) {
+        setStudentsInClass(prev => prev.filter(s => s.id !== student.id));
+        setAllStudents(prev => [...prev, { ...student, classId: null, className: null }]);
+        onUpdate();
+      } else {
+        alert(`Lỗi: ${result.error}`);
+      }
     } catch (err) {
       console.error('Error removing student from class:', err);
       alert('Không thể xóa học viên khỏi lớp');

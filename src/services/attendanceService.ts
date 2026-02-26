@@ -38,7 +38,7 @@ export const createAttendanceRecord = async (
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     const docRef = await addDoc(collection(db, ATTENDANCE_COLLECTION), recordData);
     return docRef.id;
   } catch (error) {
@@ -54,9 +54,9 @@ export const getAttendanceRecord = async (id: string): Promise<AttendanceRecord 
   try {
     const docRef = doc(db, ATTENDANCE_COLLECTION, id);
     const docSnap = await getDoc(docRef);
-    
+
     if (!docSnap.exists()) return null;
-    
+
     return { id: docSnap.id, ...docSnap.data() } as AttendanceRecord;
   } catch (error) {
     console.error('Error getting attendance record:', error);
@@ -75,23 +75,23 @@ export const getAttendanceRecords = async (filters?: {
 }): Promise<AttendanceRecord[]> => {
   try {
     const constraints: QueryConstraint[] = [orderBy('date', 'desc')];
-    
+
     if (filters?.classId) {
       constraints.unshift(where('classId', '==', filters.classId));
     }
-    
+
     if (filters?.date) {
       constraints.unshift(where('date', '==', filters.date));
     }
-    
+
     const q = query(collection(db, ATTENDANCE_COLLECTION), ...constraints);
     const snapshot = await getDocs(q);
-    
+
     let records = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     } as AttendanceRecord));
-    
+
     // Client-side date range filter
     if (filters?.startDate) {
       records = records.filter(r => r.date >= filters.startDate!);
@@ -99,7 +99,7 @@ export const getAttendanceRecords = async (filters?: {
     if (filters?.endDate) {
       records = records.filter(r => r.date <= filters.endDate!);
     }
-    
+
     return records;
   } catch (error) {
     console.error('Error getting attendance records:', error);
@@ -121,9 +121,9 @@ export const checkExistingAttendance = async (
       where('date', '==', date)
     );
     const snapshot = await getDocs(q);
-    
+
     if (snapshot.empty) return null;
-    
+
     const doc = snapshot.docs[0];
     return { id: doc.id, ...doc.data() } as AttendanceRecord;
   } catch (error) {
@@ -146,14 +146,14 @@ export const saveStudentAttendance = async (
 ): Promise<void> => {
   try {
     console.log('[saveStudentAttendance] Starting...', { attendanceId, studentsCount: students.length });
-    
+
     if (students.length === 0) {
       console.warn('[saveStudentAttendance] No students to save!');
       return;
     }
-    
+
     const batch = writeBatch(db);
-    
+
     // Delete existing records for this attendance
     const existingQuery = query(
       collection(db, STUDENT_ATTENDANCE_COLLECTION),
@@ -162,12 +162,12 @@ export const saveStudentAttendance = async (
     const existingDocs = await getDocs(existingQuery);
     console.log('[saveStudentAttendance] Deleting existing:', existingDocs.size);
     existingDocs.docs.forEach(d => batch.delete(d.ref));
-    
+
     // Add new records with extended fields
     console.log('[saveStudentAttendance] Adding', students.length, 'new records...');
     students.forEach((student, i) => {
       const docRef = doc(collection(db, STUDENT_ATTENDANCE_COLLECTION));
-      
+
       // Build record, excluding undefined values (Firestore doesn't accept undefined)
       const record: Record<string, unknown> = {
         studentId: student.studentId,
@@ -182,7 +182,7 @@ export const saveStudentAttendance = async (
         sessionId: sessionId || null,
         createdAt: new Date().toISOString(),
       };
-      
+
       // Add optional fields only if they have values
       if (student.note) record.note = student.note;
       if (student.homeworkCompletion !== undefined) record.homeworkCompletion = student.homeworkCompletion;
@@ -191,10 +191,10 @@ export const saveStudentAttendance = async (
       if (student.bonusPoints !== undefined) record.bonusPoints = student.bonusPoints;
       if (student.punctuality) record.punctuality = student.punctuality;
       if (student.isLate !== undefined) record.isLate = student.isLate;
-      
+
       batch.set(docRef, record);
     });
-    
+
     console.log('[saveStudentAttendance] Committing batch...');
     try {
       await batch.commit();
@@ -222,7 +222,7 @@ export const getStudentAttendance = async (
       where('attendanceId', '==', attendanceId)
     );
     const snapshot = await getDocs(q);
-    
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -258,10 +258,10 @@ export const updateAttendanceRecord = async (
 export const deleteAttendanceRecord = async (id: string): Promise<void> => {
   try {
     const batch = writeBatch(db);
-    
+
     // Delete main record
     batch.delete(doc(db, ATTENDANCE_COLLECTION, id));
-    
+
     // Delete related student attendance
     const studentQuery = query(
       collection(db, STUDENT_ATTENDANCE_COLLECTION),
@@ -269,7 +269,7 @@ export const deleteAttendanceRecord = async (id: string): Promise<void> => {
     );
     const studentDocs = await getDocs(studentQuery);
     studentDocs.docs.forEach(doc => batch.delete(doc.ref));
-    
+
     await batch.commit();
   } catch (error) {
     console.error('Error deleting attendance record:', error);
@@ -397,7 +397,7 @@ export const countStudentAttendedSessions = async (
       collection(db, STUDENT_ATTENDANCE_COLLECTION),
       where('studentId', '==', studentId),
       where('classId', '==', classId),
-      where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE])
+      where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE, 'Có mặt', 'Đến trễ'])
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
@@ -550,22 +550,22 @@ export const saveFullAttendance = async (
   try {
     console.log('[saveFullAttendance] Input students:', students.length);
     console.log('[saveFullAttendance] Student statuses:', students.map(s => ({ name: s.studentName, status: s.status })));
-    
+
     // Filter out students with PENDING status (not yet marked)
     const markedStudents = students.filter(s => s.status && s.status !== AttendanceStatus.PENDING);
     console.log('[saveFullAttendance] Marked students after filter:', markedStudents.length);
-    
+
     // Calculate summary from marked students only (ON_TIME + LATE = present)
     const present = markedStudents.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE).length;
     const absent = markedStudents.filter(s => s.status === AttendanceStatus.ABSENT).length;
     const reserved = markedStudents.filter(s => s.status === AttendanceStatus.RESERVED).length;
     const tutored = markedStudents.filter(s => s.status === AttendanceStatus.TUTORED).length;
-    
+
     // Check existing
     const existing = await checkExistingAttendance(attendanceData.classId, attendanceData.date);
-    
+
     let attendanceId: string;
-    
+
     if (existing) {
       // Update existing
       await updateAttendanceRecord(existing.id, {
@@ -588,12 +588,12 @@ export const saveFullAttendance = async (
         status: 'Đã điểm danh',
       });
     }
-    
+
     // Save student attendance with extended fields for monthly report (only marked students)
     console.log('[saveFullAttendance] Saving student attendance...');
     await saveStudentAttendance(
-      attendanceId, 
-      markedStudents, 
+      attendanceId,
+      markedStudents,
       attendanceData.classId,
       attendanceData.className,
       attendanceData.date,
@@ -601,7 +601,7 @@ export const saveFullAttendance = async (
       attendanceData.sessionId
     );
     console.log('[saveFullAttendance] Student attendance saved!');
-    
+
     // Auto create tutoring for absent students
     const absentStudents = markedStudents.filter(s => s.status === AttendanceStatus.ABSENT);
     console.log('[saveFullAttendance] Creating tutoring for', absentStudents.length, 'absent students...');
@@ -616,15 +616,13 @@ export const saveFullAttendance = async (
       });
     }
     console.log('[saveFullAttendance] Tutoring created!');
-    
-    // Check and update debt status for present students (ON_TIME or LATE)
-    // Pass attendanceId to track which attendance was processed (avoids double-counting on re-save)
-    const presentStudents = markedStudents.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE);
-    console.log('[saveFullAttendance] Checking debt for', presentStudents.length, 'present students...');
-    for (const student of presentStudents) {
-      await checkAndUpdateStudentDebtStatus(student.studentId, attendanceData.classId, attendanceId);
-    }
-    
+
+    // NOTE: Debt status and session counts are now handled EXCLUSIVELY by Cloud Functions
+    // (onStudentAttendanceCreate/Update/Delete triggers in studentAttendanceTriggers.ts)
+    // Previously, calling checkAndUpdateStudentDebtStatus here caused a RACE CONDITION
+    // with the Cloud Function, resulting in double-counting of attendedSessions.
+    // See: functions/src/triggers/studentAttendanceTriggers.ts
+
     console.log('[saveFullAttendance] All done! Returning attendanceId:', attendanceId);
     return attendanceId;
   } catch (error) {
@@ -634,12 +632,13 @@ export const saveFullAttendance = async (
 };
 
 /**
- * Manually recalculate student's attended sessions and update status
- * Used to fix existing data or trigger status update manually
- *
- * This function trusts the stored attendedSessions value (which may include
- * historical data not tracked in studentAttendance collection) and recalculates
- * the remainingSessions and status based on that.
+ * Manually recalculate student's attended sessions and update status.
+ * Uses the studentAttendance collection as the SOLE source of truth.
+ * 
+ * NOTE: The old "historical data mode" logic has been removed because it
+ * was unreliable and caused data corruption. If there's a discrepancy between
+ * stored attendedSessions and actual attendance records, we always trust
+ * the actual records.
  */
 export const recalculateStudentStatus = async (
   studentId: string,
@@ -658,56 +657,45 @@ export const recalculateStudentStatus = async (
     const registeredSessions = studentData.registeredSessions || 0;
     const currentAttended = studentData.attendedSessions || 0;
 
-    // Count attended sessions from studentAttendance collection
-    const countedAttended = await countStudentAttendedSessions(studentId, classId);
+    // Count attended sessions from studentAttendance collection (present statuses)
+    const presentQuery = query(
+      collection(db, STUDENT_ATTENDANCE_COLLECTION),
+      where('studentId', '==', studentId),
+      where('classId', '==', classId),
+      where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE, 'Có mặt', 'Đến trễ'])
+    );
+    const presentSnap = await getDocs(presentQuery);
 
-    // Determine attended sessions:
-    // - If collection count >= stored count: use collection count (accurate tracking)
-    // - If stored count > collection count: stored includes historical data
-    //   In this case, ADD unprocessed new records on top of stored count
-    let attendedSessions: number;
+    // Count only session attendance (has sessionId) vs makeup (no sessionId)
+    let sessionAttended = 0;
+    let makeupAttended = 0;
+    presentSnap.docs.forEach(d => {
+      const data = d.data();
+      if (data.sessionId) {
+        sessionAttended++;
+      } else {
+        makeupAttended++;
+      }
+    });
 
-    if (countedAttended >= currentAttended) {
-      // Collection has all data - use collection count
-      attendedSessions = countedAttended;
-    } else {
-      // Historical data exists outside collection
-      // Check for unprocessed attendance records by comparing with processedAttendanceIds
-      const processedAttendanceIds: string[] = studentData.processedAttendanceIds || [];
-
-      // Count only records that weren't processed yet
-      const allAttendanceRecords = await getDocs(query(
-        collection(db, STUDENT_ATTENDANCE_COLLECTION),
-        where('studentId', '==', studentId),
-        where('classId', '==', classId),
-        where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE])
-      ));
-
-      let unprocessedCount = 0;
-      allAttendanceRecords.docs.forEach(doc => {
-        const attendanceId = doc.data().attendanceId;
-        if (attendanceId && !processedAttendanceIds.includes(attendanceId)) {
-          unprocessedCount++;
-        }
-      });
-
-      // Add unprocessed records to current count
-      attendedSessions = currentAttended + unprocessedCount;
-      console.log(`[recalculateStudentStatus] Historical mode: current=${currentAttended}, unprocessed=${unprocessedCount}, new total=${attendedSessions}`);
-    }
-
+    // Use session attendance count as the source of truth
+    const attendedSessions = sessionAttended;
     const remainingSessions = registeredSessions - attendedSessions;
 
-    console.log(`[recalculateStudentStatus] Student ${studentId}: current=${currentAttended}, counted=${countedAttended}, using=${attendedSessions}, registered=${registeredSessions}, remaining=${remainingSessions}`);
+    console.log(`[recalculateStudentStatus] Student ${studentId}: stored=${currentAttended}, counted=${sessionAttended}, makeup=${makeupAttended}, registered=${registeredSessions}, remaining=${remainingSessions}`);
 
     // Determine new status
     let newStatus = studentData.status;
     const updateData: Record<string, unknown> = {
       attendedSessions,
-      remainingSessions, // Also update remainingSessions for UI display
+      remainingSessions,
+      makeupSessionsAttended: makeupAttended,
     };
 
-    if (registeredSessions > 0) {
+    // Don't change status for dropped/reserved/trial students
+    const skipStatuses = [StudentStatus.DROPPED, StudentStatus.RESERVED, StudentStatus.TRIAL];
+
+    if (!skipStatuses.includes(studentData.status) && registeredSessions > 0) {
       if (remainingSessions < 0) {
         newStatus = StudentStatus.DEBT;
         updateData.status = StudentStatus.DEBT;
@@ -718,11 +706,14 @@ export const recalculateStudentStatus = async (
       } else if (remainingSessions === 0) {
         newStatus = StudentStatus.EXPIRED_FEE;
         updateData.status = StudentStatus.EXPIRED_FEE;
+        updateData.debtSessions = 0;
       } else {
         // Still has remaining sessions - status should be ACTIVE
         if (studentData.status === StudentStatus.EXPIRED_FEE || studentData.status === StudentStatus.DEBT) {
           newStatus = StudentStatus.ACTIVE;
           updateData.status = StudentStatus.ACTIVE;
+          updateData.debtSessions = 0;
+          updateData.debtStartDate = null;
         }
       }
     }
@@ -741,3 +732,4 @@ export const recalculateStudentStatus = async (
     throw error;
   }
 };
+

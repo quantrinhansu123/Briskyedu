@@ -14,8 +14,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 const db = admin.firestore();
 const REGION = 'asia-southeast1';
 
-// Valid "present" statuses
-const PRESENT_STATUSES = ['Có mặt', 'Đã bồi', 'Đến trễ'];
+// Valid "present" statuses (both current enum values + legacy values for backward compatibility)
+const PRESENT_STATUSES = ['Đúng giờ', 'Trễ giờ', 'Đã bồi', 'Có mặt', 'Đến trễ'];
 
 interface StudentAttendanceData {
   attendanceId: string;
@@ -96,7 +96,7 @@ function getOrInitClassProgress(
  */
 function getDaysPerWeek(schedule?: string): number {
   if (!schedule) return 2;
-  
+
   const dayPatterns = [
     /thứ\s*[2-7]/gi,
     /t[2-7]/gi,
@@ -104,7 +104,7 @@ function getDaysPerWeek(schedule?: string): number {
     /cn/gi,
     /\b[2-7]\b/g
   ];
-  
+
   let dayCount = 0;
   for (const pattern of dayPatterns) {
     const matches = schedule.match(pattern);
@@ -112,7 +112,7 @@ function getDaysPerWeek(schedule?: string): number {
       dayCount += matches.length;
     }
   }
-  
+
   return Math.max(dayCount, 1);
 }
 
@@ -127,14 +127,14 @@ function calculateExpectedEndDate(
   if (remainingSessions <= 0) {
     return new Date().toISOString().split('T')[0];
   }
-  
+
   const weeksNeeded = Math.ceil(remainingSessions / daysPerWeek);
   const daysNeeded = weeksNeeded * 7;
-  
+
   const start = startDate ? new Date(startDate) : new Date();
   const endDate = new Date(start);
   endDate.setDate(endDate.getDate() + daysNeeded);
-  
+
   return endDate.toISOString().split('T')[0];
 }
 
@@ -152,7 +152,7 @@ export const onStudentAttendanceCreate = functions
   .onCreate(async (snap, context) => {
     const docId = context.params.docId;
     const data = snap.data() as StudentAttendanceData;
-    
+
     console.log(`[onStudentAttendanceCreate] New attendance: ${docId}, student: ${data.studentName}, status: ${data.status}`);
 
     // Skip holiday records - they should not count as attended sessions
@@ -173,16 +173,16 @@ export const onStudentAttendanceCreate = functions
 
     const studentId = data.studentId;
     const classId = data.classId;
-    
+
     // Get student data
     const studentRef = db.collection('students').doc(studentId);
     const studentDoc = await studentRef.get();
-    
+
     if (!studentDoc.exists) {
       console.log(`[onStudentAttendanceCreate] Student not found: ${studentId}`);
       return null;
     }
-    
+
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
@@ -211,10 +211,10 @@ export const onStudentAttendanceCreate = functions
           }
         }
 
-        // Calculate remaining and expected end date
-        const remaining = Math.max(0, registeredSessions - newAttended);
+        // Calculate remaining sessions (can be negative = debt)
+        const remaining = registeredSessions - newAttended;
         const expectedEndDate = calculateExpectedEndDate(
-          remaining,
+          Math.max(0, remaining),
           daysPerWeek,
           studentData.startDate || data.date
         );
@@ -228,12 +228,18 @@ export const onStudentAttendanceCreate = functions
           updateData.startDate = data.date || new Date().toISOString().split('T')[0];
         }
 
-        // Check debt status
-        if (registeredSessions > 0 && newAttended > registeredSessions && studentData.status === 'Đang học') {
-          updateData.status = 'Nợ phí';
-          updateData.debtStartDate = new Date().toISOString();
-          updateData.debtSessions = newAttended - registeredSessions;
-          console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
+        // Check debt/expired status
+        if (registeredSessions > 0 && studentData.status === 'Đang học') {
+          if (newAttended > registeredSessions) {
+            updateData.status = 'Nợ phí';
+            updateData.debtStartDate = new Date().toISOString();
+            updateData.debtSessions = newAttended - registeredSessions;
+            console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Nợ phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
+          } else if (newAttended === registeredSessions) {
+            updateData.status = 'Đã học hết phí';
+            updateData.debtSessions = 0;
+            console.log(`[onStudentAttendanceCreate] Student ${studentId} changed to "Đã học hết phí" (attended: ${newAttended}, registered: ${registeredSessions})`);
+          }
         }
 
         console.log(`[onStudentAttendanceCreate] Session attendance - Updated student ${studentId}: attended=${newAttended}, remaining=${remaining}`);
@@ -291,7 +297,7 @@ export const onStudentAttendanceUpdate = functions
     const docId = context.params.docId;
     const before = change.before.data() as StudentAttendanceData;
     const after = change.after.data() as StudentAttendanceData;
-    
+
     // Skip holiday records - they should not count as attended sessions
     if (after.status === 'LỊCH NGHỈ CHUNG' || before.status === 'LỊCH NGHỈ CHUNG') {
       console.log(`[onStudentAttendanceUpdate] Holiday record detected, skipping session count`);
@@ -306,21 +312,21 @@ export const onStudentAttendanceUpdate = functions
       console.log(`[onStudentAttendanceUpdate] Status category unchanged for ${docId}, skipping`);
       return null;
     }
-    
+
     console.log(`[onStudentAttendanceUpdate] Status changed: ${before.status} → ${after.status}`);
-    
+
     const studentId = after.studentId;
     const classId = after.classId;
-    
+
     // Get student data
     const studentRef = db.collection('students').doc(studentId);
     const studentDoc = await studentRef.get();
-    
+
     if (!studentDoc.exists) {
       console.log(`[onStudentAttendanceUpdate] Student not found: ${studentId}`);
       return null;
     }
-    
+
     const studentData = studentDoc.data() as StudentData;
     const currentAttended = studentData.attendedSessions || 0;
     const registeredSessions = studentData.registeredSessions || 0;
@@ -353,9 +359,9 @@ export const onStudentAttendanceUpdate = functions
         }
       }
 
-      // Calculate expected end date
-      const remaining = Math.max(0, registeredSessions - newAttended);
-      const expectedEndDate = calculateExpectedEndDate(remaining, daysPerWeek, studentData.startDate);
+      // Calculate remaining sessions (can be negative = debt)
+      const remaining = registeredSessions - newAttended;
+      const expectedEndDate = calculateExpectedEndDate(Math.max(0, remaining), daysPerWeek, studentData.startDate);
 
       updateData.attendedSessions = FieldValue.increment(attendedIncrement);
       updateData.remainingSessions = remaining;
@@ -476,7 +482,26 @@ export const onStudentAttendanceDelete = functions
     if (wasPresent) {
       if (isSessionAttendance) {
         updateData.attendedSessions = FieldValue.increment(-1);
-        console.log(`[onStudentAttendanceDelete] Session attendance - Decremented attended for student ${studentId}`);
+
+        // Recalculate remainingSessions and debt status
+        const currentAttended = studentData.attendedSessions || 0;
+        const registeredSessions = studentData.registeredSessions || 0;
+        const newAttended = Math.max(0, currentAttended - 1);
+        const remaining = registeredSessions - newAttended;
+        updateData.remainingSessions = remaining;
+
+        // Restore status if no longer in debt
+        if (remaining > 0 && studentData.status === 'Nợ phí') {
+          updateData.status = 'Đang học';
+          updateData.debtSessions = 0;
+        } else if (remaining === 0 && studentData.status === 'Nợ phí') {
+          updateData.status = 'Đã học hết phí';
+          updateData.debtSessions = 0;
+        } else if (remaining < 0) {
+          updateData.debtSessions = Math.abs(remaining);
+        }
+
+        console.log(`[onStudentAttendanceDelete] Session attendance - Decremented attended for student ${studentId}, remaining=${remaining}`);
       } else {
         updateData.makeupSessionsAttended = FieldValue.increment(-1);
         console.log(`[onStudentAttendanceDelete] Makeup attendance - Decremented makeup for student ${studentId}`);
@@ -521,27 +546,27 @@ export const onAttendanceRecordDelete = functions
   .document('attendance/{attendanceId}')
   .onDelete(async (snap, context) => {
     const attendanceId = context.params.attendanceId;
-    
+
     console.log(`[onAttendanceRecordDelete] Attendance record deleted: ${attendanceId}`);
-    
+
     // Find and delete all related student attendance records
     const studentAttendanceSnap = await db.collection('studentAttendance')
       .where('attendanceId', '==', attendanceId)
       .get();
-    
+
     if (studentAttendanceSnap.empty) {
       console.log(`[onAttendanceRecordDelete] No student attendance records found`);
       return null;
     }
-    
+
     const batch = db.batch();
     studentAttendanceSnap.docs.forEach(doc => {
       batch.delete(doc.ref);
     });
-    
+
     await batch.commit();
     console.log(`[onAttendanceRecordDelete] Deleted ${studentAttendanceSnap.size} student attendance records`);
-    
+
     return null;
   });
 
@@ -557,40 +582,40 @@ export const onClassDeleteStudentAttendance = functions
   .onDelete(async (snap, context) => {
     const classId = context.params.classId;
     const classData = snap.data();
-    
+
     console.log(`[onClassDeleteStudentAttendance] Class deleted: ${classData?.name} (${classId})`);
-    
+
     // Delete all student attendance for this class
     const attendanceSnap = await db.collection('studentAttendance')
       .where('classId', '==', classId)
       .get();
-    
+
     if (attendanceSnap.empty) {
       return null;
     }
-    
+
     // Delete in batches of 400
     const batches: admin.firestore.WriteBatch[] = [];
     let currentBatch = db.batch();
     let count = 0;
-    
+
     for (const doc of attendanceSnap.docs) {
       currentBatch.delete(doc.ref);
       count++;
-      
+
       if (count >= 400) {
         batches.push(currentBatch);
         currentBatch = db.batch();
         count = 0;
       }
     }
-    
+
     if (count > 0) {
       batches.push(currentBatch);
     }
-    
+
     await Promise.all(batches.map(b => b.commit()));
     console.log(`[onClassDeleteStudentAttendance] Deleted ${attendanceSnap.size} student attendance records`);
-    
+
     return null;
   });

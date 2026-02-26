@@ -2,32 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⚠️ CRITICAL: Active Migration Plan
+## ⚠️ Branch Strategy & Current Focus
 
-**Status:** Schema Simplification in Progress (Jan 2026)
+**Status:** Staging migration PAUSED (Feb 2026). Currently fixing production bugs directly on `main`.
 
-### Branch Strategy
 ```
-main branch     →  PRODUCTION (DO NOT MODIFY)
+main branch     →  PRODUCTION (active development - bug fixes)
                    - 49 collections (legacy schema)
                    - Firebase: edumanager-pro-6180f
                    - Vercel: edumanager.vercel.app
 
-staging branch  →  DEVELOPMENT (WORK HERE)
-                   - 18 collections (new schema)
-                   - Firebase: edumanager-pro-staging
-                   - Vercel: staging.edumanager.vercel.app
+staging branch  →  ON HOLD (schema simplification paused)
+                   - Plan: plans/260130-2231-schema-simplification-staging/
 ```
 
-### ⛔ BEFORE ANY COMMIT:
-1. **Check current branch:** `git branch --show-current`
-2. **If on `main`:** Switch to `staging` first: `git checkout staging`
-3. **DO NOT commit V2 code to main** — main is production V1
+### Known Legacy Data Issue
+Firestore `studentAttendance` collection has MIXED status values:
+- **Current (types.ts enum):** `'Đúng giờ'`, `'Trễ giờ'`, `'Vắng'`, `'Bảo lưu'`, `'Đã bồi'`
+- **Legacy (old data):** `'Có mặt'`, `'Đến trễ'`, `'Vắng không phép'`, `'Nghỉ'`
 
-### Active Plan
-- Plan: `plans/260130-2231-schema-simplification-staging/`
-- Phase 0: Firebase staging project setup
-- Phases 1-7: Schema migration 49 → 18 collections
+All queries against `studentAttendance` MUST include both old and new status values.
 
 ---
 

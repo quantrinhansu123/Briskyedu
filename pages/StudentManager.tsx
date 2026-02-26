@@ -231,39 +231,8 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     );
   }, [classes]);
 
-  // Assign classes randomly to students without class
-  const handleAssignClassesRandomly = async () => {
-    if (studentsWithoutClass.length === 0) {
-      alert('Tất cả học viên đã có lớp!');
-      return;
-    }
-    if (activeClasses.length === 0) {
-      alert('Không có lớp nào đang hoạt động!');
-      return;
-    }
-    if (!window.confirm(`Gán lớp ngẫu nhiên cho ${studentsWithoutClass.length} học viên chưa có lớp?`)) {
-      return;
-    }
-
-    setAssigningClasses(true);
-    let assigned = 0;
-    
-    for (const student of studentsWithoutClass) {
-      const randomClass = activeClasses[Math.floor(Math.random() * activeClasses.length)];
-      try {
-        await updateStudent(student.id, {
-          classId: randomClass.id,
-          class: randomClass.name
-        });
-        assigned++;
-      } catch (err) {
-        console.error('Error assigning class:', err);
-      }
-    }
-
-    setAssigningClasses(false);
-    alert(`Đã gán lớp cho ${assigned}/${studentsWithoutClass.length} học viên!`);
-  };
+  // DISABLED: Random class assignment feature - commented out per admin request
+  // const handleAssignClassesRandomly = async () => { ... };
 
   const getStatusColor = (status: string) => {
     const normalizedStatus = normalizeStudentStatus(status);
@@ -589,6 +558,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                 </p>
               </div>
             </div>
+            {/* DISABLED: Random class assignment button - commented out per admin request
             <button
               onClick={handleAssignClassesRandomly}
               disabled={assigningClasses}
@@ -597,6 +567,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
               <Shuffle size={16} />
               {assigningClasses ? 'Đang gán...' : 'Gán lớp ngẫu nhiên'}
             </button>
+            */}
           </div>
         </div>
       )}

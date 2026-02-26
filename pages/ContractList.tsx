@@ -702,12 +702,6 @@ export const ContractList: React.FC = () => {
                   <p className="text-sm text-gray-500">Phương thức thanh toán</p>
                   <p className="font-medium">{selectedContract.paymentMethod || '---'}</p>
                 </div>
-                {selectedContract.createdBy && (
-                  <div>
-                    <p className="text-sm text-gray-500">Người tạo</p>
-                    <p className="font-medium">{selectedContract.createdBy}</p>
-                  </div>
-                )}
               </div>
 
               {/* Items */}

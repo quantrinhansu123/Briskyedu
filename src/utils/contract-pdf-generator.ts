@@ -210,7 +210,7 @@ export function generateContractHTML(
   `;
 }
 
-/** CSS styles for contract PDF - Optimized for single A4 landscape page */
+/** CSS styles for contract PDF - Optimized for single A5 landscape page */
 const CONTRACT_PDF_STYLES = `
   * {
     margin: 0;
@@ -219,7 +219,7 @@ const CONTRACT_PDF_STYLES = `
   }
   html, body {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1.2;
     color: #000;
     width: 100%;
@@ -227,11 +227,11 @@ const CONTRACT_PDF_STYLES = `
     overflow: hidden;
   }
   body {
-    padding: 5mm 10mm 5mm 10mm;
+    padding: 4mm 8mm 4mm 8mm;
   }
   /* Force content to fit single page */
   .contract-content {
-    max-height: 190mm; /* A4 landscape height minus margins */
+    max-height: 130mm; /* A5 landscape height minus margins */
     overflow: hidden;
   }
   table {
@@ -239,8 +239,8 @@ const CONTRACT_PDF_STYLES = `
   }
   @media print {
     @page {
-      size: A4 landscape;
-      margin: 5mm;
+      size: A5 landscape;
+      margin: 4mm;
     }
     html, body {
       -webkit-print-color-adjust: exact;
@@ -357,7 +357,7 @@ export async function printContract(
           window.addEventListener('load', function() {
             const content = document.querySelector('.contract-content');
             if (content) {
-              const pageHeight = 190; // mm available
+              const pageHeight = 130; // mm available (A5 landscape)
               const contentHeight = content.scrollHeight / 3.78; // px to mm (96dpi)
               if (contentHeight > pageHeight) {
                 const scale = pageHeight / contentHeight;
@@ -406,18 +406,18 @@ export async function downloadContractAsPdf(
     import('html2canvas'),
   ]);
 
-  // Create temporary container for rendering - A4 landscape optimized (1123px width for 297mm)
+  // Create temporary container for rendering - A5 landscape optimized (794px width for 210mm)
   const container = document.createElement('div');
   container.style.cssText = `
     position: absolute;
     left: -9999px;
     top: 0;
-    width: 1100px;
-    padding: 0 15px 10px 15px;
+    width: 780px;
+    padding: 0 10px 8px 10px;
     background: white;
     font-family: Arial, Helvetica, sans-serif;
     line-height: 1.2;
-    font-size: 10px;
+    font-size: 9px;
     color: #000;
   `;
   container.innerHTML = generateContractHTML(contract, centerInfoWithHardcodedBranches);
@@ -436,13 +436,13 @@ export async function downloadContractAsPdf(
       allowTaint: true,
     });
 
-    // Calculate PDF dimensions (A4 landscape: 297mm x 210mm)
-    const imgWidth = 297; // A4 landscape width in mm
-    const pageHeight = 210; // A4 landscape height in mm
+    // Calculate PDF dimensions (A5 landscape: 210mm x 148mm)
+    const imgWidth = 210; // A5 landscape width in mm
+    const pageHeight = 148; // A5 landscape height in mm
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
     // Create PDF in landscape orientation
-    const pdf = new jsPDF('l', 'mm', 'a4');
+    const pdf = new jsPDF('l', 'mm', 'a5');
 
     // Fit content to single page by scaling if needed
     const scale = imgHeight > pageHeight ? pageHeight / imgHeight : 1;

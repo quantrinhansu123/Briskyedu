@@ -653,6 +653,10 @@ export const ContractList: React.FC = () => {
                   <p className="font-semibold text-indigo-600">{selectedContract.code}</p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500">Loại hợp đồng</p>
+                  <p className="font-medium">{selectedContract.category || selectedContract.type || '---'}</p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-500">Ngày tạo</p>
                   <p className="font-medium">{selectedContract.contractDate ? new Date(selectedContract.contractDate).toLocaleDateString('vi-VN') : '---'}</p>
                 </div>
@@ -664,6 +668,46 @@ export const ContractList: React.FC = () => {
                   <p className="text-sm text-gray-500">Phụ huynh</p>
                   <p className="font-medium">{selectedContract.parentName} - {selectedContract.parentPhone}</p>
                 </div>
+                {selectedContract.className && (
+                  <div>
+                    <p className="text-sm text-gray-500">Lớp học</p>
+                    <p className="font-medium">{selectedContract.className}</p>
+                  </div>
+                )}
+                {selectedContract.branch && (
+                  <div>
+                    <p className="text-sm text-gray-500">Cơ sở</p>
+                    <p className="font-medium">{selectedContract.branch}</p>
+                  </div>
+                )}
+                {selectedContract.totalSessions && (
+                  <div>
+                    <p className="text-sm text-gray-500">Số buổi</p>
+                    <p className="font-medium">{selectedContract.totalSessions} buổi{selectedContract.pricePerSession ? ` (${formatCurrency(selectedContract.pricePerSession)}/buổi)` : ''}</p>
+                  </div>
+                )}
+                {selectedContract.startDate && (
+                  <div>
+                    <p className="text-sm text-gray-500">Ngày bắt đầu</p>
+                    <p className="font-medium">{new Date(selectedContract.startDate).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                )}
+                {selectedContract.endDate && (
+                  <div>
+                    <p className="text-sm text-gray-500">Ngày kết thúc (dự kiến)</p>
+                    <p className="font-medium">{new Date(selectedContract.endDate).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-gray-500">Phương thức thanh toán</p>
+                  <p className="font-medium">{selectedContract.paymentMethod || '---'}</p>
+                </div>
+                {selectedContract.createdBy && (
+                  <div>
+                    <p className="text-sm text-gray-500">Người tạo</p>
+                    <p className="font-medium">{selectedContract.createdBy}</p>
+                  </div>
+                )}
               </div>
 
               {/* Items */}
@@ -706,6 +750,12 @@ export const ContractList: React.FC = () => {
                       {selectedContract.status}
                     </span>
                   </div>
+                  {selectedContract.totalDiscount > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-500">Giảm giá</p>
+                      <p className="text-lg font-bold text-orange-600">-{formatCurrency(selectedContract.totalDiscount)}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-gray-500">Đã thanh toán</p>
                     <p className="text-lg font-bold text-green-600">{formatCurrency(selectedContract.paidAmount || 0)}</p>

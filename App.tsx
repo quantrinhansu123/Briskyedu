@@ -70,11 +70,11 @@ const Placeholder: React.FC<{ title: string }> = ({ title }) => (
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden print:block print:h-auto print:overflow-visible">
+    <div className="flex h-screen bg-white overflow-hidden print:block print:h-auto print:overflow-visible">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden print:block print:overflow-visible">
         <Header title="Hệ thống quản lý trung tâm" />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 print:p-0 print:overflow-visible">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-white p-6 print:p-0 print:overflow-visible">
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               {children}

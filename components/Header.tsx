@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 
 export const Header: React.FC<{ title: string }> = ({ title }) => {
   return (
-    <header className="h-16 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-30 print:hidden">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-30 print:hidden">
       <h2 className="text-xl font-semibold text-gray-800 ml-10 lg:ml-0">{title}</h2>
 
       <div className="flex items-center gap-4">

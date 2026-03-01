@@ -16,10 +16,22 @@ import { Holiday, ClassModel, AttendanceRecord, ClassStatus } from '../../types'
 
 const ATTENDANCE_COLLECTION = 'attendance';
 
+export interface SessionPreviewItem {
+  className: string;
+  classId: string;
+  sessionCount: number;
+}
+
+export interface SessionPreviewResult {
+  items: SessionPreviewItem[];
+  totalSessions: number;
+  totalClasses: number;
+}
+
 /**
  * Get all dates in a range (inclusive)
  */
-function getDateRange(startDate: string, endDate: string): string[] {
+export function getDateRange(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
   const current = new Date(startDate);
   const end = new Date(endDate);
@@ -35,7 +47,7 @@ function getDateRange(startDate: string, endDate: string): string[] {
 /**
  * Get affected classes based on holiday apply type
  */
-function getAffectedClasses(
+export function getAffectedClasses(
   holiday: Holiday,
   allClasses: ClassModel[]
 ): ClassModel[] {
@@ -55,6 +67,82 @@ function getAffectedClasses(
     default:
       return [];
   }
+}
+
+/**
+ * Get a preview of sessions that will be affected by applying/unapplying a holiday
+ */
+export async function getAffectedSessionsPreview(
+  holiday: Holiday,
+  allClasses: ClassModel[],
+  action: 'apply' | 'unapply'
+): Promise<SessionPreviewResult> {
+  const countMap: Record<string, { className: string; classId: string; count: number }> = {};
+  // Build classId→className lookup from allClasses for reliable name resolution
+  const classNameMap = new Map(allClasses.map(c => [c.id, c.name]));
+
+  if (action === 'unapply') {
+    // Query classSessions where holidayId == holiday.id AND status == 'Nghỉ'
+    const q = query(
+      collection(db, 'classSessions'),
+      where('holidayId', '==', holiday.id),
+      where('status', '==', 'Nghỉ')
+    );
+    const snapshot = await getDocs(q);
+
+    for (const docSnap of snapshot.docs) {
+      const data = docSnap.data();
+      const key = data.classId as string;
+      if (!countMap[key]) {
+        countMap[key] = { classId: key, className: classNameMap.get(key) || data.className || key, count: 0 };
+      }
+      countMap[key].count++;
+    }
+  } else {
+    // Apply: find sessions that would be marked as holiday
+    const affectedClasses = getAffectedClasses(holiday, allClasses);
+    if (affectedClasses.length === 0) {
+      return { items: [], totalSessions: 0, totalClasses: 0 };
+    }
+
+    const startDate = holiday.startDate;
+    const endDate = holiday.endDate;
+    const classIds = affectedClasses.map(c => c.id);
+
+    // Chunk into groups of 30 (Firestore 'in' limit)
+    const chunkSize = 30;
+    for (let i = 0; i < classIds.length; i += chunkSize) {
+      const chunk = classIds.slice(i, i + chunkSize);
+      // Query without status filter to avoid composite index requirement
+      const q = query(
+        collection(db, 'classSessions'),
+        where('classId', 'in', chunk),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate)
+      );
+      const snapshot = await getDocs(q);
+
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        // Filter status in JS to avoid needing composite index
+        if (data.status !== 'Chưa học') continue;
+        const key = data.classId as string;
+        if (!countMap[key]) {
+          countMap[key] = { classId: key, className: classNameMap.get(key) || data.className || key, count: 0 };
+        }
+        countMap[key].count++;
+      }
+    }
+  }
+
+  const items: SessionPreviewItem[] = Object.values(countMap).map(entry => ({
+    classId: entry.classId,
+    className: entry.className,
+    sessionCount: entry.count,
+  }));
+
+  const totalSessions = items.reduce((sum, item) => sum + item.sessionCount, 0);
+  return { items, totalSessions, totalClasses: items.length };
 }
 
 /**

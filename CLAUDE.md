@@ -58,6 +58,10 @@ node scripts/create-admin-staff.js        # Create initial admin account
 npx tsx scripts/seedAllData.ts            # Seed complete demo dataset
 npx tsx scripts/checkDataConsistency.ts   # Verify data integrity
 npx tsx scripts/syncContractsToEnrollments.ts  # Sync contract/enrollment data
+npx tsx scripts/check-all-class-sessions.ts    # Check ALL classes for session issues
+npx tsx scripts/fix-all-class-sessions.ts      # Renumber + fix dayOfWeek (dry-run default)
+npx tsx scripts/check-session-count-mismatch.ts # Compare totalSessions vs actual count
+npx tsx scripts/delete-all-extra-sessions.ts   # Delete sessions beyond totalSessions
 ```
 
 ## Architecture
@@ -515,6 +519,28 @@ Utility functions for one-time data repairs:
 - `resetClassAttendance(classId)` - Destructively reset all attendance
 - `removeStudentFromClass(studentId, classId)` - Remove with cleanup
 - `fixStudentRegisteredSessions(studentId, classId, correctSessions)` - Fix session count
+
+### Firestore Timestamp Comparison Trap (Mar 2026)
+
+**NEVER compare Firestore Timestamps with `===`/`!==`** - they are objects, so reference comparison ALWAYS returns `true` for `!==`.
+
+```typescript
+// BUG: always true (comparing object references)
+const startDateChanged = before.startDate !== after.startDate;
+
+// FIX: compare by value using duck typing (handles both Timestamp and string)
+const toDateStr = (v: any) => v?.toMillis ? v.toMillis().toString() : String(v || '');
+const startDateChanged = toDateStr(before.startDate) !== toDateStr(after.startDate);
+```
+
+This bug caused `onClassUpdate` to regenerate sessions on EVERY class update, creating an indirect infinite loop:
+`delete session → onSessionDelete → updateClassProgress() → onClassUpdate → regenerateSessionsForClass() → re-create deleted session`
+
+### Session Trigger Chain (Watch out!)
+
+`onSessionCreate/Update/Delete` (`functions/src/triggers/sessionTriggers.ts`) → calls `updateClassProgress()` → updates class doc (`completedSessions`, `progress`, `updatedAt`) → triggers `onClassUpdate` (`functions/src/triggers/classTriggers.ts`) → may call `regenerateSessionsForClass()`.
+
+**Rule**: Only regenerate when schedule/totalSessions/startDate ACTUALLY change (compare values, not references).
 
 ### Holiday System (Dual System)
 

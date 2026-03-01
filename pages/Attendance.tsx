@@ -137,6 +137,7 @@ export const Attendance: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState<StudentAttendanceState[]>([]);
   const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false); // Flag to prevent sync useEffect from overwriting reset
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [useSessionMode, setUseSessionMode] = useState(true); // Default to session mode
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
@@ -314,6 +315,7 @@ export const Attendance: React.FC = () => {
 
   // Initialize attendance data when class/date changes
   useEffect(() => {
+    setIsResetting(false); // Clear reset flag on class/date change
     if (!selectedClassId || classStudents.length === 0) {
       setAttendanceData([]);
       setExistingRecord(null);
@@ -352,6 +354,7 @@ export const Attendance: React.FC = () => {
 
   // Sync with loaded student attendance - only show students in current filtered classStudents
   useEffect(() => {
+    if (isResetting) return; // Skip sync when user is resetting the form
     if (studentAttendance.length > 0 && existingRecord && classStudents.length > 0) {
       setAttendanceData(
         classStudents.map(s => {
@@ -371,7 +374,7 @@ export const Attendance: React.FC = () => {
         })
       );
     }
-  }, [studentAttendance, existingRecord, classStudents]);
+  }, [studentAttendance, existingRecord, classStudents, isResetting]);
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     setAttendanceData(prev =>
@@ -409,6 +412,7 @@ export const Attendance: React.FC = () => {
 
     try {
       setSaving(true);
+      setIsResetting(false); // Allow sync useEffect after save
       setMessage(null);
 
       // Check duplicate BEFORE saving (prevent race condition)
@@ -1486,16 +1490,19 @@ export const Attendance: React.FC = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setAttendanceData(
-                  classStudents.map(s => ({
-                    studentId: s.id,
-                    studentName: s.fullName,
-                    studentCode: s.code,
-                    status: AttendanceStatus.PENDING,
-                    note: '',
-                    punctuality: '',
-                  }))
-                )}
+                onClick={() => {
+                  setIsResetting(true);
+                  setAttendanceData(
+                    classStudents.map(s => ({
+                      studentId: s.id,
+                      studentName: s.fullName,
+                      studentCode: s.code,
+                      status: AttendanceStatus.PENDING,
+                      note: '',
+                      punctuality: '',
+                    }))
+                  );
+                }}
                 className="px-6 py-2 border border-gray-300 bg-white rounded-lg text-gray-700 font-medium hover:bg-gray-50"
               >
                 Reset

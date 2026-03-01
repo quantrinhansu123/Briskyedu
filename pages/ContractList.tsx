@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, Search, Eye, Trash2, DollarSign, Filter, X, CreditCard, Printer, Download } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { Contract, ContractStatus } from '../types';
 import { useContracts } from '../src/hooks/useContracts';
 import { formatCurrency } from '../src/utils/currencyUtils';
@@ -636,6 +637,7 @@ export const ContractList: React.FC = () => {
 
       {/* Contract Detail Modal */}
       {selectedContract && !showPaymentModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b">
@@ -790,10 +792,12 @@ export const ContractList: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Payment Modal */}
       {showPaymentModal && selectedContract && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-md w-full">
             <div className="flex items-center justify-between p-4 border-b">
@@ -852,6 +856,7 @@ export const ContractList: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

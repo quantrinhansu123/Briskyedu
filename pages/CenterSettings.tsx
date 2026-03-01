@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Edit, Trash2, X, MapPin, Phone, Mail, Save } from 'lucide-react';
 import * as centerService from '../src/services/centerService';
 import { Center, CenterSettings as Settings } from '../src/services/centerService';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const CenterSettings: React.FC = () => {
   const [centers, setCenters] = useState<Center[]>([]);
@@ -267,6 +268,7 @@ const CenterModal: React.FC<CenterModalProps> = ({ center, onClose, onSubmit }) 
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -422,5 +424,6 @@ const CenterModal: React.FC<CenterModalProps> = ({ center, onClose, onSubmit }) 
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

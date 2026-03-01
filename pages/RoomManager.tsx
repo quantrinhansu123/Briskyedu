@@ -5,6 +5,7 @@ import { useRooms } from '../src/hooks/useRooms';
 import { Room } from '../types';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const RoomManager: React.FC = () => {
   const { rooms: rawRooms, loading, createRoom, updateRoom, deleteRoom } = useRooms();
@@ -206,6 +207,7 @@ export const RoomManager: React.FC = () => {
 
       {/* Modal Thêm/Sửa phòng học */}
       {isModalOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center">
@@ -297,6 +299,7 @@ export const RoomManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

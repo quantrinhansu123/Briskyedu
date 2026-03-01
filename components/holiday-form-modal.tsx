@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Holiday, HolidayApplyType, ClassModel } from '../types';
 import { isValidDateRange, getDateRangeErrorMessage } from '../src/utils/validators';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface FormData {
   name: string;
@@ -98,6 +99,7 @@ export const HolidayFormModal: React.FC<HolidayFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
@@ -249,5 +251,6 @@ export const HolidayFormModal: React.FC<HolidayFormModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

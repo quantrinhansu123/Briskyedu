@@ -32,6 +32,7 @@ import {
   RemoveClassModal,
   LegacyImportModal,
 } from '../src/features/students/components';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Constants for table column count
 const STUDENT_TABLE_COLUMNS = {
@@ -1011,6 +1012,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
       {/* Post-Creation Options Modal */}
       {showPostCreateModal && newlyCreatedStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             <div className="p-5 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
@@ -1073,6 +1075,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit Student Modal */}

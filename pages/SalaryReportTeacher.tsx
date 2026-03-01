@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Info, DollarSign, Users, X, Edit2, Save, Check, ShieldAlert } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { doc, setDoc, collection, getDocs, query, where } from 'firebase/firestore';
@@ -450,6 +451,7 @@ export const SalaryReportTeacher: React.FC = () => {
 
       {/* Edit Session Modal */}
       {editingSession && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
@@ -531,6 +533,7 @@ export const SalaryReportTeacher: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

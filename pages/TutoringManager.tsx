@@ -16,6 +16,7 @@ import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
 import { useStaff } from '../src/hooks/useStaff';
 import { isTeacherRole, isAssistantRole } from '../src/utils/roleUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 // ============================================
 // REASON MODAL (for Nghỉ tính phí)
@@ -34,6 +35,7 @@ const ReasonModal: React.FC<{
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="border-b border-gray-200 px-6 py-4 bg-red-50">
@@ -78,6 +80,7 @@ const ReasonModal: React.FC<{
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 
@@ -113,6 +116,7 @@ const ConfirmModal: React.FC<{
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
@@ -137,6 +141,7 @@ const ConfirmModal: React.FC<{
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 
@@ -169,6 +174,7 @@ const TrashModal: React.FC<{
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col">
         <div className="border-b border-gray-200 px-6 py-4 bg-gray-50 flex items-center justify-between rounded-t-xl">
@@ -228,6 +234,7 @@ const TrashModal: React.FC<{
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 
@@ -961,6 +968,7 @@ const CreateTutoringModal: React.FC<CreateModalProps> = ({ students, classes, te
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header with gradient */}
@@ -1144,6 +1152,7 @@ const CreateTutoringModal: React.FC<CreateModalProps> = ({ students, classes, te
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 
@@ -1175,6 +1184,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ tutoring, teachers, onClo
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -1260,5 +1270,6 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ tutoring, teachers, onClo
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

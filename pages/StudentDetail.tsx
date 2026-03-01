@@ -17,6 +17,7 @@ import { useAuth } from '../src/hooks/useAuth';
 import { Plus, Minus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getStudentSessionData } from '../src/utils/student-session-utils';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -1119,6 +1120,7 @@ export const StudentDetail: React.FC = () => {
 
       {/* Edit Profile Modal */}
       {showEditModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -1260,10 +1262,12 @@ export const StudentDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Enroll Class Modal */}
       {showEnrollModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
@@ -1439,10 +1443,12 @@ export const StudentDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Feedback Report Modal */}
       {showReportModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
@@ -1590,10 +1596,12 @@ export const StudentDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Manual Enrollment Modal - Ghi danh thủ công */}
       {showManualEnrollModal && student && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50 flex-shrink-0">
@@ -1754,6 +1762,7 @@ export const StudentDetail: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

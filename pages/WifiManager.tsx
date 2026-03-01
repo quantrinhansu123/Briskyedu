@@ -4,6 +4,7 @@ import { useWifiConfig } from '../src/hooks/useWifiConfig';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { AllowedWifi } from '../types';
 import { getPublicIp } from '../src/services/checkInService';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const WifiManager: React.FC = () => {
     const { wifis, loading, error, createWifi, updateWifi, deleteWifi, toggleActive, refresh } = useWifiConfig();
@@ -257,6 +258,7 @@ export const WifiManager: React.FC = () => {
 
             {/* Add/Edit Modal */}
             {showModal && (
+                <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
                         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -360,6 +362,7 @@ export const WifiManager: React.FC = () => {
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
         </div>
     );

@@ -23,6 +23,7 @@ import { useAuth } from '../src/hooks/useAuth';
 import { useLeaveBalance } from '../src/hooks/useLeaveBalance';
 import { LeaveRequest, LeaveType, LeaveRequestStatus } from '../types';
 import { isValidDateRange, getDateRangeErrorMessage } from '../src/utils/validators';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Leave types for dropdown
 const LEAVE_TYPES: LeaveType[] = [
@@ -386,6 +387,7 @@ export const LeaveRequestManager: React.FC = () => {
 
       {/* Submit Modal */}
       {showSubmitModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Tạo đơn xin nghỉ</h2>
@@ -462,10 +464,12 @@ export const LeaveRequestManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Reject Modal */}
       {showRejectModal && selectedRequest && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Từ chối đơn xin nghỉ</h2>
@@ -511,6 +515,7 @@ export const LeaveRequestManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

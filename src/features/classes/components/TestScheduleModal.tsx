@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { X, Calendar } from 'lucide-react';
 import { ClassModel } from '@/types';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface TestScheduleModalProps {
   classData: ClassModel;
@@ -26,6 +27,7 @@ export const TestScheduleModal: React.FC<TestScheduleModalProps> = ({ classData,
   };
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -115,6 +117,7 @@ export const TestScheduleModal: React.FC<TestScheduleModalProps> = ({ classData,
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

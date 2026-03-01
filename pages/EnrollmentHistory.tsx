@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Calendar, FileDown, ArrowUpRight, ArrowDownRight, MoreHorizontal, ChevronDown, X, FileText, User, CreditCard, Clock } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { EnrollmentRecord } from '../types';
 import { useEnrollments } from '../src/hooks/useEnrollments';
 import { useContracts } from '../src/hooks/useContracts';
@@ -258,6 +259,7 @@ export const EnrollmentHistory: React.FC = () => {
 
       {/* Detail Modal */}
       {showDetailModal && selectedRecord && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-blue-50">
@@ -401,6 +403,7 @@ export const EnrollmentHistory: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

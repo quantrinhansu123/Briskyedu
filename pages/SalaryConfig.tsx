@@ -6,14 +6,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, X, DollarSign, Calendar, User, Building, Clock, Save, ChevronDown, ChevronRight } from 'lucide-react';
 import { useSalaryConfig } from '../src/hooks/useSalaryConfig';
-import { 
-  SalaryRule, 
-  SalaryRangeConfig, 
-  RangeType 
+import {
+  SalaryRule,
+  SalaryRangeConfig,
+  RangeType
 } from '../src/services/salaryConfigService';
 import { formatCurrency } from '../src/utils/currencyUtils';
 import { collection, getDocs, query, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface StaffOption {
   id: string;
@@ -912,6 +913,7 @@ export const SalaryConfig: React.FC = () => {
 
       {/* Add Class Modal */}
       {showAddClassModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -948,6 +950,7 @@ export const SalaryConfig: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

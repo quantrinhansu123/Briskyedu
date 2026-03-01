@@ -8,6 +8,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Printer, FileText, Edit3 } from 'lucide-react';
 import { TestComment, SkillScore, SkillContent } from '../../../../types';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Branch addresses configuration
 const BRISKY_BRANCHES = [
@@ -157,6 +158,7 @@ export const TestCommentPrintPreview: React.FC<TestCommentPrintPreviewProps> = (
   const hasImprovements = editData.improvements?.listening || editData.improvements?.readingWriting || editData.improvements?.speaking;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-hidden">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl h-[95vh] flex flex-col">
         {/* Header */}
@@ -429,6 +431,7 @@ export const TestCommentPrintPreview: React.FC<TestCommentPrintPreviewProps> = (
         )}
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

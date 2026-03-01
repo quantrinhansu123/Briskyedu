@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Search, Phone, Mail, Calendar, Tag, X, Trash2, UserCheck, Filter, Edit2, Target, UserPlus, FileText, Settings, Palette } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useLeads } from '../src/hooks/useLeads';
 import { useCampaigns } from '../src/hooks/useCampaigns';
 import { useStaff } from '../src/hooks/useStaff';
@@ -470,6 +471,7 @@ export const CustomerDatabase: React.FC = () => {
 
       {/* Status Config Modal */}
       {showStatusConfigModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between bg-gradient-to-r from-gray-50 to-slate-50">
@@ -562,8 +564,8 @@ export const CustomerDatabase: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-    </div>
+        </ModalPortal>
+      )}    </div>
   );
 };
 
@@ -613,6 +615,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ lead, campaigns, staff, statusOpt
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -811,5 +814,6 @@ const LeadModal: React.FC<LeadModalProps> = ({ lead, campaigns, staff, statusOpt
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

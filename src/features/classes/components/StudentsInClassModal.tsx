@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Users, Search, UserPlus, UserMinus, ArrowRightLeft, ExternalLink } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { ClassModel, Student } from '@/types';
 import { collection, doc, updateDoc, arrayUnion, arrayRemove, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
@@ -275,6 +276,7 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
   }, [allStudents, searchTerm]);
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -460,6 +462,7 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
 
       {/* Enrollment Confirmation Modal */}
       {showEnrollModal && selectedStudentToAdd && (
+        <ModalPortal>
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
           onClick={() => { setShowEnrollModal(false); setSelectedStudentToAdd(null); }}
@@ -546,6 +549,7 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Transfer Class Modal - Bug 5 fix */}
@@ -559,6 +563,7 @@ export const StudentsInClassModal: React.FC<StudentsInClassModalProps> = ({ clas
         />
       )}
     </div>
+    </ModalPortal>
   );
 };
 

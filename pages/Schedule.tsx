@@ -12,6 +12,7 @@ import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/fire
 import { db } from '../src/config/firebase';
 import { getScheduleTime, getScheduleDays, formatSchedule } from '../src/utils/scheduleUtils';
 import { isAssistantRole, isTeacherRole } from '../src/utils/roleUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 // ============================================
 // CLASS COLOR PALETTE SYSTEM
@@ -952,8 +953,9 @@ const ClassDetailModal: React.FC<ClassDetailModalProps> = ({ classData, allStude
   };
 
   return (
-    <div 
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" 
+    <ModalPortal>
+    <div
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div 
@@ -1172,5 +1174,6 @@ const ClassDetailModal: React.FC<ClassDetailModalProps> = ({ classData, allStude
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

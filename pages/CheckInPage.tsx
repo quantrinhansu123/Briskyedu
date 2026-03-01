@@ -18,6 +18,7 @@ import { useCheckIn, useCheckInHistory } from '../src/hooks/useCheckIn';
 import { CameraCapture } from '../components/CameraCapture';
 import { uploadCheckInPhoto, dataURLtoBlob } from '../src/services/photoUploadService';
 import { useAuth } from '../src/hooks/useAuth';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const CheckInPage: React.FC = () => {
     const navigate = useNavigate();
@@ -536,6 +537,7 @@ const CheckInHistory: React.FC = () => {
 
             {/* Check-in Detail Modal */}
             {selectedCheckIn && (
+                <ModalPortal>
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSelectedCheckIn(null)}>
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
@@ -586,6 +588,7 @@ const CheckInHistory: React.FC = () => {
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
         </div>
     );

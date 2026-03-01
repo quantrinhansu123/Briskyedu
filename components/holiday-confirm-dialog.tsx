@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { AlertTriangle, Trash2, Loader2, Calendar } from 'lucide-react';
 import { SessionPreviewItem } from '../src/services/holidayService';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface HolidayConfirmDialogProps {
   isOpen: boolean;
@@ -62,7 +63,8 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
   const hiddenCount = previewData.length - visibleItems.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <ModalPortal>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div
         className="bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
         style={{ maxWidth: 480 }}
@@ -182,5 +184,6 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

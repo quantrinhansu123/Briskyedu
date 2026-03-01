@@ -8,6 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, AlertTriangle } from 'lucide-react';
 import { Student, StudentStatus } from '@/types';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface RemoveClassModalProps {
   student: Student;
@@ -55,6 +56,7 @@ export const RemoveClassModal: React.FC<RemoveClassModalProps> = ({ student, sta
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
@@ -137,6 +139,7 @@ export const RemoveClassModal: React.FC<RemoveClassModalProps> = ({ student, sta
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

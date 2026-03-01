@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Student, ClassModel } from '@/types';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface TransferClassModalProps {
   student: Student;
@@ -42,6 +43,7 @@ export const TransferClassModal: React.FC<TransferClassModalProps> = ({ student,
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
@@ -122,6 +124,7 @@ export const TransferClassModal: React.FC<TransferClassModalProps> = ({ student,
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

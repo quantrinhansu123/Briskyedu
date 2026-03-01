@@ -10,6 +10,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'fireb
 import { db } from '../src/config/firebase';
 import { useStaff } from '../src/hooks/useStaff';
 import { formatCurrency } from '../src/utils/currencyUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface RewardPenaltyConfig {
   id?: string;
@@ -496,6 +497,7 @@ export const StaffRewardPenalty: React.FC = () => {
 
       {/* Add Record Modal */}
       {showAddModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center">
@@ -599,10 +601,12 @@ export const StaffRewardPenalty: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Config Modal */}
       {showConfigModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
@@ -786,6 +790,7 @@ export const StaffRewardPenalty: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

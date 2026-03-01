@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Users, Clock, Calendar, MapPin, User, GraduationCap, BookOpen, CheckCircle, Edit } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { ClassModel } from '@/types';
 import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
@@ -238,6 +239,7 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
   };
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -598,6 +600,7 @@ export const ClassDetailModal: React.FC<ClassDetailModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

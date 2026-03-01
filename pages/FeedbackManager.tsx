@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Phone, FileText, Plus, Search, X, Star, Trash2, CheckCircle } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useFeedback } from '../src/hooks/useFeedback';
 import { useStudents } from '../src/hooks/useStudents';
 import { useClasses } from '../src/hooks/useClasses';
@@ -386,6 +387,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSubmit }) => {
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -610,5 +612,6 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose, onSubmit }) => {
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

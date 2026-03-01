@@ -5,12 +5,13 @@
 
 import React, { useRef, useState } from 'react';
 import { Download, Upload, FileSpreadsheet, X, AlertCircle, CheckCircle } from 'lucide-react';
-import { 
-  exportToExcel, 
-  exportTemplate, 
-  readExcelFile, 
-  mapExcelToFields 
+import {
+  exportToExcel,
+  exportTemplate,
+  readExcelFile,
+  mapExcelToFields
 } from '../src/utils/excelUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface ImportExportButtonsProps {
   // For export
@@ -143,6 +144,7 @@ export const ImportExportButtons: React.FC<ImportExportButtonsProps> = ({
 
       {/* Import Modal */}
       {showImportModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -270,6 +272,7 @@ export const ImportExportButtons: React.FC<ImportExportButtonsProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );

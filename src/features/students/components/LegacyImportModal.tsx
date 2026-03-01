@@ -12,6 +12,7 @@ import {
   applyLegacyImport,
   LegacyImportPreview,
 } from '../../../services/legacy-session-import-service';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface Props {
   onClose: () => void;
@@ -80,6 +81,7 @@ export const LegacyImportModal: React.FC<Props> = ({ onClose, onComplete }) => {
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -292,6 +294,7 @@ export const LegacyImportModal: React.FC<Props> = ({ onClose, onComplete }) => {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

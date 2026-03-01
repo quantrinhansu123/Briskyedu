@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { X, PlusCircle, MinusCircle } from 'lucide-react';
 import { Student } from '@/types';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface EnrollmentModalProps {
   student: Student;
@@ -38,6 +39,7 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ student, staff
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
@@ -116,6 +118,7 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ student, staff
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

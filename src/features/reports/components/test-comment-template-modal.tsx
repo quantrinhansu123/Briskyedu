@@ -10,6 +10,7 @@ import { X, Save } from 'lucide-react';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { TestTemplate, SkillContent } from '../../../../types';
+import { ModalPortal } from '@/components/modal-portal';
 
 type TemplateTab = 'content' | 'strengths' | 'improvements' | 'attitude';
 
@@ -79,6 +80,7 @@ export const TestCommentTemplateModal: React.FC<TestCommentTemplateModalProps> =
   if (!isOpen) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl my-8">
         {/* Header */}
@@ -320,6 +322,7 @@ export const TestCommentTemplateModal: React.FC<TestCommentTemplateModalProps> =
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

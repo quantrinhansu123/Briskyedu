@@ -19,6 +19,7 @@ import { db } from '../../../config/firebase';
 import { Student, TestComment, TestTemplate } from '../../../../types';
 import { TestCommentTemplateModal } from './test-comment-template-modal';
 import { TestCommentEditModal } from './test-comment-edit-modal';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface TestCommentTabProps {
   students: Student[];
@@ -437,6 +438,7 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
 
       {/* Add Test Modal */}
       {showAddTestModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -531,10 +533,12 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}
       {testToDelete && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200">
@@ -580,6 +584,7 @@ export const TestCommentTab: React.FC<TestCommentTabProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Detailed Edit Modal */}

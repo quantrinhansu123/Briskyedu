@@ -11,6 +11,7 @@ import { downloadSettlementInvoicePDF, previewSettlementInvoice } from '../../..
 import { doc, collection, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { formatCurrency } from '../../../utils/currencyUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface SettlementModalProps {
   student: Student;
@@ -192,6 +193,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
     const isPaid = successInvoice.status === 'Đã thanh toán';
 
     return (
+      <ModalPortal>
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
           {/* Success Header */}
@@ -255,10 +257,12 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           </div>
         </div>
       </div>
+      </ModalPortal>
     );
   }
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
         {/* Header */}
@@ -430,6 +434,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { AlertTriangle, Search, CheckCircle, Phone, User, Calendar, DollarSign, X, MessageSquare } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useDebt } from '../src/hooks/useDebt';
 import { DebtRecord } from '../src/services/debtService';
 import { formatCurrency } from '../src/utils/currencyUtils';
@@ -227,6 +228,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ debt, onClose, onConfirm })
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -298,5 +300,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ debt, onClose, onConfirm })
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

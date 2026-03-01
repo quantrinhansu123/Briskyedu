@@ -57,6 +57,7 @@ import { useSalaryReport } from '../src/hooks/useSalaryReport';
 import { useProducts } from '../src/hooks/useProducts';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Warm Education Color Palette - Teal & Coral Theme
 const COLORS = {
@@ -2467,6 +2468,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Modal danh sách học viên */}
       {showStudentModal && selectedCategory && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
             {/* Header */}
@@ -2556,6 +2558,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

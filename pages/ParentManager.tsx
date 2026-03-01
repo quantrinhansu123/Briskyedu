@@ -8,6 +8,7 @@ import { Search, Plus, Phone, Edit, Trash2, X, Users } from 'lucide-react';
 import { useParents } from '../src/hooks/useParents';
 import { ParentWithChildren } from '../src/services/parentService';
 import { Parent, StudentStatus } from '../types';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const ParentManager: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -250,6 +251,7 @@ const ParentModal: React.FC<ParentModalProps> = ({ parent, onClose, onSubmit }) 
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -355,5 +357,6 @@ const ParentModal: React.FC<ParentModalProps> = ({ parent, onClose, onSubmit }) 
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

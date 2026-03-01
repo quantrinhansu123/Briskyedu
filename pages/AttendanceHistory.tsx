@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ClipboardList, CheckCircle, XCircle, BarChart2, X, Eye, FileDown, Trash2, AlertTriangle, Edit3, Save, Clock, History } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useClasses } from '../src/hooks/useClasses';
 import { useAttendance } from '../src/hooks/useAttendance';
 import { usePermissions } from '../src/hooks/usePermissions';
@@ -1205,6 +1206,7 @@ export const AttendanceHistory: React.FC = () => {
 
       {/* Detail Modal */}
       {showDetailModal && selectedRecord && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
@@ -1468,10 +1470,12 @@ export const AttendanceHistory: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit Single Student Modal */}
       {showEditModal && editingStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center">
@@ -1557,6 +1561,7 @@ export const AttendanceHistory: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, ChevronDown } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { SearchableClassDropdown } from '../src/features/attendance';
 import { AttendanceStatus, AttendanceRecord, StudentStatus } from '../types';
 import { useClasses } from '../src/hooks/useClasses';
@@ -1522,6 +1523,7 @@ export const Attendance: React.FC = () => {
 
       {/* Makeup Attendance Confirm Dialog (Phase 4) */}
       {showMakeupConfirm && (
+        <ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-md mx-4">
             <div className="flex items-center gap-3 mb-4">
@@ -1564,6 +1566,7 @@ export const Attendance: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Add Session Modal */}
@@ -1722,6 +1725,7 @@ export const Attendance: React.FC = () => {
 
       {/* Review Confirm Dialog */}
       {confirmDialog.show && confirmDialog.student && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Xác nhận điểm danh</h3>
@@ -1776,6 +1780,7 @@ export const Attendance: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -1812,6 +1817,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ classId, className, o
   const dayOfWeek = new Date(date).toLocaleDateString('vi-VN', { weekday: 'long' });
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-xl">
@@ -1910,5 +1916,6 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ classId, className, o
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

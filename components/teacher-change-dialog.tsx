@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserCheck, ArrowRight } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface TeacherChange {
   role: string;          // 'Giáo viên chính' | 'GVNN' | 'Trợ giảng'
@@ -49,6 +50,7 @@ export const TeacherChangeDialog: React.FC<TeacherChangeDialogProps> = ({
   if (!open || changes.length === 0) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
         className="bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
@@ -132,5 +134,6 @@ export const TeacherChangeDialog: React.FC<TeacherChangeDialogProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

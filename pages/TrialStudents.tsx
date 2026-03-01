@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { formatSchedule } from '../src/utils/scheduleUtils';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Extended student type for trial students
 interface TrialStudent extends Student {
@@ -488,6 +489,7 @@ export const TrialStudents: React.FC = () => {
 
       {/* Add Student Modal */}
       {showAddModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -596,10 +598,12 @@ export const TrialStudents: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Add Trial Class Modal */}
       {showAddClassModal && selectedStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-50 to-cyan-50">
@@ -662,10 +666,12 @@ export const TrialStudents: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Call History Modal */}
       {showCallHistoryModal && selectedStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
@@ -715,10 +721,12 @@ export const TrialStudents: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Add Call Modal */}
       {showAddCallModal && selectedStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center">
@@ -780,10 +788,12 @@ export const TrialStudents: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit Student Modal */}
       {showEditModal && selectedStudent && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
@@ -916,6 +926,7 @@ export const TrialStudents: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

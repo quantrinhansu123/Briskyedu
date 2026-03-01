@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Camera, X, RotateCcw, Check, Loader2 } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface CameraCaptureProps {
     isOpen: boolean;
@@ -132,6 +133,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     if (!isOpen) return null;
 
     return (
+        <ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
                 {/* Header */}
@@ -232,5 +234,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 };

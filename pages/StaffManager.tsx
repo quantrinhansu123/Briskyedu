@@ -7,6 +7,7 @@ import { STAFF_FIELDS, STAFF_MAPPING, prepareStaffExport } from '../src/utils/ex
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { AuthService } from '../src/services/authService';
+import { ModalPortal } from '@/components/modal-portal';
 
 // Departments and positions based on Excel
 const DEPARTMENTS = ['Điều hành', 'Đào Tạo', 'Văn phòng'];
@@ -650,6 +651,7 @@ export const StaffManager: React.FC = () => {
 
       {/* Create/Edit Modal */}
       {showModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-green-50 to-teal-50">
@@ -932,10 +934,12 @@ export const StaffManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Account Management Modal */}
       {showAccountModal && accountStaff && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50">
@@ -1043,6 +1047,7 @@ export const StaffManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -20,6 +20,7 @@ import {
   deleteWorkSessionWithAudit
 } from '../src/services/workSessionService';
 import { useLeaveRequests } from '../src/hooks/useLeaveRequests';
+import { ModalPortal } from '@/components/modal-portal';
 
 export const WorkConfirmation: React.FC = () => {
   // Permissions - Teachers only see their own work
@@ -1062,6 +1063,7 @@ export const WorkConfirmation: React.FC = () => {
 
       {/* Modal Sửa công */}
       {editModalOpen && selectedSession && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b bg-blue-500 text-white rounded-t-xl">
@@ -1247,10 +1249,12 @@ export const WorkConfirmation: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Xóa công */}
       {deleteModalOpen && selectedSession && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b bg-red-500 text-white rounded-t-xl">
@@ -1307,10 +1311,12 @@ export const WorkConfirmation: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Xác nhận hàng loạt với trạng thái công */}
       {showBulkConfirmModal && pendingToConfirm.length > 0 && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b bg-green-500 text-white rounded-t-xl">
@@ -1466,6 +1472,7 @@ export const WorkConfirmation: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

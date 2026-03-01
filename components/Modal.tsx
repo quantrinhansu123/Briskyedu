@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -33,8 +34,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   if (!isOpen) return null;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div 
+      <div
         ref={modalRef}
         className="bg-white rounded-xl shadow-xl w-full max-h-[90vh] flex flex-col"
         style={{ maxWidth: width }}
@@ -43,18 +45,19 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="p-6 overflow-y-auto">
           {children}
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

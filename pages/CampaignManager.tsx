@@ -8,6 +8,7 @@ import { Target, Plus, Calendar, Users, TrendingUp, Edit, Trash2, X, ExternalLin
 import { useCampaigns } from '../src/hooks/useCampaigns';
 import { useLeads } from '../src/hooks/useLeads';
 import { Campaign, CampaignStatus } from '../src/services/campaignService';
+import { ModalPortal } from '@/components/modal-portal';
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
   'Đang mở': 'bg-green-100 text-green-700',
@@ -353,6 +354,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ campaign, onClose, onSubm
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -456,5 +458,6 @@ const CampaignModal: React.FC<CampaignModalProps> = ({ campaign, onClose, onSubm
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

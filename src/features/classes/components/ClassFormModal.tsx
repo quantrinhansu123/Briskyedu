@@ -11,6 +11,7 @@ import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
 import { CLASS_COLOR_PALETTE, hashClassName } from '@/pages/Schedule';
 import { parseScheduleDays } from '@/src/utils/scheduleUtils';
+import { ModalPortal } from '@/components/modal-portal';
 
 export interface ClassFormModalProps {
   classData?: ClassModel;
@@ -566,6 +567,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
   };
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200"
       onClick={onClose}
@@ -921,6 +923,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                 </button>
               </div>
               {showCurriculumDropdown && (
+                <ModalPortal>
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]" onClick={() => setShowCurriculumDropdown(false)}>
                   <div className="bg-white rounded-lg shadow-xl p-4 w-80" onClick={(e) => e.stopPropagation()}>
                     <h4 className="font-medium text-gray-800 mb-3">Thêm giáo trình mới</h4>
@@ -931,6 +934,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                     </div>
                   </div>
                 </div>
+                </ModalPortal>
               )}
             </div>
 
@@ -1010,6 +1014,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

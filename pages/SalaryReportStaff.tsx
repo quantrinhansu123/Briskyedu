@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Info, Calendar, DollarSign, Clock, Users, Plus, ShieldAlert, CheckCircle, AlertTriangle, XCircle, Eye } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useStaffSalary, useStaffAttendance } from '../src/hooks/useStaffSalary';
 import { useStaff } from '../src/hooks/useStaff';
 import { usePermissions } from '../src/hooks/usePermissions';
@@ -313,6 +314,7 @@ export const SalaryReportStaff: React.FC = () => {
 
                         {/* Attendance Detail Modal */}
                         {selectedAttendance && (
+                          <ModalPortal>
                           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setSelectedAttendance(null)}>
                             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
                               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-4 flex justify-between items-center">
@@ -362,6 +364,7 @@ export const SalaryReportStaff: React.FC = () => {
                               </div>
                             </div>
                           </div>
+                          </ModalPortal>
                         )}
                       </>
                     )}

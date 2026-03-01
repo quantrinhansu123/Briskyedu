@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Package, Tag, X, Percent } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useProducts } from '../src/hooks/useProducts';
 import { Product, ProductCategory, ProductStatus } from '../src/services/productService';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
@@ -271,6 +272,7 @@ export const ProductManager: React.FC = () => {
 
       {/* Product Modal */}
       {showModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -358,10 +360,12 @@ export const ProductManager: React.FC = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Discount Modal */}
       {showDiscountModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -441,6 +445,7 @@ export const ProductManager: React.FC = () => {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

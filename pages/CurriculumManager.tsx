@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Edit, Trash2, X, Clock, Users, DollarSign, Settings } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import * as curriculumService from '../src/services/curriculumService';
 import { Curriculum, CurriculumLevel, CurriculumStatus } from '../src/services/curriculumService';
 import { formatCurrency } from '../src/utils/currencyUtils';
@@ -322,6 +323,7 @@ export const CurriculumManager: React.FC = () => {
 
       {/* Program Config Modal */}
       {showProgramConfig && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -374,6 +376,7 @@ export const CurriculumManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -423,6 +426,7 @@ const CurriculumModal: React.FC<CurriculumModalProps> = ({ curriculum, programTy
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 bg-white">
@@ -551,5 +555,6 @@ const CurriculumModal: React.FC<CurriculumModalProps> = ({ curriculum, programTy
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

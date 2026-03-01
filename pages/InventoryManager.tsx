@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Plus, ArrowLeftRight, X, AlertTriangle, Building2, Minus, History } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useProducts } from '../src/hooks/useProducts';
 import { useAuth } from '../src/hooks/useAuth';
 import { Product, InventoryTransfer } from '../types';
@@ -345,6 +346,7 @@ export const InventoryManager: React.FC = () => {
 
       {/* Add/Subtract Stock Modal */}
       {showAddStockModal && selectedProduct && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -434,10 +436,12 @@ export const InventoryManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Transfer Modal */}
       {showTransferModal && selectedProduct && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -530,10 +534,12 @@ export const InventoryManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Transfer History Modal */}
       {showHistoryModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col">
             <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -584,6 +590,7 @@ export const InventoryManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

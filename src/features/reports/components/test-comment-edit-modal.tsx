@@ -12,6 +12,7 @@ import { db } from '../../../config/firebase';
 import { TestComment, SkillScore, SkillContent } from '../../../../types';
 import { generateTestCommentPDF, downloadBlob } from '../../../services/testCommentPdfService';
 import { TestCommentPrintPreview } from './test-comment-print-preview';
+import { ModalPortal } from '@/components/modal-portal';
 
 type DetailTab = 'scores' | 'content' | 'strengths' | 'improvements' | 'attitude';
 
@@ -116,6 +117,7 @@ export const TestCommentEditModal: React.FC<TestCommentEditModalProps> = ({
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl my-8">
         {/* Header */}
@@ -466,6 +468,7 @@ export const TestCommentEditModal: React.FC<TestCommentEditModalProps> = ({
         />
       )}
     </div>
+    </ModalPortal>
   );
 };
 

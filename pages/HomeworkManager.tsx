@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Plus, X, Save, Trash2, Settings, FileText, AlertCircle } from 'lucide-react';
+import { ModalPortal } from '@/components/modal-portal';
 import { useClasses } from '../src/hooks/useClasses';
 import { useStudents } from '../src/hooks/useStudents';
 import { useAuth } from '../src/hooks/useAuth';
@@ -877,6 +878,7 @@ export const HomeworkManager: React.FC = () => {
 
       {/* Bulk Homework Modal - Multi-select classes */}
       {showBulkModal && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -988,10 +990,12 @@ export const HomeworkManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Status Config Modal */}
       {showStatusConfig && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -1067,6 +1071,7 @@ export const HomeworkManager: React.FC = () => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

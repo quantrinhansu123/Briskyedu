@@ -16,6 +16,47 @@ import { cascadeUpdate, executeBatch, BatchOperation } from '../utils/batchUtils
 const db = admin.firestore();
 const REGION = 'asia-southeast1';
 
+/** Active holiday info for checking session dates */
+interface ActiveHoliday {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  applyType: string;
+  classIds?: string[];
+  branch?: string;
+}
+
+/**
+ * Get active holidays that might affect a class's sessions.
+ * Used when generating/regenerating sessions to auto-mark holidays.
+ */
+async function getActiveHolidays(classId: string): Promise<ActiveHoliday[]> {
+  const snap = await db.collection('holidays')
+    .where('status', '==', 'Đã áp dụng')
+    .get();
+
+  return snap.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as ActiveHoliday))
+    .filter(h => {
+      if (h.applyType === 'all_classes' || h.applyType === 'all_branches') return true;
+      if (h.applyType === 'specific_classes') return h.classIds?.includes(classId);
+      return false; // specific_branch needs class branch info - skip for safety
+    });
+}
+
+/**
+ * Check if a date falls within any active holiday.
+ * Returns the matching holiday or null.
+ */
+function findHolidayForDate(date: string, holidays: ActiveHoliday[]): ActiveHoliday | null {
+  for (const h of holidays) {
+    const end = h.endDate || h.startDate;
+    if (date >= h.startDate && date <= end) return h;
+  }
+  return null;
+}
+
 /**
  * Trigger: When a new class is created
  * Actions:
@@ -402,6 +443,9 @@ async function regenerateSessionsForClass(classId: string, classData: ClassData)
 
   console.log(`[regenerateSessionsForClass] +${toAdd.length} -${toRemove.length} sessions`);
 
+  // Check active holidays to auto-mark new sessions falling on holiday dates
+  const activeHolidays = toAdd.length > 0 ? await getActiveHolidays(classId) : [];
+
   // 7. Execute batch operations
   const operations: BatchOperation[] = [];
 
@@ -413,9 +457,10 @@ async function regenerateSessionsForClass(classId: string, classData: ClassData)
     });
   });
 
-  // Add new sessions
+  // Add new sessions (auto-mark holidays)
   toAdd.forEach((sessionDate, index) => {
     const sessionNumber = maxSessionNumber + index + 1;
+    const holiday = findHolidayForDate(sessionDate.date, activeHolidays);
     operations.push({
       type: 'set' as const,
       ref: db.collection('classSessions').doc(),
@@ -429,7 +474,8 @@ async function regenerateSessionsForClass(classId: string, classData: ClassData)
         room: classData.room || null,
         teacherId: classData.teacherId || null,
         teacherName: classData.teacher || null,
-        status: 'Chưa học',
+        status: holiday ? 'Nghỉ' : 'Chưa học',
+        ...(holiday ? { holidayId: holiday.id, holidayName: holiday.name } : {}),
         createdAt: new Date().toISOString()
       } as SessionData
     });
@@ -470,23 +516,31 @@ async function generateClassSessions(classId: string, classData: ClassData): Pro
     return 0;
   }
 
-  const operations: BatchOperation[] = sessionDates.map((session, index) => ({
-    type: 'set' as const,
-    ref: db.collection('classSessions').doc(),
-    data: {
-      classId,
-      className: classData.name,
-      sessionNumber: index + 1,
-      date: session.date,
-      dayOfWeek: session.dayOfWeek,
-      time: time,
-      room: classData.room || null,
-      teacherId: classData.teacherId || null,
-      teacherName: classData.teacher || null,
-      status: 'Chưa học',
-      createdAt: new Date().toISOString()
-    } as SessionData
-  }));
+  // Check active holidays to auto-mark sessions falling on holiday dates
+  const activeHolidays = await getActiveHolidays(classId);
+  console.log(`[generateClassSessions] Found ${activeHolidays.length} active holidays`);
+
+  const operations: BatchOperation[] = sessionDates.map((session, index) => {
+    const holiday = findHolidayForDate(session.date, activeHolidays);
+    return {
+      type: 'set' as const,
+      ref: db.collection('classSessions').doc(),
+      data: {
+        classId,
+        className: classData.name,
+        sessionNumber: index + 1,
+        date: session.date,
+        dayOfWeek: session.dayOfWeek,
+        time: time,
+        room: classData.room || null,
+        teacherId: classData.teacherId || null,
+        teacherName: classData.teacher || null,
+        status: holiday ? 'Nghỉ' : 'Chưa học',
+        ...(holiday ? { holidayId: holiday.id, holidayName: holiday.name } : {}),
+        createdAt: new Date().toISOString()
+      } as SessionData
+    };
+  });
 
   return executeBatch(operations);
 }

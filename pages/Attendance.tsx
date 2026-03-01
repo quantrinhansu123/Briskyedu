@@ -1062,16 +1062,22 @@ export const Attendance: React.FC = () => {
                           const today = new Date().toISOString().split('T')[0];
                           const isPast = s.date < today;
                           const isToday = s.date === today;
+                          // Check if session is a holiday (Cloud Function sets status='Nghỉ' + holidayId)
+                          const isHoliday = s.status === 'Nghỉ' || !!s.holidayId;
                           // Fix: Check both session flags AND actual attendance existence
                           const hasAttendanceRecord = completedSessionIds.has(s.id) ||
                                                       (s.date && completedDates.has(s.date));
                           const isCompleted = s.status === 'Đã học' || !!s.attendanceId || hasAttendanceRecord;
-                          
+
                           let bgClass = 'bg-white hover:bg-gray-50';
                           let iconColor = '#9ca3af';
                           let icon = '○';
-                          
-                          if (isCompleted) {
+
+                          if (isHoliday) {
+                            bgClass = 'bg-purple-50 hover:bg-purple-100';
+                            iconColor = '#7c3aed';
+                            icon = '⊘';
+                          } else if (isCompleted) {
                             bgClass = 'bg-green-50 hover:bg-green-100';
                             iconColor = '#16a34a';
                             icon = '✓';
@@ -1084,7 +1090,7 @@ export const Attendance: React.FC = () => {
                             iconColor = '#ca8a04';
                             icon = '●';
                           }
-                          
+
                           return (
                             <div
                               key={s.id}
@@ -1096,6 +1102,7 @@ export const Attendance: React.FC = () => {
                             >
                               <span style={{ color: iconColor, fontWeight: 'bold', fontSize: '14px' }}>{icon}</span>
                               <span>Buổi {s.sessionNumber} - {new Date(s.date).toLocaleDateString('vi-VN')} ({s.dayOfWeek})</span>
+                              {isHoliday && <span className="ml-auto text-xs text-purple-600 font-medium">{s.holidayName || 'Nghỉ lễ'}</span>}
                             </div>
                           );
                         })}

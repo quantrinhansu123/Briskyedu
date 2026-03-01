@@ -77,6 +77,8 @@ export interface SessionData {
   teacherName?: string;
   status: 'Chưa học' | 'Đã học' | 'Nghỉ' | 'Bù';
   attendanceId?: string;
+  holidayId?: string;
+  holidayName?: string;
   createdAt?: string;
 }
 

@@ -32,6 +32,8 @@ export interface ClassSession {
   teacherName?: string;
   status: 'Chưa học' | 'Đã học' | 'Nghỉ' | 'Học bù';
   attendanceId?: string; // Link to attendance record if taken
+  holidayId?: string; // Set by Cloud Function when holiday applied
+  holidayName?: string; // Holiday name for display
   note?: string;
   createdAt?: string;
   updatedAt?: string;

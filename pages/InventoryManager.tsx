@@ -3,7 +3,8 @@ import { Package, Plus, ArrowLeftRight, X, AlertTriangle, Building2, Minus, Hist
 import { ModalPortal } from '@/components/modal-portal';
 import { useProducts } from '../src/hooks/useProducts';
 import { useAuth } from '../src/hooks/useAuth';
-import { Product, InventoryTransfer } from '../types';
+import { InventoryTransfer } from '../types';
+import { Product } from '../src/services/productService';
 import { collection, addDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 
@@ -74,7 +75,7 @@ export const InventoryManager: React.FC = () => {
     if (branchId === 'all') {
       // Sum all branches
       if (product.branchStock) {
-        return Object.values(product.branchStock).reduce((sum, qty) => sum + qty, 0);
+        return (Object.values(product.branchStock) as number[]).reduce((sum, qty) => sum + qty, 0);
       }
       return product.stock || 0;
     }
@@ -94,7 +95,7 @@ export const InventoryManager: React.FC = () => {
     if (!selectedProduct?.id || addQuantity <= 0) return;
     
     try {
-      const currentBranchStock = selectedProduct.branchStock || {};
+      const currentBranchStock: Record<string, number> = selectedProduct.branchStock || {};
       const currentQty = currentBranchStock[addBranch] || 0;
       
       const newQty = stockMode === 'add' 
@@ -107,7 +108,7 @@ export const InventoryManager: React.FC = () => {
       };
       
       // Calculate total stock
-      const totalStock = Object.values(newBranchStock).reduce((sum, qty) => sum + qty, 0);
+      const totalStock = Object.values(newBranchStock as Record<string, number>).reduce((sum: number, qty: number) => sum + qty, 0);
       
       await updateProduct(selectedProduct.id, {
         branchStock: newBranchStock,
@@ -146,7 +147,7 @@ export const InventoryManager: React.FC = () => {
         [transferToBranch]: (currentBranchStock[transferToBranch] || 0) + transferQuantity
       };
 
-      const totalStock = Object.values(newBranchStock).reduce((sum, qty) => sum + qty, 0);
+      const totalStock = Object.values(newBranchStock as Record<string, number>).reduce((sum: number, qty: number) => sum + qty, 0);
 
       await updateProduct(selectedProduct.id, {
         branchStock: newBranchStock,

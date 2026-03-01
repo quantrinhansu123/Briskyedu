@@ -24,14 +24,14 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
-  private handleReload = () => {
+  private handleReload() {
     window.location.reload();
-  };
+  }
 
-  private handleGoHome = () => {
+  private handleGoHome() {
     window.location.hash = '#/';
-    this.setState({ hasError: false, error: null });
-  };
+    (this as Component<Props, State>).setState({ hasError: false, error: null });
+  }
 
   public render() {
     if (this.state.hasError) {
@@ -73,6 +73,6 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return (this as Component<Props, State>).props.children;
   }
 }

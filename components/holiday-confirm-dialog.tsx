@@ -157,7 +157,7 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <div className="px-6 pt-2 pb-5 flex justify-end gap-3">
           <button
             onClick={onCancel}
             disabled={processing}

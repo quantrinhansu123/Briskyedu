@@ -16,6 +16,7 @@ import { recalculateStudentStatus } from '../src/services/attendanceService';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { ImportExportButtons } from '../components/ImportExportButtons';
+import { PortalDropdown } from '../components/portal-dropdown';
 import { STUDENT_FIELDS, STUDENT_MAPPING, prepareStudentExport } from '../src/utils/excelUtils';
 import { getCenters, Center } from '../src/services/centerService';
 import { normalizeStudentStatus } from '../src/utils/statusUtils';
@@ -70,6 +71,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const [showReserveModal, setShowReserveModal] = useState(false);
   const [showRemoveClassModal, setShowRemoveClassModal] = useState(false);
   const [actionDropdownId, setActionDropdownId] = useState<string | null>(null);
+  const [dropdownAnchorRect, setDropdownAnchorRect] = useState<DOMRect | null>(null);
   const [showLegacyImportModal, setShowLegacyImportModal] = useState(false);
   
   // Post-creation modal state
@@ -255,7 +257,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  const handleCreateStudent = async (data: Partial<Student>) => {
+  const handleCreateStudent = async (data: Omit<Student, 'id'>) => {
     try {
       const newStudent = await createStudent(data);
       setShowCreateModal(false);
@@ -744,21 +746,30 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                           >
                              <ArrowRight size={18} />
                           </button>
-                          {/* Action Dropdown */}
+                          {/* Action Dropdown - rendered via Portal to escape overflow-hidden */}
                           {canEditStudent && (
-                            <div className="relative">
-                              <button 
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setActionDropdownId(actionDropdownId === student.id ? null : student.id);
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (actionDropdownId === student.id) {
+                                    setActionDropdownId(null);
+                                    setDropdownAnchorRect(null);
+                                  } else {
+                                    setActionDropdownId(student.id);
+                                    setDropdownAnchorRect(e.currentTarget.getBoundingClientRect());
+                                  }
                                 }}
                                 className="text-gray-400 hover:text-indigo-600 p-1"
                                 title="Thao tác"
                               >
                                 <ChevronDown size={16} />
                               </button>
-                              {actionDropdownId === student.id && (
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                              <PortalDropdown
+                                isOpen={actionDropdownId === student.id}
+                                onClose={() => { setActionDropdownId(null); setDropdownAnchorRect(null); }}
+                                anchorRect={dropdownAnchorRect}
+                              >
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -830,9 +841,8 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                                     <UserMinus size={14} />
                                     Xóa khỏi lớp
                                   </button>
-                                </div>
-                              )}
-                            </div>
+                              </PortalDropdown>
+                            </>
                           )}
                         </div>
                     </td>
@@ -1301,13 +1311,6 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
         />
       )}
 
-      {/* Click outside to close dropdown */}
-      {actionDropdownId && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setActionDropdownId(null)}
-        />
-      )}
 
       {/* Legacy Import Modal - admin only */}
       {showLegacyImportModal && (

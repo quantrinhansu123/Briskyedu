@@ -5,7 +5,8 @@
  * + Tab Rà soát điểm danh cho lễ tân
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, ChevronDown } from 'lucide-react';
 import { SearchableClassDropdown } from '../src/features/attendance';
 import { AttendanceStatus, AttendanceRecord, StudentStatus } from '../types';
@@ -126,8 +127,9 @@ export const Attendance: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 320 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 320, maxHeight: 400 });
   const sessionDropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownPanelRef = useRef<HTMLDivElement>(null);
   const sessionButtonRef = useRef<HTMLButtonElement>(null);
 
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -191,16 +193,21 @@ export const Attendance: React.FC = () => {
     } : undefined
   });
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sessionDropdownRef.current && !sessionDropdownRef.current.contains(event.target as Node)) {
-        setSessionDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  // Close dropdown on page scroll or resize (but NOT when scrolling inside dropdown)
+  const handlePageScroll = useCallback((e: Event) => {
+    // Ignore scroll events from inside the dropdown panel
+    if (dropdownPanelRef.current?.contains(e.target as Node)) return;
+    setSessionDropdownOpen(false);
   }, []);
+  useEffect(() => {
+    if (!sessionDropdownOpen) return;
+    window.addEventListener('scroll', handlePageScroll, true);
+    window.addEventListener('resize', () => setSessionDropdownOpen(false));
+    return () => {
+      window.removeEventListener('scroll', handlePageScroll, true);
+      window.removeEventListener('resize', () => setSessionDropdownOpen(false));
+    };
+  }, [sessionDropdownOpen, handlePageScroll]);
 
   // Close dropdown when class changes
   useEffect(() => {
@@ -1017,7 +1024,9 @@ export const Attendance: React.FC = () => {
                         if (selectedClassId && !sessionsLoading) {
                           if (!sessionDropdownOpen && sessionButtonRef.current) {
                             const rect = sessionButtonRef.current.getBoundingClientRect();
-                            setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                            // Calculate max height based on actual available space below button
+                            const availableSpace = window.innerHeight - rect.bottom - 12; // 12px padding from bottom
+                            setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width, maxHeight: Math.max(200, availableSpace) });
                           }
                           setSessionDropdownOpen(!sessionDropdownOpen);
                         }
@@ -1034,11 +1043,15 @@ export const Attendance: React.FC = () => {
                       <ChevronDown size={16} className="text-gray-400" />
                     </button>
                     
-                    {sessionDropdownOpen && (
-                      <div
-                        style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 99999 }}
-                        className="bg-white border border-gray-300 rounded-lg shadow-2xl max-h-[70vh] overflow-y-auto"
-                      >
+                    {sessionDropdownOpen && createPortal(
+                      <>
+                        {/* Overlay to close on click outside */}
+                        <div className="fixed inset-0" style={{ zIndex: 99998 }} onClick={() => setSessionDropdownOpen(false)} />
+                        <div
+                          ref={dropdownPanelRef}
+                          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, maxHeight: dropdownPos.maxHeight, zIndex: 99999 }}
+                          className="bg-white border border-gray-300 rounded-lg shadow-2xl overflow-y-auto"
+                        >
                         {[...allSessions]
                           .filter(s => s.sessionNumber > 0) // Bug 2 fix: Filter out sessions with invalid sessionNumber
                           .sort((a, b) => {
@@ -1090,6 +1103,8 @@ export const Attendance: React.FC = () => {
                           );
                         })}
                       </div>
+                      </>,
+                      document.body
                     )}
                   </div>
                 ) : (

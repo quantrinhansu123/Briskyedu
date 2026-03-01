@@ -485,6 +485,34 @@ async function regenerateSessionsForClass(classId: string, classData: ClassData)
     await executeBatch(operations);
   }
 
+  // 8. Second pass: renumber ALL sessions sequentially by date
+  // After add/delete, sessionNumbers may be non-sequential (e.g. 1,2,5,6,9,10)
+  // Re-query and renumber so they are always 1,2,3,...
+  if (operations.length > 0) {
+    const allSessionsSnap = await db.collection('classSessions')
+      .where('classId', '==', classId)
+      .orderBy('date', 'asc')
+      .get();
+
+    const renumberOps: BatchOperation[] = [];
+    allSessionsSnap.docs.forEach((doc, index) => {
+      const expectedNumber = index + 1;
+      const currentNumber = doc.data().sessionNumber;
+      if (currentNumber !== expectedNumber) {
+        renumberOps.push({
+          type: 'update' as const,
+          ref: doc.ref,
+          data: { sessionNumber: expectedNumber }
+        });
+      }
+    });
+
+    if (renumberOps.length > 0) {
+      await executeBatch(renumberOps);
+      console.log(`[regenerateSessionsForClass] Renumbered ${renumberOps.length} sessions`);
+    }
+  }
+
   console.log(`[regenerateSessionsForClass] Completed: added ${toAdd.length}, removed ${toRemove.length}`);
   return { added: toAdd.length, removed: toRemove.length };
 }

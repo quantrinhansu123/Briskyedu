@@ -515,3 +515,19 @@ Utility functions for one-time data repairs:
 - `resetClassAttendance(classId)` - Destructively reset all attendance
 - `removeStudentFromClass(studentId, classId)` - Remove with cleanup
 - `fixStudentRegisteredSessions(studentId, classId, correctSessions)` - Fix session count
+
+### Holiday System (Dual System)
+
+Two independent systems when holiday is toggled "Đã áp dụng":
+1. **Client** (`src/services/holidayService.ts`): Creates `attendance` records with `status: 'LỊCH NGHỈ CHUNG'`
+2. **Cloud Function** (`functions/src/triggers/holidayTriggers.ts`): Changes `classSessions.status` to `'Nghỉ'`
+
+These can get out of sync if Cloud Function fails/delays. Session generation auto-checks active holidays (Mar 2026 fix).
+
+### Class-to-Attendance Flow
+
+Complete flow documented in `docs/class-to-attendance-flow.md`:
+- Class create → auto-generate sessions (Cloud Function)
+- Holiday apply → mark sessions as "Nghỉ" (dual system)
+- Attendance → save records → Cloud Function recalculates student data
+- Schedule change → regenerate sessions → auto-renumber by date

@@ -264,10 +264,15 @@ export const onClassUpdate = functions
     // 4. Regenerate sessions if schedule or totalSessions changed
     const scheduleChanged = before.schedule !== after.schedule;
     const sessionsChanged = before.totalSessions !== after.totalSessions;
-    const startDateChanged = before.startDate !== after.startDate;
+    // Compare startDate by value, not reference (Timestamp objects fail !== check)
+    const toDateStr = (v: any) => v?.toMillis ? v.toMillis().toString() : String(v || '');
+    const beforeStartStr = toDateStr(before.startDate);
+    const afterStartStr = toDateStr(after.startDate);
+    const startDateChanged = beforeStartStr !== afterStartStr;
 
     console.log(`[onClassUpdate] Schedule check: before="${before.schedule}", after="${after.schedule}", changed=${scheduleChanged}`);
     console.log(`[onClassUpdate] TotalSessions check: before=${before.totalSessions}, after=${after.totalSessions}, changed=${sessionsChanged}`);
+    console.log(`[onClassUpdate] StartDate check: before="${beforeStartStr}", after="${afterStartStr}", changed=${startDateChanged}`);
 
     if ((scheduleChanged || sessionsChanged || startDateChanged) && after.schedule && after.totalSessions) {
       console.log(`[onClassUpdate] Schedule/sessions changed - regenerating sessions`);

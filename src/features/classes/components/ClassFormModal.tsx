@@ -11,6 +11,7 @@ import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '@/src/config/firebase';
 import { CLASS_COLOR_PALETTE, hashClassName } from '@/pages/Schedule';
 import { parseScheduleDays } from '@/src/utils/scheduleUtils';
+import { calcMinutesBetween } from '@/src/utils/timeUtils';
 import { ModalPortal } from '@/components/modal-portal';
 
 export interface ClassFormModalProps {
@@ -57,10 +58,16 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
     reservedStudents: classData?.reservedStudents || 0,
     teacherEnabled: classData?.teacherDuration ? true : !!classData?.teacher,
     teacherDuration: classData?.teacherDuration || 90,
+    teacherStartTime: classData?.teacherStartTime || '',
+    teacherEndTime: classData?.teacherEndTime || '',
     foreignTeacherEnabled: classData?.foreignTeacherDuration ? true : !!classData?.foreignTeacher,
     foreignTeacherDuration: classData?.foreignTeacherDuration || 45,
+    foreignTeacherStartTime: classData?.foreignTeacherStartTime || '',
+    foreignTeacherEndTime: classData?.foreignTeacherEndTime || '',
     assistantEnabled: classData?.assistantDuration ? true : !!classData?.assistant,
     assistantDuration: classData?.assistantDuration || 90,
+    assistantStartTime: classData?.assistantStartTime || '',
+    assistantEndTime: classData?.assistantEndTime || '',
     color: classData?.color ?? -1,
   });
 
@@ -267,6 +274,27 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
     }
   }, [classData]);
 
+  // Auto-fill empty time fields from schedule times (for classes created before time range feature)
+  useEffect(() => {
+    if (!classData || !formData.scheduleStartTime || !formData.scheduleEndTime) return;
+    const updates: Partial<typeof formData> = {};
+    if (formData.teacher && !formData.teacherStartTime) {
+      updates.teacherStartTime = formData.scheduleStartTime;
+      updates.teacherEndTime = formData.scheduleEndTime;
+    }
+    if (formData.foreignTeacher && !formData.foreignTeacherStartTime) {
+      updates.foreignTeacherStartTime = formData.scheduleStartTime;
+      updates.foreignTeacherEndTime = formData.scheduleEndTime;
+    }
+    if (formData.assistant && !formData.assistantStartTime) {
+      updates.assistantStartTime = formData.scheduleStartTime;
+      updates.assistantEndTime = formData.scheduleEndTime;
+    }
+    if (Object.keys(updates).length > 0) {
+      setFormData(prev => ({ ...prev, ...updates }));
+    }
+  }, [formData.scheduleStartTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-calculate student counts from Firebase
   useEffect(() => {
     const fetchStudentCounts = async () => {
@@ -355,10 +383,16 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
             room: formData.room || '',
             teacher: formData.teacher || '',
             teacherDuration: 90,
+            teacherStartTime: formData.teacherStartTime || formData.scheduleStartTime || '18:00',
+            teacherEndTime: formData.teacherEndTime || formData.scheduleEndTime || '19:30',
             assistant: '',
             assistantDuration: 0,
+            assistantStartTime: formData.scheduleStartTime || '18:00',
+            assistantEndTime: formData.scheduleEndTime || '19:30',
             foreignTeacher: '',
             foreignTeacherDuration: 0,
+            foreignTeacherStartTime: formData.scheduleStartTime || '18:00',
+            foreignTeacherEndTime: formData.scheduleEndTime || '19:30',
           }
         }));
       }
@@ -555,10 +589,16 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
       reservedStudents: formData.reservedStudents,
       teacher: formData.teacher || '',
       teacherDuration: formData.teacherDuration || null,
+      teacherStartTime: formData.teacherStartTime || null,
+      teacherEndTime: formData.teacherEndTime || null,
       foreignTeacher: formData.foreignTeacher || '',
       foreignTeacherDuration: formData.foreignTeacherDuration || null,
+      foreignTeacherStartTime: formData.foreignTeacherStartTime || null,
+      foreignTeacherEndTime: formData.foreignTeacherEndTime || null,
       assistant: formData.assistant || '',
       assistantDuration: formData.assistantDuration || null,
+      assistantStartTime: formData.assistantStartTime || null,
+      assistantEndTime: formData.assistantEndTime || null,
       color: formData.color >= 0 ? formData.color : undefined,
     };
 
@@ -784,10 +824,16 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                             room: formData.room || '',
                             teacher: formData.teacher || '',
                             teacherDuration: formData.teacherDuration || 90,
+                            teacherStartTime: formData.teacherStartTime || formData.scheduleStartTime || '18:00',
+                            teacherEndTime: formData.teacherEndTime || formData.scheduleEndTime || '19:30',
                             assistant: formData.assistant || '',
                             assistantDuration: formData.assistantDuration || 0,
+                            assistantStartTime: formData.assistantStartTime || formData.scheduleStartTime || '18:00',
+                            assistantEndTime: formData.assistantEndTime || formData.scheduleEndTime || '19:30',
                             foreignTeacher: formData.foreignTeacher || '',
                             foreignTeacherDuration: formData.foreignTeacherDuration || 0,
+                            foreignTeacherStartTime: formData.foreignTeacherStartTime || formData.scheduleStartTime || '18:00',
+                            foreignTeacherEndTime: formData.foreignTeacherEndTime || formData.scheduleEndTime || '19:30',
                           };
                         });
                         setScheduleDetailsByDay(newDetails);
@@ -804,36 +850,117 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                   <p className="text-xs text-gray-500 mb-2">Áp dụng cho tất cả các buổi học</p>
                   {/* GV VN */}
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.teacherEnabled} onChange={(e) => setFormData({ ...formData, teacherEnabled: e.target.checked })} className="w-4 h-4 text-green-600 rounded" />
-                    <span className="text-sm text-gray-600 w-32">Giáo viên VN</span>
+                    <input type="checkbox" checked={formData.teacherEnabled} onChange={(e) => {
+                      const enabled = e.target.checked;
+                      if (enabled && !formData.teacherStartTime) {
+                        const st = formData.scheduleStartTime;
+                        const et = formData.scheduleEndTime;
+                        setFormData({ ...formData, teacherEnabled: true, teacherStartTime: st, teacherEndTime: et, teacherDuration: calcMinutesBetween(st, et) });
+                      } else {
+                        setFormData({ ...formData, teacherEnabled: enabled });
+                      }
+                    }} className="w-4 h-4 text-green-600 rounded" />
+                    <span className="text-sm text-gray-600 w-24">Giáo viên VN</span>
                     <select value={formData.teacher} onChange={(e) => setFormData({ ...formData, teacher: e.target.value, teacherEnabled: !!e.target.value })} disabled={!formData.teacherEnabled} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100">
                       <option value="">-- Chọn --</option>
                       {vietnameseTeachers.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                     </select>
-                    <input type="number" value={formData.teacherDuration} onChange={(e) => setFormData({ ...formData, teacherDuration: parseInt(e.target.value) || 0 })} disabled={!formData.teacherEnabled} min={0} max={180} className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100" />
-                    <span className="text-xs text-gray-500">phút</span>
+                    <input type="time" step={900} value={formData.teacherStartTime}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const duration = calcMinutesBetween(start, formData.teacherEndTime);
+                        setFormData({ ...formData, teacherStartTime: start, teacherDuration: duration });
+                      }}
+                      disabled={!formData.teacherEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-400">-</span>
+                    <input type="time" step={900} value={formData.teacherEndTime}
+                      onChange={(e) => {
+                        const end = e.target.value;
+                        const duration = calcMinutesBetween(formData.teacherStartTime, end);
+                        setFormData({ ...formData, teacherEndTime: end, teacherDuration: duration });
+                      }}
+                      disabled={!formData.teacherEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500 w-14 text-right">= {formData.teacherDuration || 0}p</span>
                   </div>
                   {/* GV NN */}
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.foreignTeacherEnabled} onChange={(e) => setFormData({ ...formData, foreignTeacherEnabled: e.target.checked })} className="w-4 h-4 text-purple-600 rounded" />
-                    <span className="text-sm text-gray-600 w-32">GV Nước ngoài</span>
+                    <input type="checkbox" checked={formData.foreignTeacherEnabled} onChange={(e) => {
+                      const enabled = e.target.checked;
+                      if (enabled && !formData.foreignTeacherStartTime) {
+                        const st = formData.scheduleStartTime;
+                        const et = formData.scheduleEndTime;
+                        setFormData({ ...formData, foreignTeacherEnabled: true, foreignTeacherStartTime: st, foreignTeacherEndTime: et, foreignTeacherDuration: calcMinutesBetween(st, et) });
+                      } else {
+                        setFormData({ ...formData, foreignTeacherEnabled: enabled });
+                      }
+                    }} className="w-4 h-4 text-purple-600 rounded" />
+                    <span className="text-sm text-gray-600 w-24">GV Nước ngoài</span>
                     <select value={formData.foreignTeacher} onChange={(e) => setFormData({ ...formData, foreignTeacher: e.target.value, foreignTeacherEnabled: !!e.target.value })} disabled={!formData.foreignTeacherEnabled} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100">
                       <option value="">-- Chọn --</option>
                       {foreignTeachers.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                     </select>
-                    <input type="number" value={formData.foreignTeacherDuration} onChange={(e) => setFormData({ ...formData, foreignTeacherDuration: parseInt(e.target.value) || 0 })} disabled={!formData.foreignTeacherEnabled} min={0} max={180} className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100" />
-                    <span className="text-xs text-gray-500">phút</span>
+                    <input type="time" step={900} value={formData.foreignTeacherStartTime}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const duration = calcMinutesBetween(start, formData.foreignTeacherEndTime);
+                        setFormData({ ...formData, foreignTeacherStartTime: start, foreignTeacherDuration: duration });
+                      }}
+                      disabled={!formData.foreignTeacherEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-400">-</span>
+                    <input type="time" step={900} value={formData.foreignTeacherEndTime}
+                      onChange={(e) => {
+                        const end = e.target.value;
+                        const duration = calcMinutesBetween(formData.foreignTeacherStartTime, end);
+                        setFormData({ ...formData, foreignTeacherEndTime: end, foreignTeacherDuration: duration });
+                      }}
+                      disabled={!formData.foreignTeacherEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500 w-14 text-right">= {formData.foreignTeacherDuration || 0}p</span>
                   </div>
                   {/* Trợ giảng */}
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={formData.assistantEnabled} onChange={(e) => setFormData({ ...formData, assistantEnabled: e.target.checked })} className="w-4 h-4 text-blue-600 rounded" />
-                    <span className="text-sm text-gray-600 w-32">Trợ giảng</span>
+                    <input type="checkbox" checked={formData.assistantEnabled} onChange={(e) => {
+                      const enabled = e.target.checked;
+                      if (enabled && !formData.assistantStartTime) {
+                        const st = formData.scheduleStartTime;
+                        const et = formData.scheduleEndTime;
+                        setFormData({ ...formData, assistantEnabled: true, assistantStartTime: st, assistantEndTime: et, assistantDuration: calcMinutesBetween(st, et) });
+                      } else {
+                        setFormData({ ...formData, assistantEnabled: enabled });
+                      }
+                    }} className="w-4 h-4 text-blue-600 rounded" />
+                    <span className="text-sm text-gray-600 w-24">Trợ giảng</span>
                     <select value={formData.assistant} onChange={(e) => setFormData({ ...formData, assistant: e.target.value, assistantEnabled: !!e.target.value })} disabled={!formData.assistantEnabled} className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100">
                       <option value="">-- Chọn --</option>
                       {assistants.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                     </select>
-                    <input type="number" value={formData.assistantDuration} onChange={(e) => setFormData({ ...formData, assistantDuration: parseInt(e.target.value) || 0 })} disabled={!formData.assistantEnabled} min={0} max={180} className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center disabled:bg-gray-100" />
-                    <span className="text-xs text-gray-500">phút</span>
+                    <input type="time" step={900} value={formData.assistantStartTime}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const duration = calcMinutesBetween(start, formData.assistantEndTime);
+                        setFormData({ ...formData, assistantStartTime: start, assistantDuration: duration });
+                      }}
+                      disabled={!formData.assistantEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-400">-</span>
+                    <input type="time" step={900} value={formData.assistantEndTime}
+                      onChange={(e) => {
+                        const end = e.target.value;
+                        const duration = calcMinutesBetween(formData.assistantStartTime, end);
+                        setFormData({ ...formData, assistantEndTime: end, assistantDuration: duration });
+                      }}
+                      disabled={!formData.assistantEnabled}
+                      className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
+                    />
+                    <span className="text-xs text-gray-500 w-14 text-right">= {formData.assistantDuration || 0}p</span>
                   </div>
                 </div>
               ) : (
@@ -846,7 +973,15 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                       {formData.scheduleDays.map((day, idx) => {
                         const dayConfig = scheduleDetailsByDay[day] || {
                           dayOfWeek: day, dayLabel: getDayLabel(day), startTime: formData.scheduleStartTime, endTime: formData.scheduleEndTime,
-                          room: '', teacher: '', teacherDuration: 0, assistant: '', assistantDuration: 0, foreignTeacher: '', foreignTeacherDuration: 0,
+                          room: '', teacher: '', teacherDuration: 0,
+                          teacherStartTime: formData.teacherStartTime || formData.scheduleStartTime || '18:00',
+                          teacherEndTime: formData.teacherEndTime || formData.scheduleEndTime || '19:30',
+                          assistant: '', assistantDuration: 0,
+                          assistantStartTime: formData.scheduleStartTime || '18:00',
+                          assistantEndTime: formData.scheduleEndTime || '19:30',
+                          foreignTeacher: '', foreignTeacherDuration: 0,
+                          foreignTeacherStartTime: formData.scheduleStartTime || '18:00',
+                          foreignTeacherEndTime: formData.scheduleEndTime || '19:30',
                         };
                         return (
                           <div key={day} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -866,7 +1001,14 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                                   <option value="">-- Không --</option>
                                   {vietnameseTeachers.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                                 </select>
-                                {dayConfig.teacher && (<input type="number" value={dayConfig.teacherDuration || 0} onChange={(e) => updateDaySchedule(day, 'teacherDuration', parseInt(e.target.value) || 0)} placeholder="Phút" min={0} max={180} className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center" />)}
+                                {dayConfig.teacher && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <input type="time" step={900} value={dayConfig.teacherStartTime || ''} onChange={(e) => { const s = e.target.value; updateDaySchedule(day, 'teacherStartTime', s); updateDaySchedule(day, 'teacherDuration', calcMinutesBetween(s, dayConfig.teacherEndTime || '')); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-400">-</span>
+                                    <input type="time" step={900} value={dayConfig.teacherEndTime || ''} onChange={(e) => { const end = e.target.value; updateDaySchedule(day, 'teacherEndTime', end); updateDaySchedule(day, 'teacherDuration', calcMinutesBetween(dayConfig.teacherStartTime || '', end)); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-500 whitespace-nowrap">{dayConfig.teacherDuration || 0}p</span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <label className="block text-xs text-purple-600 mb-1">GV Nước ngoài</label>
@@ -874,7 +1016,14 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                                   <option value="">-- Không --</option>
                                   {foreignTeachers.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                                 </select>
-                                {dayConfig.foreignTeacher && (<input type="number" value={dayConfig.foreignTeacherDuration || 0} onChange={(e) => updateDaySchedule(day, 'foreignTeacherDuration', parseInt(e.target.value) || 0)} placeholder="Phút" min={0} max={180} className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center" />)}
+                                {dayConfig.foreignTeacher && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <input type="time" step={900} value={dayConfig.foreignTeacherStartTime || ''} onChange={(e) => { const s = e.target.value; updateDaySchedule(day, 'foreignTeacherStartTime', s); updateDaySchedule(day, 'foreignTeacherDuration', calcMinutesBetween(s, dayConfig.foreignTeacherEndTime || '')); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-400">-</span>
+                                    <input type="time" step={900} value={dayConfig.foreignTeacherEndTime || ''} onChange={(e) => { const end = e.target.value; updateDaySchedule(day, 'foreignTeacherEndTime', end); updateDaySchedule(day, 'foreignTeacherDuration', calcMinutesBetween(dayConfig.foreignTeacherStartTime || '', end)); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-500 whitespace-nowrap">{dayConfig.foreignTeacherDuration || 0}p</span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <label className="block text-xs text-blue-600 mb-1">Trợ giảng</label>
@@ -882,7 +1031,14 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
                                   <option value="">-- Không --</option>
                                   {assistants.map(t => (<option key={t.id} value={t.name}>{t.name}</option>))}
                                 </select>
-                                {dayConfig.assistant && (<input type="number" value={dayConfig.assistantDuration || 0} onChange={(e) => updateDaySchedule(day, 'assistantDuration', parseInt(e.target.value) || 0)} placeholder="Phút" min={0} max={180} className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-xs text-center" />)}
+                                {dayConfig.assistant && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <input type="time" step={900} value={dayConfig.assistantStartTime || ''} onChange={(e) => { const s = e.target.value; updateDaySchedule(day, 'assistantStartTime', s); updateDaySchedule(day, 'assistantDuration', calcMinutesBetween(s, dayConfig.assistantEndTime || '')); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-400">-</span>
+                                    <input type="time" step={900} value={dayConfig.assistantEndTime || ''} onChange={(e) => { const end = e.target.value; updateDaySchedule(day, 'assistantEndTime', end); updateDaySchedule(day, 'assistantDuration', calcMinutesBetween(dayConfig.assistantStartTime || '', end)); }} className="flex-1 min-w-0 px-1 py-1 border border-gray-300 rounded text-xs" />
+                                    <span className="text-xs text-gray-500 whitespace-nowrap">{dayConfig.assistantDuration || 0}p</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="mt-2">

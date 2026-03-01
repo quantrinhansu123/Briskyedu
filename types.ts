@@ -115,15 +115,21 @@ export interface DayScheduleConfig {
   // Giáo viên Việt Nam
   teacherId?: string;
   teacher?: string;
-  teacherDuration?: number; // phút
+  teacherDuration?: number; // phút (auto-calculated từ time range)
+  teacherStartTime?: string; // '18:00' - giờ bắt đầu dạy
+  teacherEndTime?: string;   // '19:30' - giờ kết thúc dạy
   // Trợ giảng
   assistantId?: string;
   assistant?: string;
   assistantDuration?: number; // phút
+  assistantStartTime?: string;
+  assistantEndTime?: string;
   // Giáo viên nước ngoài
   foreignTeacherId?: string;
   foreignTeacher?: string;
   foreignTeacherDuration?: number; // phút
+  foreignTeacherStartTime?: string;
+  foreignTeacherEndTime?: string;
 }
 
 // Lịch sử thay đổi lớp học (giáo viên, lịch học, phòng học...)
@@ -163,10 +169,16 @@ export interface ClassModel {
   teacher: string;
   teacherId?: string;
   teacherDuration?: number; // Thời lượng dạy của GV VN (phút)
+  teacherStartTime?: string; // Giờ bắt đầu dạy GV VN
+  teacherEndTime?: string;   // Giờ kết thúc dạy GV VN
   assistant: string;
   assistantDuration?: number; // Thời lượng dạy của trợ giảng (phút)
+  assistantStartTime?: string;
+  assistantEndTime?: string;
   foreignTeacher?: string;
   foreignTeacherDuration?: number; // Thời lượng dạy của GVNN (phút)
+  foreignTeacherStartTime?: string;
+  foreignTeacherEndTime?: string;
   studentsCount: number;
   trialStudents?: number;
   activeStudents?: number;
@@ -594,6 +606,10 @@ export interface Room {
   type: 'Văn phòng' | 'Phòng học' | 'Phòng chức năng';
   capacity?: number;
   status: 'Hoạt động' | 'Bảo trì';
+  branch?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EnrollmentRecord {
@@ -978,5 +994,18 @@ export interface StaffCheckIn {
 
   createdAt: string;
   updatedAt?: string;
+}
+
+// Center / Branch info
+export interface Center {
+  id: string;
+  name: string;
+  isMain?: boolean;
+  address?: string;
+  phone?: string;
+  email?: string;
+  manager?: string;
+  signatureUrl?: string;
+  status?: string;
 }
 

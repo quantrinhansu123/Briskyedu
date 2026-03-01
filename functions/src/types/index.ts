@@ -25,11 +25,17 @@ export interface ClassData {
   teacher?: string;
   teacherId?: string;
   teacherDuration?: number;
+  teacherStartTime?: string;
+  teacherEndTime?: string;
   assistant?: string;
   assistantId?: string;
   assistantDuration?: number;
+  assistantStartTime?: string;
+  assistantEndTime?: string;
   foreignTeacher?: string;
   foreignTeacherDuration?: number;
+  foreignTeacherStartTime?: string;
+  foreignTeacherEndTime?: string;
   schedule?: string;
   room?: string;
   branch?: string;

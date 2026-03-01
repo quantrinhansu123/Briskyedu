@@ -37,6 +37,7 @@ export interface SalaryRule {
   workMethod: WorkMethod;
   avgStudents?: number;
   ratePerSession: number;
+  ratePerMinute?: number; // Đơn giá theo phút (cho salaryMethod='Theo giờ')
   allowance?: number;
   kpiBonus?: number;
   note?: string;
@@ -152,7 +153,7 @@ export const getSalaryRanges = async (type?: RangeType): Promise<SalaryRangeConf
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data(),
+      ...(doc.data() as Record<string, unknown>),
     } as SalaryRangeConfig));
   } catch (error) {
     console.error('Error getting salary ranges:', error);

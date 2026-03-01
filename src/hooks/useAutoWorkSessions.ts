@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, where, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ClassModel } from '../../types';
+import { getRoleTime } from '../utils/timeUtils';
 
 export type SubstituteReason = 'Nghỉ phép' | 'Nghỉ ốm' | 'Bận việc đột xuất' | 'Nghỉ không lương' | 'Khác';
 
@@ -32,6 +33,7 @@ export interface WorkSession {
   // Thông tin dạy thay
   substituteForStaffName?: string;
   substituteReason?: SubstituteReason;
+  durationMinutes?: number; // Thời lượng thực tế (phút) cho tính lương
 }
 
 // Parse schedule string to get days and time
@@ -295,12 +297,14 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
           
           // Vietnamese teacher
           if (cls.teacher && !isConfirmed(cls.teacher)) {
+            const roleTime = getRoleTime(cls, String(dayOfWeek), 'teacher', timeStart, timeEnd);
             sessions.push({
               staffName: cls.teacher,
               position: 'Giáo viên Việt',
               date: dateStr,
-              timeStart,
-              timeEnd,
+              timeStart: roleTime.start,
+              timeEnd: roleTime.end,
+              durationMinutes: roleTime.minutes,
               classId: cls.id,
               className: cls.name,
               center: cls.branch || '',
@@ -312,12 +316,14 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
 
           // Foreign teacher
           if (cls.foreignTeacher && !isConfirmed(cls.foreignTeacher)) {
+            const roleTime = getRoleTime(cls, String(dayOfWeek), 'foreignTeacher', timeStart, timeEnd);
             sessions.push({
               staffName: cls.foreignTeacher,
               position: 'Giáo viên Nước ngoài',
               date: dateStr,
-              timeStart,
-              timeEnd,
+              timeStart: roleTime.start,
+              timeEnd: roleTime.end,
+              durationMinutes: roleTime.minutes,
               classId: cls.id,
               className: cls.name,
               center: cls.branch || '',
@@ -329,12 +335,14 @@ export const useAutoWorkSessions = (startDate: Date, endDate?: Date) => {
 
           // Assistant
           if (cls.assistant && !isConfirmed(cls.assistant)) {
+            const roleTime = getRoleTime(cls, String(dayOfWeek), 'assistant', timeStart, timeEnd);
             sessions.push({
               staffName: cls.assistant,
               position: 'Trợ giảng',
               date: dateStr,
-              timeStart,
-              timeEnd,
+              timeStart: roleTime.start,
+              timeEnd: roleTime.end,
+              durationMinutes: roleTime.minutes,
               classId: cls.id,
               className: cls.name,
               center: cls.branch || '',

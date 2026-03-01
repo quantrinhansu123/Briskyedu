@@ -24,6 +24,7 @@ export interface WorkSessionDetail {
   type: string;
   salary: number;
   studentCount?: number;
+  durationMinutes?: number;
 }
 
 export const getSalaryReport = async (month?: number, year?: number): Promise<SalarySummary[]> => {
@@ -60,6 +61,8 @@ export const getSalaryReport = async (month?: number, year?: number): Promise<Sa
       // Find salary rule for this staff
       const rule = rules.find(r => r.staffName === staffName);
       const baseRate = rule?.ratePerSession || 200000;
+      const salaryMethod = rule?.salaryMethod || 'Theo ca';
+      const ratePerMinute = rule?.ratePerMinute || 0;
       
       const workDetails: WorkSessionDetail[] = staffSessions.map(s => {
         // Build time string with null checks
@@ -79,8 +82,15 @@ export const getSalaryReport = async (month?: number, year?: number): Promise<Sa
           time: timeStr,
           className: s.className || '-',
           type: s.type || 'Dạy chính',
-          salary: baseRate,
+          salary: (() => {
+            if (salaryMethod === 'Theo giờ' && ratePerMinute > 0) {
+              const minutes = (s as any).durationMinutes || 90;
+              return Math.round(minutes * ratePerMinute);
+            }
+            return baseRate;
+          })(),
           studentCount: s.studentCount,
+          durationMinutes: (s as any).durationMinutes,
         };
       });
       

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Edit, Trash, ChevronDown, RotateCcw, X, BookOpen, Users, Clock, Calendar, UserPlus, UserMinus, Eye, MapPin, User, GraduationCap, CheckCircle } from 'lucide-react';
-import { ClassStatus, ClassModel, Student, StudentStatus, TrainingHistoryEntry, DayScheduleConfig } from '../types';
+import { ClassStatus, ClassModel, Student, StudentStatus, TrainingHistoryEntry, DayScheduleConfig, TeacherChangePayload } from '../types';
 import { useClasses } from '../src/hooks/useClasses';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useAuth } from '../src/hooks/useAuth';
@@ -13,6 +13,7 @@ import { CLASS_COLOR_PALETTE, hashClassName } from './Schedule';
 import { formatDisplayDate } from '../src/utils/dateUtils';
 import { normalizeStudentStatus as normalizeStatus } from '../src/utils/statusUtils';
 import { validateTotalSessionsChange } from '../src/services/classService';
+import { TeacherChangeDialog, TeacherChange } from '../components/teacher-change-dialog';
 import { getStudentSessionData } from '../src/utils/student-session-utils';
 import {
   ClassFormModal,
@@ -45,6 +46,14 @@ export const ClassManager: React.FC = () => {
   const [selectedClassForAction, setSelectedClassForAction] = useState<ClassModel | null>(null);
   const [selectedClassForStudents, setSelectedClassForStudents] = useState<ClassModel | null>(null);
   const [selectedClassForDetail, setSelectedClassForDetail] = useState<ClassModel | null>(null);
+
+  // Teacher change dialog state
+  const [showTeacherChangeDialog, setShowTeacherChangeDialog] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{
+    id: string;
+    data: Partial<ClassModel>;
+    teacherChanges: TeacherChange[];
+  } | null>(null);
 
   // Permissions
   const { canCreate, canEdit, canDelete, shouldShowOnlyOwnClasses, shouldHideParentPhone, staffId } = usePermissions();
@@ -361,118 +370,197 @@ export const ClassManager: React.FC = () => {
         }
       }
 
-      // Detect changes and create training history entries
-      const historyEntries: TrainingHistoryEntry[] = [];
-      const now = new Date().toISOString();
+      // Detect teacher/assistant/foreignTeacher changes → open dialog
+      const teacherChanges: TeacherChange[] = [];
 
-      // Check schedule change
-      if (data.schedule && data.schedule !== existingClass.schedule) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_schedule`,
-          date: now,
-          type: 'schedule_change',
-          description: 'Thay đổi lịch học',
-          oldValue: existingClass.schedule || 'Chưa có',
-          newValue: data.schedule,
-          changedBy: user?.displayName || 'System'
+      if (data.teacher !== undefined && data.teacher !== existingClass.teacher) {
+        teacherChanges.push({
+          role: 'Giáo viên chính',
+          oldName: existingClass.teacher,
+          newName: data.teacher,
+          field: 'teacher',
         });
       }
-
-      // Check teacher change
-      if (data.teacher && data.teacher !== existingClass.teacher) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_teacher`,
-          date: now,
-          type: 'teacher_change',
-          description: 'Thay đổi giáo viên chính',
-          oldValue: existingClass.teacher || 'Chưa có',
-          newValue: data.teacher,
-          changedBy: user?.displayName || 'System'
-        });
-      }
-
-      // Check assistant change
-      if (data.assistant !== undefined && data.assistant !== existingClass.assistant) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_assistant`,
-          date: now,
-          type: 'teacher_change',
-          description: 'Thay đổi trợ giảng',
-          oldValue: existingClass.assistant || 'Chưa có',
-          newValue: data.assistant || 'Không có',
-          changedBy: user?.displayName || 'System'
-        });
-      }
-
-      // Check foreign teacher change
       if (data.foreignTeacher !== undefined && data.foreignTeacher !== existingClass.foreignTeacher) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_foreign`,
-          date: now,
-          type: 'teacher_change',
-          description: 'Thay đổi giáo viên nước ngoài',
-          oldValue: existingClass.foreignTeacher || 'Chưa có',
-          newValue: data.foreignTeacher || 'Không có',
-          changedBy: user?.displayName || 'System'
+        teacherChanges.push({
+          role: 'Giáo viên nước ngoài',
+          oldName: existingClass.foreignTeacher || '',
+          newName: data.foreignTeacher || '',
+          field: 'foreignTeacher',
+        });
+      }
+      if (data.assistant !== undefined && data.assistant !== existingClass.assistant) {
+        teacherChanges.push({
+          role: 'Trợ giảng',
+          oldName: existingClass.assistant || '',
+          newName: data.assistant || '',
+          field: 'assistant',
         });
       }
 
-      // Check room change
-      if (data.room !== undefined && data.room !== existingClass.room) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_room`,
-          date: now,
-          type: 'room_change',
-          description: 'Thay đổi phòng học',
-          oldValue: existingClass.room || 'Chưa có',
-          newValue: data.room || 'Không có',
-          changedBy: user?.displayName || 'System'
-        });
+      if (teacherChanges.length > 0) {
+        // Pause update - open dialog to ask for effective date
+        setPendingUpdate({ id, data, teacherChanges });
+        setShowTeacherChangeDialog(true);
+        return;
       }
 
-      // Check status change
-      if (data.status && data.status !== existingClass.status) {
-        historyEntries.push({
-          id: `TH_${Date.now()}_status`,
-          date: now,
-          type: 'status_change',
-          description: 'Thay đổi trạng thái lớp',
-          oldValue: existingClass.status || 'Chưa có',
-          newValue: data.status,
-          changedBy: user?.displayName || 'System'
-        });
-      }
-
-      // Merge new history entries with existing
-      if (historyEntries.length > 0) {
-        const existingHistory = existingClass.trainingHistory || [];
-        data.trainingHistory = [...existingHistory, ...historyEntries];
-      }
-
-      console.log('[handleUpdate] Updating class with data:', data);
-      await updateClass(id, data);
-      console.log('[handleUpdate] Update successful');
-      setShowEditModal(false);
-      setEditingClass(null);
-      
-      // Hiển thị thông báo thành công
-      setToast({ type: 'success', message: 'Cập nhật lớp học thành công!' });
-      setTimeout(() => setToast(null), 3000);
-      
-      // Wait for realtime update then reopen detail modal
-      setTimeout(() => {
-        const updatedClass = classes.find(c => c.id === id);
-        if (updatedClass) {
-          const mergedClass = { ...updatedClass, ...data };
-          setSelectedClassForDetail(mergedClass as ClassModel);
-          setShowDetailModal(true);
-        }
-      }, 200);
+      // No teacher changes → update directly
+      await performClassUpdate(id, data, existingClass);
     } catch (err: any) {
       console.error('Error updating class:', err);
       setToast({ type: 'error', message: 'Lỗi khi cập nhật: ' + (err.message || 'Vui lòng thử lại') });
       setTimeout(() => setToast(null), 5000);
     }
+  };
+
+  // Called when user confirms effective date in TeacherChangeDialog
+  const handleTeacherChangeConfirm = async (effectiveDate: string) => {
+    if (!pendingUpdate) return;
+    const { id, data, teacherChanges } = pendingUpdate;
+
+    const existingClass = classes.find(c => c.id === id);
+    if (!existingClass) return;
+
+    // Add TeacherChangePayload fields so CF knows which date to cascade from
+    const payload: Partial<ClassModel> & Partial<TeacherChangePayload> = { ...data };
+
+    for (const change of teacherChanges) {
+      if (change.field === 'teacher') {
+        payload.teacherChangeEffectiveDate = effectiveDate;
+        payload.teacherChangeOldTeacher = change.oldName;
+        payload.teacherChangeOldTeacherId = existingClass.teacherId;
+      } else if (change.field === 'foreignTeacher') {
+        payload.foreignTeacherChangeEffectiveDate = effectiveDate;
+        payload.foreignTeacherChangeOldTeacher = change.oldName;
+      } else if (change.field === 'assistant') {
+        payload.assistantChangeEffectiveDate = effectiveDate;
+        payload.assistantChangeOldAssistant = change.oldName;
+      }
+    }
+
+    try {
+      await performClassUpdate(id, payload, existingClass, effectiveDate);
+    } catch (err: any) {
+      console.error('Error updating class:', err);
+      setToast({ type: 'error', message: 'Lỗi khi cập nhật: ' + (err.message || 'Vui lòng thử lại') });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setShowTeacherChangeDialog(false);
+      setPendingUpdate(null);
+    }
+  };
+
+  // Actual class update logic (shared by handleUpdate and handleTeacherChangeConfirm)
+  const performClassUpdate = async (
+    id: string,
+    data: Partial<ClassModel> & Partial<TeacherChangePayload>,
+    existingClass: ClassModel,
+    effectiveDate?: string
+  ) => {
+    // Detect changes and create training history entries
+    const historyEntries: TrainingHistoryEntry[] = [];
+    const now = new Date().toISOString();
+
+    if (data.schedule && data.schedule !== existingClass.schedule) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_schedule`,
+        date: now,
+        type: 'schedule_change',
+        description: 'Thay đổi lịch học',
+        oldValue: existingClass.schedule || 'Chưa có',
+        newValue: data.schedule,
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    if (data.teacher && data.teacher !== existingClass.teacher) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_teacher`,
+        date: now,
+        type: 'teacher_change',
+        description: 'Thay đổi giáo viên chính',
+        oldValue: existingClass.teacher || 'Chưa có',
+        newValue: data.teacher,
+        effectiveDate,
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    if (data.assistant !== undefined && data.assistant !== existingClass.assistant) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_assistant`,
+        date: now,
+        type: 'teacher_change',
+        description: 'Thay đổi trợ giảng',
+        oldValue: existingClass.assistant || 'Chưa có',
+        newValue: data.assistant || 'Không có',
+        effectiveDate,
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    if (data.foreignTeacher !== undefined && data.foreignTeacher !== existingClass.foreignTeacher) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_foreign`,
+        date: now,
+        type: 'teacher_change',
+        description: 'Thay đổi giáo viên nước ngoài',
+        oldValue: existingClass.foreignTeacher || 'Chưa có',
+        newValue: data.foreignTeacher || 'Không có',
+        effectiveDate,
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    if (data.room !== undefined && data.room !== existingClass.room) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_room`,
+        date: now,
+        type: 'room_change',
+        description: 'Thay đổi phòng học',
+        oldValue: existingClass.room || 'Chưa có',
+        newValue: data.room || 'Không có',
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    if (data.status && data.status !== existingClass.status) {
+      historyEntries.push({
+        id: `TH_${Date.now()}_status`,
+        date: now,
+        type: 'status_change',
+        description: 'Thay đổi trạng thái lớp',
+        oldValue: existingClass.status || 'Chưa có',
+        newValue: data.status,
+        changedBy: user?.displayName || 'System'
+      });
+    }
+
+    // Merge new history entries with existing
+    if (historyEntries.length > 0) {
+      const existingHistory = existingClass.trainingHistory || [];
+      data.trainingHistory = [...existingHistory, ...historyEntries];
+    }
+
+    console.log('[handleUpdate] Updating class with data:', data);
+    await updateClass(id, data);
+    console.log('[handleUpdate] Update successful');
+    setShowEditModal(false);
+    setEditingClass(null);
+
+    setToast({ type: 'success', message: 'Cập nhật lớp học thành công!' });
+    setTimeout(() => setToast(null), 3000);
+
+    // Wait for realtime update then reopen detail modal
+    setTimeout(() => {
+      const updatedClass = classes.find(c => c.id === id);
+      if (updatedClass) {
+        const mergedClass = { ...updatedClass, ...data };
+        setSelectedClassForDetail(mergedClass as ClassModel);
+        setShowDetailModal(true);
+      }
+    }, 200);
   };
 
   const handleDelete = async (id: string) => {
@@ -1005,6 +1093,18 @@ export const ClassManager: React.FC = () => {
           canEdit={canEditClass}
         />
       )}
+
+      {/* Teacher Change Effective Date Dialog */}
+      <TeacherChangeDialog
+        open={showTeacherChangeDialog}
+        onClose={() => {
+          setShowTeacherChangeDialog(false);
+          setPendingUpdate(null);
+        }}
+        onConfirm={handleTeacherChangeConfirm}
+        changes={pendingUpdate?.teacherChanges || []}
+        classStartDate={pendingUpdate ? classes.find(c => c.id === pendingUpdate.id)?.startDate : undefined}
+      />
     </div>
   );
 };

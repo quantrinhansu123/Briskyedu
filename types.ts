@@ -136,6 +136,20 @@ export interface TrainingHistoryEntry {
   newValue?: string; // Giá trị mới
   changedBy?: string; // Người thay đổi
   note?: string; // Ghi chú thêm
+  effectiveDate?: string; // Ngày hiệu lực (YYYY-MM-DD), khác date (ngày thao tác)
+}
+
+// Payload tạm khi đổi GV - client lưu lên class doc, CF đọc rồi xoá
+export interface TeacherChangePayload {
+  teacherChangeEffectiveDate?: string;       // YYYY-MM-DD
+  teacherChangeOldTeacher?: string;          // Tên GV cũ
+  teacherChangeOldTeacherId?: string;        // ID GV cũ
+  assistantChangeEffectiveDate?: string;
+  assistantChangeOldAssistant?: string;
+  assistantChangeOldAssistantId?: string;
+  foreignTeacherChangeEffectiveDate?: string;
+  foreignTeacherChangeOldTeacher?: string;
+  foreignTeacherChangeOldTeacherId?: string;
 }
 
 export interface ClassModel {

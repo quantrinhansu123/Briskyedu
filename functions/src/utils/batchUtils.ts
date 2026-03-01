@@ -84,7 +84,7 @@ export async function cascadeDelete(
   queryValue: string
 ): Promise<number> {
   const db = admin.firestore();
-  
+
   const snapshot = await db
     .collection(collection)
     .where(queryField, '==', queryValue)
@@ -95,6 +95,35 @@ export async function cascadeDelete(
   const operations: BatchOperation[] = snapshot.docs.map(doc => ({
     type: 'delete' as const,
     ref: doc.ref
+  }));
+
+  return executeBatch(operations);
+}
+
+/**
+ * Cascade update với điều kiện date >= effectiveDate
+ * Dùng khi đổi GV - chỉ update sessions từ ngày hiệu lực trở đi
+ */
+export async function cascadeUpdateFromDate(
+  collectionName: string,
+  classId: string,
+  effectiveDate: string, // YYYY-MM-DD
+  updateFields: Record<string, any>
+): Promise<number> {
+  const db = admin.firestore();
+
+  const snapshot = await db
+    .collection(collectionName)
+    .where('classId', '==', classId)
+    .where('date', '>=', effectiveDate)
+    .get();
+
+  if (snapshot.empty) return 0;
+
+  const operations: BatchOperation[] = snapshot.docs.map(doc => ({
+    type: 'update' as const,
+    ref: doc.ref,
+    data: updateFields
   }));
 
   return executeBatch(operations);

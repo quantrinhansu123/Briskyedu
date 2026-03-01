@@ -13,7 +13,7 @@ import {
   QueryConstraint
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { ClassModel, ClassStatus } from '../../types';
+import { ClassModel, ClassStatus, TeacherChangePayload } from '../../types';
 import {
   validateDeleteClass,
   cascadeDeleteClass,
@@ -165,7 +165,7 @@ export class ClassService {
   }
   
   // Update class
-  static async updateClass(id: string, updates: Partial<ClassModel>): Promise<void> {
+  static async updateClass(id: string, updates: Partial<ClassModel> & Partial<TeacherChangePayload>): Promise<void> {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
 

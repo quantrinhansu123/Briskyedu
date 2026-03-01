@@ -11,7 +11,8 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClassData, SessionData } from '../types';
 import { parseSchedule, generateSessionDates } from '../utils/scheduleParser';
-import { cascadeUpdate, executeBatch, BatchOperation } from '../utils/batchUtils';
+import { cascadeUpdate, executeBatch, BatchOperation, cascadeUpdateFromDate } from '../utils/batchUtils';
+import { cancelOldTeacherWorkSessions, createNewTeacherWorkSessions } from '../utils/work-session-utils';
 
 const db = admin.firestore();
 const REGION = 'asia-southeast1';
@@ -105,6 +106,24 @@ export const onClassUpdate = functions
     const before = change.before.data() as ClassData;
     const after = change.after.data() as ClassData;
 
+    // Transient fields used for teacher change cascade - cleaned up after processing
+    const TRANSIENT_KEYS = [
+      'teacherChangeEffectiveDate', 'teacherChangeOldTeacher', 'teacherChangeOldTeacherId',
+      'assistantChangeEffectiveDate', 'assistantChangeOldAssistant', 'assistantChangeOldAssistantId',
+      'foreignTeacherChangeEffectiveDate', 'foreignTeacherChangeOldTeacher', 'foreignTeacherChangeOldTeacherId',
+    ];
+
+    // Guard: skip if this is just a cleanup of transient fields (no real changes)
+    const isCleanupOnly = TRANSIENT_KEYS.some(k => (before as any)[k] && !(after as any)[k]) &&
+      before.teacher === after.teacher &&
+      before.foreignTeacher === after.foreignTeacher &&
+      before.assistant === after.assistant;
+
+    if (isCleanupOnly) {
+      console.log('[onClassUpdate] Cleanup-only update, skipping');
+      return null;
+    }
+
     console.log(`[onClassUpdate] Class updated: ${after.name} (${classId})`);
 
     const updates: Promise<number>[] = [];
@@ -158,16 +177,34 @@ export const onClassUpdate = functions
     // 2. Cascade teacher changes to sessions
     if (before.teacher !== after.teacher) {
       console.log(`[onClassUpdate] Teacher changed: "${before.teacher}" → "${after.teacher}"`);
-      
-      updates.push(
-        cascadeUpdate('classSessions', 'classId', classId, {
-          teacherName: after.teacher || null
-        }).then(count => {
-          console.log(`[onClassUpdate] Updated teacher in ${count} sessions`);
-          return count;
-        })
-      );
-      
+
+      const effectiveDate = after.teacherChangeEffectiveDate;
+      // Cascade cả teacherName + teacherId (fix: trước chỉ cascade teacherName)
+      const cascadeFields = {
+        teacherName: after.teacher || null,
+        teacherId: after.teacherId || null,
+      };
+
+      if (effectiveDate) {
+        // Có ngày hiệu lực → chỉ update sessions từ ngày đó trở đi
+        updates.push(
+          cascadeUpdateFromDate('classSessions', classId, effectiveDate, cascadeFields)
+            .then(count => {
+              console.log(`[onClassUpdate] Updated teacher in ${count} sessions from ${effectiveDate}`);
+              return count;
+            })
+        );
+      } else {
+        // Không có ngày hiệu lực → cascade toàn bộ (backward compatible)
+        updates.push(
+          cascadeUpdate('classSessions', 'classId', classId, cascadeFields)
+            .then(count => {
+              console.log(`[onClassUpdate] Updated teacher in ${count} sessions (all)`);
+              return count;
+            })
+        );
+      }
+
       // Add training history entry
       if (!historyAlreadyUpdated) {
         historyEntries.push({
@@ -177,26 +214,77 @@ export const onClassUpdate = functions
           description: 'Thay đổi giáo viên chính',
           oldValue: before.teacher || 'Chưa có',
           newValue: after.teacher || 'Không có',
+          effectiveDate: effectiveDate || now.split('T')[0],
           changedBy: 'Cloud Function'
         });
+      }
+
+      // WorkSession management: cancel old, create new
+      if (effectiveDate && after.teacherChangeOldTeacher) {
+        updates.push(
+          cancelOldTeacherWorkSessions(classId, after.teacherChangeOldTeacher, effectiveDate, 'Dạy chính')
+            .then(result => {
+              console.log(`[onClassUpdate] Cancelled ${result.cancelled} old WS, kept ${result.keptConfirmed} confirmed`);
+              if (result.keptConfirmed > 0) {
+                console.warn(`[onClassUpdate] WARNING: ${result.keptConfirmed} confirmed workSessions of old teacher kept. Admin review needed.`);
+              }
+              return result.cancelled;
+            })
+        );
+        updates.push(
+          createNewTeacherWorkSessions(
+            classId, after.name, after.teacher || '', after.teacherId || null,
+            effectiveDate, 'Dạy chính', 'Giáo viên Việt'
+          ).then(count => {
+              console.log(`[onClassUpdate] Created ${count} new WS for ${after.teacher}`);
+              return count;
+            })
+        );
       }
     }
     
     // Check assistant change
-    if (before.assistant !== after.assistant && !historyAlreadyUpdated) {
-      historyEntries.push({
-        id: `TH_${Date.now()}_assistant_cf`,
-        date: now,
-        type: 'teacher_change',
-        description: 'Thay đổi trợ giảng',
-        oldValue: before.assistant || 'Chưa có',
-        newValue: after.assistant || 'Không có',
-        changedBy: 'Cloud Function'
-      });
+    if (before.assistant !== after.assistant) {
+      const effectiveDate = after.assistantChangeEffectiveDate;
+      if (!historyAlreadyUpdated) {
+        historyEntries.push({
+          id: `TH_${Date.now()}_assistant_cf`,
+          date: now,
+          type: 'teacher_change',
+          description: 'Thay đổi trợ giảng',
+          oldValue: before.assistant || 'Chưa có',
+          newValue: after.assistant || 'Không có',
+          effectiveDate: effectiveDate || now.split('T')[0],
+          changedBy: 'Cloud Function'
+        });
+      }
+
+      // WorkSession management for assistant
+      if (effectiveDate && after.assistantChangeOldAssistant) {
+        updates.push(
+          cancelOldTeacherWorkSessions(classId, after.assistantChangeOldAssistant, effectiveDate, 'Trợ giảng')
+            .then(result => {
+              console.log(`[onClassUpdate] Cancelled ${result.cancelled} old assistant WS`);
+              return result.cancelled;
+            })
+        );
+        if (after.assistant) {
+          updates.push(
+            createNewTeacherWorkSessions(
+              classId, after.name, after.assistant, after.assistantId || null,
+              effectiveDate, 'Trợ giảng', 'Trợ giảng'
+            ).then(count => {
+              console.log(`[onClassUpdate] Created ${count} new WS for assistant ${after.assistant}`);
+              return count;
+            })
+          );
+        }
+      }
     }
-    
+
     // Check foreign teacher change
     if (before.foreignTeacher !== after.foreignTeacher && !historyAlreadyUpdated) {
+      const effectiveDate = after.foreignTeacherChangeEffectiveDate;
       historyEntries.push({
         id: `TH_${Date.now()}_foreign_cf`,
         date: now,
@@ -204,6 +292,7 @@ export const onClassUpdate = functions
         description: 'Thay đổi giáo viên nước ngoài',
         oldValue: before.foreignTeacher || 'Chưa có',
         newValue: after.foreignTeacher || 'Không có',
+        effectiveDate: effectiveDate || now.split('T')[0],
         changedBy: 'Cloud Function'
       });
     }
@@ -304,7 +393,21 @@ export const onClassUpdate = functions
         console.error(`[onClassUpdate] Error updating training history:`, err);
       }
     }
-    
+
+    // 6. Cleanup transient teacher-change fields from class doc
+    const cleanupFields: Record<string, any> = {};
+    for (const key of TRANSIENT_KEYS) {
+      if ((after as any)[key] !== undefined) {
+        cleanupFields[key] = admin.firestore.FieldValue.delete();
+      }
+    }
+
+    if (Object.keys(cleanupFields).length > 0) {
+      console.log(`[onClassUpdate] Cleaning up ${Object.keys(cleanupFields).length} transient fields`);
+      // This triggers onClassUpdate again, but guard clause catches it (cleanup-only)
+      await change.after.ref.update(cleanupFields);
+    }
+
     return null;
   });
 

@@ -11,6 +11,7 @@ export interface TrainingHistoryEntry {
   newValue?: string;
   changedBy?: string;
   note?: string;
+  effectiveDate?: string; // Ngày hiệu lực (YYYY-MM-DD)
 }
 
 export interface ClassData {
@@ -25,6 +26,7 @@ export interface ClassData {
   teacherId?: string;
   teacherDuration?: number;
   assistant?: string;
+  assistantId?: string;
   assistantDuration?: number;
   foreignTeacher?: string;
   foreignTeacherDuration?: number;
@@ -37,6 +39,16 @@ export interface ClassData {
   trainingHistory?: TrainingHistoryEntry[];
   createdAt?: FirebaseFirestore.Timestamp;
   updatedAt?: FirebaseFirestore.Timestamp;
+  // Transient fields - CF reads then deletes after cascade
+  teacherChangeEffectiveDate?: string;
+  teacherChangeOldTeacher?: string;
+  teacherChangeOldTeacherId?: string;
+  assistantChangeEffectiveDate?: string;
+  assistantChangeOldAssistant?: string;
+  assistantChangeOldAssistantId?: string;
+  foreignTeacherChangeEffectiveDate?: string;
+  foreignTeacherChangeOldTeacher?: string;
+  foreignTeacherChangeOldTeacherId?: string;
 }
 
 export interface StudentData {

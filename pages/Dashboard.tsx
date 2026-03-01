@@ -344,7 +344,7 @@ export const Dashboard: React.FC = () => {
 
       // Fetch contracts for revenue
       const contractsSnap = await getDocs(collection(db, 'contracts'));
-      const allContracts = contractsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const allContracts = contractsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Record<string, any>));
 
       // Apply branch filter
       const filterByBranch = (items: any[], branchFields = ['branch', 'center', 'centerName']) => {

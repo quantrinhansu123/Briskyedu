@@ -18,6 +18,7 @@ import { Plus, Minus } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getStudentSessionData } from '../src/utils/student-session-utils';
 import { ModalPortal } from '@/components/modal-portal';
+import { StudentStatus, EnrollmentRecord } from '../types';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -355,8 +356,8 @@ export const StudentDetail: React.FC = () => {
       avgScore: calcAvg(withScores.map(f => f.averageScore || 0)),
       teacherAvg: calcAvg(allFeedbacks.filter(f => f.teacherScore).map(f => f.teacherScore || 0)),
       curriculumAvg: calcAvg(allFeedbacks.filter(f => f.curriculumScore).map(f => f.curriculumScore || 0)),
-      serviceAvg: calcAvg(allFeedbacks.filter(f => f.customerServiceScore).map(f => f.customerServiceScore || 0)),
-      facilityAvg: calcAvg(allFeedbacks.filter(f => f.facilityScore).map(f => f.facilityScore || 0)),
+      serviceAvg: calcAvg(allFeedbacks.filter(f => f.careScore).map(f => f.careScore || 0)),
+      facilityAvg: calcAvg(allFeedbacks.filter(f => f.facilitiesScore).map(f => f.facilitiesScore || 0)),
     };
   };
 
@@ -1409,12 +1410,11 @@ export const StudentDetail: React.FC = () => {
                     await updateStudent(id!, {
                       classId: enrollForm.classId,
                       class: selectedClass.name,
-                      status: 'Đang học', // Update status to active
+                      status: StudentStatus.ACTIVE, // Update status to active
                       enrollmentDate: enrollForm.startDate,
                       registeredSessions: enrollForm.sessions, // Số buổi đăng ký (để track nợ phí)
                       attendedSessions: 0, // Reset attended sessions
                       startSessionNumber: nextSessionInfo?.sessionNumber || 1, // Buổi bắt đầu học
-                      enrollmentNotes: enrollForm.notes,
                     });
                     
                     alert('Đã đăng ký lớp thành công!'); 
@@ -1735,7 +1735,6 @@ export const StudentDetail: React.FC = () => {
                       createdDate: new Date().toLocaleDateString('vi-VN'),
                       createdBy: user?.displayName || user?.email || 'Unknown',
                       note: `${manualEnrollForm.action === 'add' ? 'Thêm' : 'Trừ'} ${manualEnrollForm.sessions} buổi - ${manualEnrollForm.reason}`,
-                      courseName: student.className || '',
                       classId: student.classId || '',
                       className: student.className || '',
                     });

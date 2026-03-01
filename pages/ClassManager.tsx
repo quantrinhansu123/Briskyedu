@@ -606,7 +606,7 @@ export const ClassManager: React.FC = () => {
           ageGroup: row.ageGroup || '',
           schedule: row.schedule || '',
           startDate: row.startDate || '',
-          status: row.status || ClassStatus.ACTIVE,
+          status: row.status || ClassStatus.STUDYING,
           maxStudents: parseInt(row.maxStudents) || 20,
           studentIds: [],
         } as any);

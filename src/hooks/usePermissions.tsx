@@ -3,7 +3,7 @@
  * Hook để kiểm tra quyền của user hiện tại
  */
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useAuth } from './useAuth';
 import {
   UserRole,

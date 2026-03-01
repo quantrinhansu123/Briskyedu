@@ -109,17 +109,15 @@ describe('Enrollment Service - Deduplication', () => {
     const newEnrollmentData: Omit<EnrollmentRecord, 'id'> = {
       studentId: 'student123',
       studentName: 'Test Student',
-      studentCode: 'TS001',
       classId: 'class456',
       className: 'Lớp A',
       contractCode: 'CTR001',
       contractId: 'contract789',
-      contractValue: 5000000,
       sessions: 20,
       type: 'Hợp đồng mới',
       createdDate: '29/12/2025',
       notes: '',
-      status: 'Đang học'
+      createdBy: 'test-user',
     };
 
     it('should return existing ID if duplicate enrollment found', async () => {

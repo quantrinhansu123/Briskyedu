@@ -34,7 +34,8 @@ const LEAVE_TYPES: LeaveType[] = [
 ];
 
 export const LeaveRequestManager: React.FC = () => {
-  const { staffId, staffData } = useAuth();
+  const { user, staffData } = useAuth();
+  const staffId = staffData?.id || user?.uid;
   const { canApprove } = usePermissions();
   const canApproveLeave = canApprove('leave_request');
 

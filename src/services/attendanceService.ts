@@ -553,7 +553,7 @@ export const saveFullAttendance = async (
     console.log('[saveFullAttendance] Student statuses:', students.map(s => ({ name: s.studentName, status: s.status })));
 
     // Filter out students with PENDING status (not yet marked)
-    const markedStudents = students.filter(s => s.status && s.status !== AttendanceStatus.PENDING);
+    const markedStudents = students.filter(s => s.status && s.status !== ('' as AttendanceStatus));
     console.log('[saveFullAttendance] Marked students after filter:', markedStudents.length);
 
     // Calculate summary from marked students only (ON_TIME + LATE = present)

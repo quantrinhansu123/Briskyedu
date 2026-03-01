@@ -286,7 +286,7 @@ export const recordPayment = async (
       paidAmount: newPaidAmount,
       remainingAmount: newRemainingAmount,
       paymentDate: paymentDate || new Date().toISOString(),
-      status: newRemainingAmount === 0 ? ContractStatus.PAID : ContractStatus.DEBT,
+      status: newRemainingAmount === 0 ? ContractStatus.PAID : ContractStatus.PARTIAL,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {

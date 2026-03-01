@@ -134,9 +134,10 @@ export const CurriculumManager: React.FC = () => {
         await curriculumService.createCurriculum({
           name: row.name,
           code: row.code || code,
-          program: row.program || 'Tiếng Anh Trẻ Em',
           level: row.level || 'Beginner',
           totalSessions: parseInt(row.totalSessions) || 48,
+          duration: 0,
+          sessionDuration: 90,
           tuitionFee: parseInt(String(row.tuitionFee).replace(/\D/g, '')) || 0,
           description: row.description || '',
           status: row.status || 'Active',

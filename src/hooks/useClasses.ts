@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { ClassModel, ClassStatus } from '../types';
+import { ClassModel, ClassStatus } from '../../types';
 import { ClassService } from '../services/classService';
 
 // Helper to convert Timestamp to date string

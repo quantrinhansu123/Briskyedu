@@ -123,7 +123,7 @@ export const AttendanceHistory: React.FC = () => {
     return allStaff.filter(s => 
       s.position?.toLowerCase().includes('giáo viên') ||
       s.position?.toLowerCase().includes('trợ giảng') ||
-      s.role === 'teacher'
+      s.role === 'Giáo viên'
     );
   }, [allStaff]);
 

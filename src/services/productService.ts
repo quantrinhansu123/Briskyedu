@@ -29,6 +29,7 @@ export interface Product {
   category: ProductCategory;
   price: number;
   stock: number;
+  branchStock?: Record<string, number>;
   minStock?: number;
   description?: string;
   status: ProductStatus;

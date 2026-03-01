@@ -40,6 +40,8 @@ interface CenterInfo {
   phone: string;
   email: string;
   signatureUrl?: string;
+  branches?: string[];
+  logoUrl?: string;
 }
 
 const DEFAULT_CENTER_INFO: CenterInfo = {
@@ -469,7 +471,7 @@ export const ContractCreation: React.FC = () => {
       totalSessions: totalSessions,
       pricePerSession: totalSessions > 0 ? Math.round(tuitionFee / totalSessions) : 0,
       totalPrice: tuitionFee,
-      status: c.status,
+      status: (c.status === 'Active' || c.status === 'Inactive' ? c.status : 'Active') as 'Active' | 'Inactive',
       createdAt: c.createdAt || '',
       updatedAt: c.updatedAt || '',
     };
@@ -482,7 +484,7 @@ export const ContractCreation: React.FC = () => {
     price: p.price,
     category: p.category,
     stock: p.stock,
-    status: p.status,
+    status: (p.status === 'Kích hoạt' || p.status === 'Tạm khoá' ? p.status : 'Kích hoạt') as 'Kích hoạt' | 'Tạm khoá',
   }));
 
   // Auto-select student if coming from TrialStudents page

@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, X, AlertTriangle, Edit2, Settings } from 'lucide-react';
+import { Plus, Trash2, X, AlertTriangle, Edit2, Settings, Award } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { Student, TestComment, TestTemplate } from '../../../../types';

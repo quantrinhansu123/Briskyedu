@@ -271,7 +271,7 @@ export const TrialStudents: React.FC = () => {
         trialHistory: editForm.trialHistory,
         // If status changes to "Đã đăng ký", update main status
         ...(editForm.trialStatus === 'Đã đăng ký' && { status: StudentStatus.ACTIVE }),
-        ...(editForm.trialStatus === 'Không đăng ký' && { status: StudentStatus.INACTIVE })
+        ...(editForm.trialStatus === 'Không đăng ký' && { status: StudentStatus.DROPPED })
       } as any);
       
       setShowEditModal(false);

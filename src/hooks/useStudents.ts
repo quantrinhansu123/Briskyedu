@@ -60,7 +60,7 @@ export const useStudents = (filters?: {
 
           // Client-side class filter
           if (filters?.classId) {
-            studentsList = studentsList.filter(s => s.currentClassId === filters.classId);
+            studentsList = studentsList.filter(s => s.classId === filters.classId);
           }
 
           setStudents(studentsList);

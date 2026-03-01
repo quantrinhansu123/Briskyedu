@@ -85,7 +85,7 @@ export async function batchGetByField<T extends Record<string, unknown>>(
     );
     const snapshot = await getDocs(q);
     snapshot.docs.forEach(doc => {
-      const data = { id: doc.id, ...doc.data() } as T;
+      const data = { id: doc.id, ...(doc.data() as Record<string, unknown>) } as unknown as T;
       const fieldValue = data[fieldName] as string;
       const existing = results.get(fieldValue) || [];
       existing.push(data);

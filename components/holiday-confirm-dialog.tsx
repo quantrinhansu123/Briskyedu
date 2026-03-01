@@ -64,14 +64,14 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
-        className="bg-gray-50 rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
         style={{ maxWidth: 480 }}
         role="dialog"
         aria-modal="true"
       >
         {/* Accent strip + Header */}
         <div className={isDanger ? 'bg-red-500 h-1' : 'bg-amber-500 h-1'} />
-        <div className="bg-white px-6 pt-5 pb-4">
+        <div className="px-6 pt-5 pb-4">
           <div className="flex items-start gap-3">
             <div className={`p-2.5 rounded-xl flex-shrink-0 ${isDanger ? 'bg-red-50' : 'bg-amber-50'}`}>
               {isDanger
@@ -157,7 +157,7 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="bg-white px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
           <button
             onClick={onCancel}
             disabled={processing}

@@ -131,9 +131,14 @@ export const HolidayConfirmDialog: React.FC<HolidayConfirmDialogProps> = ({
                   </table>
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 italic text-center py-4">
-                  Không có buổi học nào bị ảnh hưởng.
-                </p>
+                <div className="text-center py-4 space-y-1">
+                  <p className="text-sm text-gray-400 italic">
+                    Không có buổi học nào bị ảnh hưởng.
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Có thể các buổi học trong khoảng thời gian này đã hoàn thành hoặc không tồn tại.
+                  </p>
+                </div>
               )}
 
               {/* Summary */}

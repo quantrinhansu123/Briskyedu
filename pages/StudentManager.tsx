@@ -36,8 +36,8 @@ import { ModalPortal } from '@/components/modal-portal';
 
 // Constants for table column count
 const STUDENT_TABLE_COLUMNS = {
-  base: 12,  // Standard columns count (removed "Nợ bù" column)
-  withDropoutReason: 13  // When showing dropout reason column
+  base: 13,  // Standard columns count + selection checkbox column
+  withDropoutReason: 14  // When showing dropout reason column
 };
 
 interface StudentManagerProps {
@@ -74,6 +74,8 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
   const [actionDropdownId, setActionDropdownId] = useState<string | null>(null);
   const [dropdownAnchorRect, setDropdownAnchorRect] = useState<DOMRect | null>(null);
   const [showLegacyImportModal, setShowLegacyImportModal] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   
   // Post-creation modal state
   const [showPostCreateModal, setShowPostCreateModal] = useState(false);
@@ -208,6 +210,13 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
       return matchesStatus && matchesSearch && matchesBirthday && matchesClass && matchesBranch;
     });
   }, [students, filterStatus, searchTerm, birthdayMonth, filterClass, filterBranch, classes]);
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredStudents.map(s => s.id));
+    setSelectedStudentIds(prev => prev.filter(id => visibleIds.has(id)));
+  }, [filteredStudents]);
+
+  const allVisibleSelected = filteredStudents.length > 0 && selectedStudentIds.length === filteredStudents.length;
 
   // Map studentId → latest contract (by contractDate descending)
   const studentLatestContract = useMemo(() => {
@@ -356,22 +365,23 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     }
   };
 
-  // Xóa hàng loạt học viên đang hiển thị (sau khi lọc)
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Xóa hàng loạt theo các học viên đã tick chọn
   const handleBulkDelete = async () => {
-    if (filteredStudents.length === 0) {
-      alert('Không có học viên nào để xóa.');
+    if (selectedStudentIds.length === 0) {
+      alert('Vui lòng chọn ít nhất 1 học viên để xóa.');
       return;
     }
     
-    const confirmMsg = `Bạn có chắc chắn muốn xóa ${filteredStudents.length} học viên đang hiển thị?\n\nThao tác này KHÔNG THỂ hoàn tác!`;
+    const selectedSet = new Set(selectedStudentIds);
+    const studentsToDelete = filteredStudents.filter(student => selectedSet.has(student.id));
+    const confirmMsg = `Bạn có chắc chắn muốn xóa ${studentsToDelete.length} học viên đã chọn?\n\nThao tác này KHÔNG THỂ hoàn tác!`;
     if (!confirm(confirmMsg)) return;
     
     setBulkDeleting(true);
     let deleted = 0;
     let failed = 0;
     
-    for (const student of filteredStudents) {
+    for (const student of studentsToDelete) {
       try {
         await deleteStudent(student.id);
         deleted++;
@@ -382,7 +392,10 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
     }
     
     setBulkDeleting(false);
-    setSelectedStudent(null);
+    if (selectedStudent && selectedSet.has(selectedStudent.id)) {
+      setSelectedStudent(null);
+    }
+    setSelectedStudentIds([]);
     alert(`Đã xóa ${deleted} học viên.${failed > 0 ? ` Lỗi: ${failed}` : ''}`);
   };
 
@@ -525,15 +538,15 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             entityName="học viên"
           />
 
-          {/* Nút xóa hàng loạt - chỉ hiện khi có filter và có quyền */}
-          {canCreateStudent && filterClass !== 'ALL' && filteredStudents.length > 0 && (
+          {/* Nút xóa đã chọn - chỉ hiện khi có quyền xóa */}
+          {canDeleteStudent && (
             <button 
               onClick={handleBulkDelete}
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || selectedStudentIds.length === 0}
               className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
             >
               <Trash2 size={16} /> 
-              {bulkDeleting ? 'Đang xóa...' : `Xóa ${filteredStudents.length} HV`}
+              {bulkDeleting ? 'Đang xóa...' : `Xóa đã chọn (${selectedStudentIds.length})`}
             </button>
           )}
 
@@ -593,6 +606,23 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
             <table className="w-full text-left text-sm text-gray-600">
                 <thead className="bg-gray-50 text-xs uppercase font-semibold text-gray-500 sticky top-0 z-10">
                 <tr>
+                    <th className="px-4 py-3 bg-gray-50 w-12 text-center">
+                      {canDeleteStudent && (
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudentIds(filteredStudents.map(student => student.id));
+                            } else {
+                              setSelectedStudentIds([]);
+                            }
+                          }}
+                          aria-label="Chọn tất cả học viên"
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      )}
+                    </th>
                     <th className="px-4 py-3 bg-gray-50 w-12">No.</th>
                     <th className="px-4 py-3 bg-gray-50">Học viên</th>
                     <th className="px-4 py-3 bg-gray-50">Phụ huynh</th>
@@ -632,6 +662,26 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     className={`hover:bg-indigo-50 cursor-pointer transition-colors ${selectedStudent?.id === student.id ? 'bg-indigo-50' : ''}`}
                     onClick={() => setSelectedStudent(selectedStudent?.id === student.id ? null : student)}
                     >
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      {canDeleteStudent && (
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.includes(student.id)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSelectedStudentIds(prev => {
+                              if (checked) {
+                                if (prev.includes(student.id)) return prev;
+                                return [...prev, student.id];
+                              }
+                              return prev.filter(id => id !== student.id);
+                            });
+                          }}
+                          aria-label={`Chọn học viên ${student.fullName}`}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-400">{index + 1}</td>
                     <td className="px-4 py-3">
                         <div className="flex flex-col">

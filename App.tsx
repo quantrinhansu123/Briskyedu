@@ -17,6 +17,7 @@ const HolidayManager = lazy(() => import('./pages/HolidayManager').then(m => ({ 
 const TutoringManager = lazy(() => import('./pages/TutoringManager').then(m => ({ default: m.TutoringManager })));
 const AttendanceHistory = lazy(() => import('./pages/AttendanceHistory').then(m => ({ default: m.AttendanceHistory })));
 const Attendance = lazy(() => import('./pages/Attendance').then(m => ({ default: m.Attendance })));
+const TodayAttendance = lazy(() => import('./pages/TodayAttendance').then(m => ({ default: m.TodayAttendance })));
 const StudentDetail = lazy(() => import('./pages/StudentDetail').then(m => ({ default: m.StudentDetail })));
 const StaffManager = lazy(() => import('./pages/StaffManager').then(m => ({ default: m.StaffManager })));
 const ProductManager = lazy(() => import('./pages/ProductManager').then(m => ({ default: m.ProductManager })));
@@ -127,6 +128,7 @@ const App: React.FC = () => {
                 <Route path="/training/schedule" element={<Schedule />} />
                 <Route path="/training/holidays" element={<HolidayManager />} />
                 <Route path="/training/attendance" element={<Attendance />} />
+                <Route path="/training/attendance-today" element={<TodayAttendance />} />
                 <Route path="/training/tutoring" element={<TutoringManager />} />
                 <Route path="/training/homework" element={<HomeworkManager />} />
                 <Route path="/training/attendance-history" element={<AttendanceHistory />} />

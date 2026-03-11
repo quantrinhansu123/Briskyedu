@@ -349,12 +349,8 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
 
   // Recalculate student status based on attendance records
   const handleRecalculateStatus = async (student: Student) => {
-    if (!student.classId) {
-      alert('Học viên chưa có lớp học để tính toán');
-      return;
-    }
-
     try {
+      // If classId exists, use it; otherwise recalculate for all classes
       const result = await recalculateStudentStatus(student.id, student.classId);
       alert(`Đã cập nhật trạng thái:\n- Đã học: ${result.attended} buổi\n- Đăng ký: ${result.registered} buổi\n- Còn lại: ${result.remaining} buổi\n- Trạng thái: ${result.newStatus}`);
       // Refresh students list

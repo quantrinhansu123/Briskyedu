@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, User, Phone, Mail, MapPin, Calendar, BookOpen, DollarSign, Clock, MessageSquare, FileText, X, GraduationCap, CheckCircle2, CalendarCheck, Circle, TrendingUp, AlertTriangle, History, CreditCard, AlertCircle, BadgeDollarSign, FileDown } from 'lucide-react';
+import { ChevronLeft, User, Phone, Mail, MapPin, Calendar, BookOpen, DollarSign, Clock, MessageSquare, FileText, X, GraduationCap, CheckCircle2, CalendarCheck, Circle, TrendingUp, AlertTriangle, History, CreditCard, AlertCircle, BadgeDollarSign, FileDown, RefreshCw, Eye } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
 import { useClasses } from '../src/hooks/useClasses';
@@ -19,6 +19,7 @@ import * as XLSX from 'xlsx';
 import { getStudentSessionData } from '../src/utils/student-session-utils';
 import { ModalPortal } from '@/components/modal-portal';
 import { StudentStatus, EnrollmentRecord } from '../types';
+import { recalculateStudentStatus } from '../src/services/attendanceService';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -55,6 +56,10 @@ export const StudentDetail: React.FC = () => {
     reason: '',
   });
   const [processingManual, setProcessingManual] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [viewingClassId, setViewingClassId] = useState<string | null>(null);
+  const [classAttendanceRecords, setClassAttendanceRecords] = useState<any[]>([]);
+  const [loadingClassAttendance, setLoadingClassAttendance] = useState(false);
   
   // Get feedback data for this student from Firebase
   const { callFeedbacks, formFeedbacks, loading: feedbackLoading } = useFeedback({ studentId: id });
@@ -89,21 +94,34 @@ export const StudentDetail: React.FC = () => {
         const snapshot = await getDocs(q);
         const records = snapshot.docs.map(d => d.data()).filter(r => r.status && r.status !== '');
         
-        const total = records.length;
-        const present = records.filter(r => r.status === 'Có mặt').length;
-        const absent = records.filter(r => r.status === 'Vắng').length;
+        // Define present statuses (both new and legacy)
+        const PRESENT_STATUSES = ['Đúng giờ', 'Trễ giờ', 'Đã bồi', 'Có mặt', 'Đến trễ'];
+        const ABSENT_STATUSES = ['Vắng'];
         
-        // Calculate late sessions from punctuality field
+        const total = records.length;
+        const present = records.filter(r => PRESENT_STATUSES.includes(r.status)).length;
+        const absent = records.filter(r => ABSENT_STATUSES.includes(r.status)).length;
+        
+        // Calculate late and on-time sessions
         let late = 0;
         let onTime = 0;
         records.forEach(r => {
-          if (r.status === 'Có mặt') {
-            if (r.punctuality === 'late' || r.isLate) {
+          if (PRESENT_STATUSES.includes(r.status)) {
+            if (r.status === 'Trễ giờ' || r.punctuality === 'late' || r.isLate) {
               late++;
-            } else if (r.punctuality === 'onTime') {
+            } else if (r.status === 'Đúng giờ' || r.punctuality === 'onTime') {
               onTime++;
+            } else if (r.status === 'Đã bồi') {
+              // Tutored sessions count as present but not as on-time or late
+              onTime++; // Count as on-time for simplicity
+            } else {
+              // Legacy 'Có mặt' or 'Đến trễ' - check punctuality
+              if (r.punctuality === 'late' || r.isLate) {
+                late++;
+              } else {
+                onTime++;
+              }
             }
-            // If punctuality not set, don't count
           }
         });
         
@@ -112,7 +130,7 @@ export const StudentDetail: React.FC = () => {
           presentSessions: present,
           absentSessions: absent,
           lateSessions: late,
-          onTimeSessions: present - late,
+          onTimeSessions: onTime,
           attendanceRate: total > 0 ? Math.round((present / total) * 100) : 0,
         });
       } catch (error) {
@@ -561,6 +579,36 @@ export const StudentDetail: React.FC = () => {
 
          {activeTab === 'history' && (
             <div>
+               {/* Header with Recalculate Button */}
+               <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-gray-800">Thống kê điểm danh</h3>
+                  <button
+                     onClick={async () => {
+                        if (!id) return;
+                        if (!window.confirm('Bạn có chắc muốn tính lại số buổi đã học? Hệ thống sẽ đếm lại từ dữ liệu điểm danh thực tế.')) {
+                           return;
+                        }
+                        setRecalculating(true);
+                        try {
+                           const result = await recalculateStudentStatus(id);
+                           alert(`Đã tính lại số buổi:\n- Đã học: ${result.attended} buổi\n- Đăng ký: ${result.registered} buổi\n- Còn lại: ${result.remaining} buổi\n- Trạng thái: ${result.newStatus}`);
+                           // Refresh page to show updated data
+                           window.location.reload();
+                        } catch (err) {
+                           console.error('Error recalculating:', err);
+                           alert('Không thể tính lại số buổi. Vui lòng thử lại.');
+                        } finally {
+                           setRecalculating(false);
+                        }
+                     }}
+                     disabled={recalculating || !id}
+                     className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-200 transition-colors"
+                  >
+                     <RefreshCw size={16} className={recalculating ? 'animate-spin' : ''} />
+                     {recalculating ? 'Đang tính lại...' : 'Tính lại số buổi'}
+                  </button>
+               </div>
+               
                {/* Attendance Stats Cards */}
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border border-emerald-200">
@@ -610,6 +658,7 @@ export const StudentDetail: React.FC = () => {
                            <th className="px-4 py-3">Thời gian</th>
                            <th className="px-4 py-3">Kết quả</th>
                            <th className="px-4 py-3 text-center">Trạng thái</th>
+                           <th className="px-4 py-3 text-center">Thao tác</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-100">
@@ -628,7 +677,7 @@ export const StudentDetail: React.FC = () => {
                            if (enrolledClasses.length === 0) {
                               return (
                                  <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                                        Chưa có lớp học nào
                                     </td>
                                  </tr>
@@ -661,6 +710,40 @@ export const StudentDetail: React.FC = () => {
                                           {badge.label}
                                        </span>
                                     </td>
+                                    <td className="px-4 py-3 text-center">
+                                       <button
+                                          onClick={async () => {
+                                             setViewingClassId(cls.id);
+                                             setLoadingClassAttendance(true);
+                                             try {
+                                                const attendanceQuery = query(
+                                                   collection(db, 'studentAttendance'),
+                                                   where('studentId', '==', id),
+                                                   where('classId', '==', cls.id)
+                                                );
+                                                const attendanceSnap = await getDocs(attendanceQuery);
+                                                const records = attendanceSnap.docs.map(d => ({
+                                                   id: d.id,
+                                                   ...d.data()
+                                                })).sort((a: any, b: any) => {
+                                                   const dateA = a.date || '';
+                                                   const dateB = b.date || '';
+                                                   return dateB.localeCompare(dateA);
+                                                });
+                                                setClassAttendanceRecords(records);
+                                             } catch (error) {
+                                                console.error('Error loading class attendance:', error);
+                                                alert('Không thể tải danh sách buổi học');
+                                             } finally {
+                                                setLoadingClassAttendance(false);
+                                             }
+                                          }}
+                                          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors"
+                                       >
+                                          <Eye size={14} />
+                                          Xem
+                                       </button>
+                                    </td>
                                  </tr>
                               );
                            });
@@ -668,6 +751,128 @@ export const StudentDetail: React.FC = () => {
                      </tbody>
                   </table>
                </div>
+
+               {/* Modal xem các buổi đã học */}
+               {viewingClassId && (
+                  <ModalPortal>
+                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                           <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                              <div>
+                                 <h3 className="text-lg font-bold text-gray-800">Các buổi đã học</h3>
+                                 <p className="text-sm text-gray-500 mt-1">
+                                    {classes.find(c => c.id === viewingClassId)?.name || 'N/A'}
+                                 </p>
+                              </div>
+                              <button
+                                 onClick={() => {
+                                    setViewingClassId(null);
+                                    setClassAttendanceRecords([]);
+                                 }}
+                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                 <X size={20} className="text-gray-500" />
+                              </button>
+                           </div>
+                           
+                           <div className="flex-1 overflow-y-auto p-6">
+                              {loadingClassAttendance ? (
+                                 <div className="text-center py-10">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+                                    <p className="text-gray-500">Đang tải...</p>
+                                 </div>
+                              ) : classAttendanceRecords.length === 0 ? (
+                                 <div className="text-center py-10 text-gray-400">
+                                    <CalendarCheck size={48} className="mx-auto mb-3 opacity-50" />
+                                    <p>Chưa có buổi học nào được ghi nhận</p>
+                                 </div>
+                              ) : (
+                                 <div className="space-y-3">
+                                    {classAttendanceRecords.map((record: any) => {
+                                       const getStatusColor = (status: string) => {
+                                          if (status === 'Đúng giờ') return 'bg-green-100 text-green-700';
+                                          if (status === 'Trễ giờ') return 'bg-yellow-100 text-yellow-700';
+                                          if (status === 'Vắng') return 'bg-red-100 text-red-700';
+                                          if (status === 'Bảo lưu') return 'bg-blue-100 text-blue-700';
+                                          if (status === 'Đã bồi') return 'bg-purple-100 text-purple-700';
+                                          return 'bg-gray-100 text-gray-700';
+                                       };
+                                       
+                                       return (
+                                          <div key={record.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                             <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                   <div className="flex items-center gap-3 mb-2">
+                                                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(record.status || '')}`}>
+                                                         {record.status || 'N/A'}
+                                                      </span>
+                                                      {record.sessionNumber && (
+                                                         <span className="text-sm text-gray-600">
+                                                            Buổi #{record.sessionNumber}
+                                                         </span>
+                                                      )}
+                                                      {record.attendanceType === 'makeup' ? (
+                                                         <span className="text-xs text-orange-600">⚠️ Học bù</span>
+                                                      ) : record.attendanceType === 'session' || record.sessionId ? (
+                                                         <span className="text-xs text-green-600">✅ Buổi chính thức</span>
+                                                      ) : record.attendanceType === 'manual' ? (
+                                                         <span className="text-xs text-blue-600">📝 Điểm danh thủ công</span>
+                                                      ) : null}
+                                                   </div>
+                                                   <div className="text-sm text-gray-600 space-y-1">
+                                                      <div className="flex items-center gap-2">
+                                                         <Calendar size={14} />
+                                                         <span>{record.date ? new Date(record.date).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                                      </div>
+                                                      {record.note && (
+                                                         <div className="flex items-start gap-2 mt-2">
+                                                            <FileText size={14} className="mt-0.5 flex-shrink-0" />
+                                                            <span className="text-xs text-gray-500">{record.note}</span>
+                                                         </div>
+                                                      )}
+                                                      {(record.homeworkCompletion !== undefined || record.score !== undefined || record.testName) && (
+                                                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                                            {record.homeworkCompletion !== undefined && (
+                                                               <span>BTVN: {record.homeworkCompletion}%</span>
+                                                            )}
+                                                            {record.testName && (
+                                                               <span>Bài KT: {record.testName}</span>
+                                                            )}
+                                                            {record.score !== undefined && (
+                                                               <span>Điểm: {record.score}</span>
+                                                            )}
+                                                         </div>
+                                                      )}
+                                                   </div>
+                                                </div>
+                                             </div>
+                                          </div>
+                                       );
+                                    })}
+                                 </div>
+                              )}
+                           </div>
+                           
+                           <div className="border-t border-gray-200 p-4 bg-gray-50">
+                              <div className="flex items-center justify-between text-sm">
+                                 <span className="text-gray-600">
+                                    Tổng: <strong>{classAttendanceRecords.length}</strong> buổi
+                                 </span>
+                                 <button
+                                    onClick={() => {
+                                       setViewingClassId(null);
+                                       setClassAttendanceRecords([]);
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                 >
+                                    Đóng
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </ModalPortal>
+               )}
 
                {/* Tutoring History Section */}
                <div className="mt-8">

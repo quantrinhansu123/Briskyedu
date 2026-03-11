@@ -142,7 +142,8 @@ export const saveStudentAttendance = async (
   className?: string,
   date?: string,
   sessionNumber?: number,
-  sessionId?: string
+  sessionId?: string,
+  attendanceType?: 'session' | 'makeup' | 'manual'
 ): Promise<void> => {
   try {
     console.log('[saveStudentAttendance] Starting...', { attendanceId, studentsCount: students.length });
@@ -165,6 +166,7 @@ export const saveStudentAttendance = async (
 
     // Add new records with extended fields
     console.log('[saveStudentAttendance] Adding', students.length, 'new records...');
+    console.log('[saveStudentAttendance] sessionId:', sessionId, 'sessionNumber:', sessionNumber);
     students.forEach((student, i) => {
       const docRef = doc(collection(db, STUDENT_ATTENDANCE_COLLECTION));
 
@@ -182,6 +184,13 @@ export const saveStudentAttendance = async (
         sessionId: sessionId || null,
         createdAt: new Date().toISOString(),
       };
+      
+      // Copy attendanceType from parent attendance record
+      if (attendanceType) {
+        record.attendanceType = attendanceType;
+      }
+      
+      console.log(`[saveStudentAttendance] Student ${student.studentName} (${student.studentId}): status=${student.status}, sessionId=${sessionId || 'null'}, sessionNumber=${sessionNumber || 'null'}`);
 
       // Add optional fields only if they have values
       if (student.note) record.note = student.note;
@@ -605,7 +614,8 @@ export const saveFullAttendance = async (
       attendanceData.className,
       attendanceData.date,
       attendanceData.sessionNumber,
-      attendanceData.sessionId
+      attendanceData.sessionId,
+      attendanceData.attendanceType // Pass attendanceType to studentAttendance records
     );
     console.log('[saveFullAttendance] Student attendance saved!');
 
@@ -647,6 +657,9 @@ export const saveFullAttendance = async (
  * Manually recalculate student's attended sessions and update status.
  * Uses the studentAttendance collection as the SOLE source of truth.
  * 
+ * If classId is provided, only recalculates for that class.
+ * If classId is not provided, recalculates for ALL classes the student is enrolled in.
+ * 
  * NOTE: The old "historical data mode" logic has been removed because it
  * was unreliable and caused data corruption. If there's a discrepancy between
  * stored attendedSessions and actual attendance records, we always trust
@@ -654,7 +667,7 @@ export const saveFullAttendance = async (
  */
 export const recalculateStudentStatus = async (
   studentId: string,
-  classId: string
+  classId?: string
 ): Promise<{ attended: number; registered: number; remaining: number; newStatus: string }> => {
   try {
     // Get student data
@@ -670,40 +683,161 @@ export const recalculateStudentStatus = async (
     const currentAttended = studentData.attendedSessions || 0;
 
     // Count attended sessions from studentAttendance collection (present statuses)
-    const presentQuery = query(
-      collection(db, STUDENT_ATTENDANCE_COLLECTION),
-      where('studentId', '==', studentId),
-      where('classId', '==', classId),
-      where('status', 'in', [AttendanceStatus.ON_TIME, AttendanceStatus.LATE, 'Có mặt', 'Đến trễ'])
-    );
+    // Include all present statuses: ON_TIME, LATE, TUTORED, and legacy values
+    // If classId provided, filter by classId; otherwise count all classes
+    const presentStatuses = [
+      AttendanceStatus.ON_TIME, 
+      AttendanceStatus.LATE, 
+      AttendanceStatus.TUTORED, // 'Đã bồi' should also count
+      'Có mặt', 
+      'Đến trễ',
+      'Đã bồi' // Legacy value
+    ];
+    
+    const presentQuery = classId
+      ? query(
+          collection(db, STUDENT_ATTENDANCE_COLLECTION),
+          where('studentId', '==', studentId),
+          where('classId', '==', classId),
+          where('status', 'in', presentStatuses)
+        )
+      : query(
+          collection(db, STUDENT_ATTENDANCE_COLLECTION),
+          where('studentId', '==', studentId),
+          where('status', 'in', presentStatuses)
+        );
+    
     const presentSnap = await getDocs(presentQuery);
 
     // Count only session attendance (has sessionId) vs makeup (no sessionId)
-    let sessionAttended = 0;
-    let makeupAttended = 0;
+    // Group by classId to calculate per-class progress
+    const classStats = new Map<string, { sessionAttended: number; makeupAttended: number; records: any[] }>();
+    const debugRecords: any[] = [];
+    
     presentSnap.docs.forEach(d => {
       const data = d.data();
-      if (data.sessionId) {
-        sessionAttended++;
-      } else {
-        makeupAttended++;
+      const recordClassId = data.classId || 'unknown';
+      
+      // If classId is specified, only count records for that class
+      if (classId && recordClassId !== classId) {
+        return;
       }
+      
+      // Debug: log all records
+      debugRecords.push({
+        id: d.id,
+        status: data.status,
+        sessionId: data.sessionId || 'null',
+        classId: recordClassId,
+        date: data.date || 'null'
+      });
+      
+      // Initialize class stats if not exists
+      if (!classStats.has(recordClassId)) {
+        classStats.set(recordClassId, { sessionAttended: 0, makeupAttended: 0, records: [] });
+      }
+      
+      const stats = classStats.get(recordClassId)!;
+      stats.records.push({
+        id: d.id,
+        status: data.status,
+        sessionId: data.sessionId || 'null',
+        date: data.date || 'null'
+      });
+      
+      // CẢ buổi chính thức VÀ học bù đều tính vào attendedSessions
+      // Vì học bù cũng là buổi học đã tham gia
+      if (data.sessionId) {
+        stats.sessionAttended++;
+      } else {
+        // Học bù cũng tính vào sessionAttended (không phải makeupAttended)
+        stats.sessionAttended++;
+        stats.makeupAttended++; // Track riêng để báo cáo
+      }
+    });
+    
+    console.log(`[recalculateStudentStatus] Found ${presentSnap.docs.length} present records:`, debugRecords);
+
+    // Calculate total attended sessions (sum across all classes if no classId specified)
+    let totalSessionAttended = 0;
+    let totalMakeupAttended = 0;
+    classStats.forEach((stats) => {
+      totalSessionAttended += stats.sessionAttended;
+      totalMakeupAttended += stats.makeupAttended;
     });
 
     // Use session attendance count as the source of truth
-    const attendedSessions = sessionAttended;
+    // Bao gồm cả buổi chính thức (có sessionId) và học bù (không có sessionId)
+    const attendedSessions = classId ? classStats.get(classId)?.sessionAttended || 0 : totalSessionAttended;
+    const makeupAttended = classId ? classStats.get(classId)?.makeupAttended || 0 : totalMakeupAttended;
     const legacyAttended = studentData.legacyAttendedSessions || 0;
     const remainingSessions = registeredSessions - attendedSessions - legacyAttended;
 
-    console.log(`[recalculateStudentStatus] Student ${studentId}: stored=${currentAttended}, counted=${sessionAttended}, makeup=${makeupAttended}, registered=${registeredSessions}, remaining=${remainingSessions}`);
+    console.log(`[recalculateStudentStatus] Student ${studentId}${classId ? ` (class ${classId})` : ' (all classes)'}:`);
+    console.log(`  - Stored attendedSessions: ${currentAttended}`);
+    console.log(`  - Counted from studentAttendance: ${attendedSessions} (with sessionId)`);
+    console.log(`  - Makeup sessions: ${makeupAttended} (no sessionId)`);
+    console.log(`  - Registered sessions: ${registeredSessions}`);
+    console.log(`  - Legacy attended: ${legacyAttended}`);
+    console.log(`  - Remaining sessions: ${remainingSessions}`);
+    console.log(`  - Total present records found: ${presentSnap.docs.length}`);
+    if (debugRecords.length > 0) {
+      console.log(`  - Sample records:`, debugRecords.slice(0, 5));
+    }
+    console.log(`  - Class stats:`, Array.from(classStats.entries()).map(([cid, stats]) => ({
+      classId: cid,
+      sessionAttended: stats.sessionAttended,
+      makeupAttended: stats.makeupAttended
+    })));
 
     // Determine new status
     let newStatus = studentData.status;
     const updateData: Record<string, unknown> = {
-      attendedSessions,
+      attendedSessions: classId ? attendedSessions : totalSessionAttended, // If no classId, use total
       remainingSessions,
       makeupSessionsAttended: makeupAttended,
     };
+
+    // Update classProgress for each class
+    const existingClassProgress = (studentData.classProgress as Record<string, any>) || {};
+    const updatedClassProgress: Record<string, any> = { ...existingClassProgress };
+
+    if (classId) {
+      // Update single class progress
+      const classRegistered = existingClassProgress[classId]?.registeredSessions || registeredSessions;
+      updatedClassProgress[classId] = {
+        ...existingClassProgress[classId],
+        registeredSessions: classRegistered,
+        attendedSessions: attendedSessions,
+        makeupDone: existingClassProgress[classId]?.makeupDone || 0,
+        makeupOwed: existingClassProgress[classId]?.makeupOwed || 0,
+        absentSessions: existingClassProgress[classId]?.absentSessions || 0,
+        reservedSessions: existingClassProgress[classId]?.reservedSessions || 0,
+      };
+      console.log(`[recalculateStudentStatus] Updated classProgress[${classId}]:`, updatedClassProgress[classId]);
+    } else {
+      // Update all classes that have attendance records
+      classStats.forEach((stats, recordClassId) => {
+        if (recordClassId !== 'unknown') {
+          const classRegistered = existingClassProgress[recordClassId]?.registeredSessions || registeredSessions;
+          updatedClassProgress[recordClassId] = {
+            ...existingClassProgress[recordClassId],
+            registeredSessions: classRegistered,
+            attendedSessions: stats.sessionAttended,
+            makeupDone: existingClassProgress[recordClassId]?.makeupDone || 0,
+            makeupOwed: existingClassProgress[recordClassId]?.makeupOwed || 0,
+            absentSessions: existingClassProgress[recordClassId]?.absentSessions || 0,
+            reservedSessions: existingClassProgress[recordClassId]?.reservedSessions || 0,
+          };
+          console.log(`[recalculateStudentStatus] Updated classProgress[${recordClassId}]:`, updatedClassProgress[recordClassId]);
+        }
+      });
+    }
+
+    // Only update classProgress if we have data
+    if (Object.keys(updatedClassProgress).length > 0) {
+      updateData.classProgress = updatedClassProgress;
+    }
 
     // Don't change status for dropped/reserved/trial students
     const skipStatuses = [StudentStatus.DROPPED, StudentStatus.RESERVED, StudentStatus.TRIAL];

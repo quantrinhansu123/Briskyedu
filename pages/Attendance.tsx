@@ -133,7 +133,16 @@ export const Attendance: React.FC = () => {
   const dropdownPanelRef = useRef<HTMLDivElement>(null);
   const sessionButtonRef = useRef<HTMLButtonElement>(null);
 
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  // Helper function to get today's date in local timezone (YYYY-MM-DD)
+  const getTodayLocalDate = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [attendanceDate, setAttendanceDate] = useState(getTodayLocalDate());
   const [attendanceData, setAttendanceData] = useState<StudentAttendanceState[]>([]);
   const [existingRecord, setExistingRecord] = useState<AttendanceRecord | null>(null);
   const [saving, setSaving] = useState(false);
@@ -465,7 +474,39 @@ export const Attendance: React.FC = () => {
     }
 
     // Use session date if in session mode, otherwise use manual date
-    const dateToUse = selectedSession?.date || attendanceDate;
+    // Ensure date is in YYYY-MM-DD format (local timezone)
+    let dateToUse = selectedSession?.date || attendanceDate;
+    
+    // Normalize date format to ensure it's YYYY-MM-DD
+    if (dateToUse) {
+      // If date contains time (ISO format), extract date part only
+      if (dateToUse.includes('T')) {
+        dateToUse = dateToUse.split('T')[0];
+      }
+      // Validate format is YYYY-MM-DD
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateToUse)) {
+        console.error('[Attendance] Invalid date format:', dateToUse);
+        setMessage({
+          type: 'error',
+          text: 'Định dạng ngày không hợp lệ. Vui lòng thử lại.'
+        });
+        setSaving(false);
+        return;
+      }
+    }
+    
+    // If in session mode but no session selected, try to find session for the date
+    let sessionToUse = selectedSession;
+    if (useSessionMode && !selectedSession && dateToUse) {
+      // Find session matching the date
+      const matchingSession = allSessions.find(s => s.date === dateToUse);
+      if (matchingSession) {
+        sessionToUse = matchingSession;
+        console.log('[Attendance] Auto-found session for date:', dateToUse, 'sessionId:', matchingSession.id);
+      } else {
+        console.warn('[Attendance] No session found for date:', dateToUse, 'in session mode');
+      }
+    }
 
     // Block saving if date is not valid for schedule AND not previously completed (only when not in session mode)
     if (!useSessionMode && !isValidScheduleDay && !completedDates.has(dateToUse)) {
@@ -516,14 +557,27 @@ export const Attendance: React.FC = () => {
 
       const absentCount = attendanceData.filter(s => s.status === AttendanceStatus.ABSENT).length;
 
+      // Use the found session (either selected or auto-found)
+      const finalSession = sessionToUse || selectedSession;
+      
+      console.log('[Attendance] Saving attendance:', {
+        useSessionMode,
+        hasSelectedSession: !!selectedSession,
+        hasFinalSession: !!finalSession,
+        sessionId: finalSession?.id || null,
+        sessionNumber: finalSession?.sessionNumber || null,
+        date: dateToUse,
+        studentsCount: attendanceData.length
+      });
+
       const attendanceId = await saveAttendance(
         {
           classId: selectedClassId,
           className: selectedClass.name,
           date: dateToUse,
           // Use null instead of undefined - Firestore doesn't accept undefined values
-          sessionNumber: selectedSession?.sessionNumber ?? null,
-          sessionId: selectedSession?.id ?? null,
+          sessionNumber: finalSession?.sessionNumber ?? null,
+          sessionId: finalSession?.id ?? null,
           totalStudents: attendanceData.length,
           present: attendanceData.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE).length,
           absent: absentCount,
@@ -549,13 +603,17 @@ export const Attendance: React.FC = () => {
 
       // Mark session as complete when attendance is saved (regardless of pending students)
       // Fix: allStudentsMarked check removed - session should be marked complete once attendance saved
-      if (selectedSession?.id && attendanceId) {
+      // Use finalSession (either selected or auto-found) instead of selectedSession
+      if (finalSession?.id && attendanceId) {
         try {
-          await markSessionComplete(selectedSession.id, attendanceId);
+          await markSessionComplete(finalSession.id, attendanceId);
+          console.log('[Attendance] Marked session complete:', finalSession.id);
         } catch (err) {
           console.warn('Could not mark session complete:', err);
           // Don't block attendance save if session update fails
         }
+      } else if (!finalSession?.id && useSessionMode) {
+        console.warn('[Attendance] No session ID to mark complete. useSessionMode:', useSessionMode, 'selectedSession:', !!selectedSession, 'dateToUse:', dateToUse, 'allSessions:', allSessions.length);
       }
 
       setMessage({

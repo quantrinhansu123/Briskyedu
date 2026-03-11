@@ -144,16 +144,17 @@ export const saveStudentAttendance = async (
   sessionNumber?: number,
   sessionId?: string,
   attendanceType?: 'session' | 'makeup' | 'manual'
-): Promise<void> => {
+): Promise<Map<string, string>> => {  // Return map of studentId -> studentAttendanceId
   try {
     console.log('[saveStudentAttendance] Starting...', { attendanceId, studentsCount: students.length });
 
     if (students.length === 0) {
       console.warn('[saveStudentAttendance] No students to save!');
-      return;
+      return new Map();
     }
 
     const batch = writeBatch(db);
+    const studentAttendanceIdMap = new Map<string, string>(); // studentId -> studentAttendanceId
 
     // Delete existing records for this attendance
     const existingQuery = query(
@@ -202,6 +203,8 @@ export const saveStudentAttendance = async (
       if (student.isLate !== undefined) record.isLate = student.isLate;
 
       batch.set(docRef, record);
+      // Store the mapping: studentId -> studentAttendanceId (docRef.id)
+      studentAttendanceIdMap.set(student.studentId, docRef.id);
     });
 
     console.log('[saveStudentAttendance] Committing batch...');
@@ -213,6 +216,7 @@ export const saveStudentAttendance = async (
       throw commitError;
     }
     console.log('[saveStudentAttendance] Saved', students.length, 'students');
+    return studentAttendanceIdMap;
   } catch (error) {
     console.error('[saveStudentAttendance] Error:', error);
     throw new Error('Không thể lưu điểm danh học sinh');
@@ -371,7 +375,8 @@ export const createTutoringFromAbsent = async (data: {
       absentDate: data.absentDate,
       type: data.type,
       status: 'Đã hẹn',
-      scheduledDate: null,
+      scheduledDate: null,  // Để trống, sẽ điền sau
+      scheduledTime: null,  // Để trống, sẽ điền sau
       tutor: null,
       studentAttendanceId: attendanceId || null,  // Link to studentAttendance
       deletedAt: null,
@@ -607,7 +612,7 @@ export const saveFullAttendance = async (
 
     // Save student attendance with extended fields for monthly report (only marked students)
     console.log('[saveFullAttendance] Saving student attendance...');
-    await saveStudentAttendance(
+    const studentAttendanceIdMap = await saveStudentAttendance(
       attendanceId,
       markedStudents,
       attendanceData.classId,
@@ -619,10 +624,11 @@ export const saveFullAttendance = async (
     );
     console.log('[saveFullAttendance] Student attendance saved!');
 
-    // Auto create tutoring for absent students
+    // Auto create tutoring for absent students with studentAttendanceId link
     const absentStudents = markedStudents.filter(s => s.status === AttendanceStatus.ABSENT);
     console.log('[saveFullAttendance] Creating tutoring for', absentStudents.length, 'absent students...');
     for (const student of absentStudents) {
+      const studentAttendanceId = studentAttendanceIdMap.get(student.studentId);
       await createTutoringFromAbsent({
         studentId: student.studentId,
         studentName: student.studentName,
@@ -630,6 +636,7 @@ export const saveFullAttendance = async (
         className: attendanceData.className,
         absentDate: attendanceData.date,
         type: 'Nghỉ học',
+        studentAttendanceId: studentAttendanceId, // Pass the linked studentAttendanceId
       });
     }
     console.log('[saveFullAttendance] Tutoring created!');

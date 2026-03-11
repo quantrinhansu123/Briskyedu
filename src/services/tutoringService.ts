@@ -269,28 +269,106 @@ export const completeTutoring = async (
     });
 
     // Update linked studentAttendance if exists
+    let studentAttendanceIdToUpdate: string | null = null;
     if (tutoring.studentAttendanceId) {
+      studentAttendanceIdToUpdate = tutoring.studentAttendanceId;
       await updateStudentAttendanceStatusInternal(
         tutoring.studentAttendanceId,
         AttendanceStatus.TUTORED
       );
-      console.log('Updated studentAttendance to Đã bồi');
+      console.log('[completeTutoring] Updated studentAttendance to Đã bồi, ID:', tutoring.studentAttendanceId);
     } else if (tutoring.absentDate && tutoring.studentId && tutoring.classId) {
       // Fallback: Find and update by query
+      console.log('[completeTutoring] No studentAttendanceId, searching by date...', {
+        studentId: tutoring.studentId,
+        classId: tutoring.classId,
+        absentDate: tutoring.absentDate
+      });
       const attendance = await findStudentAttendanceRecordInternal(
         tutoring.studentId,
         tutoring.classId,
         tutoring.absentDate
       );
       if (attendance) {
+        studentAttendanceIdToUpdate = attendance.id;
         await updateStudentAttendanceStatusInternal(attendance.id, AttendanceStatus.TUTORED);
         // Also update tutoring with the found ID
         await updateDoc(docRef, { studentAttendanceId: attendance.id });
-        console.log('Found and updated studentAttendance');
+        console.log('[completeTutoring] Found and updated studentAttendance, ID:', attendance.id);
+      } else {
+        console.warn('[completeTutoring] Could not find studentAttendance record for:', {
+          studentId: tutoring.studentId,
+          classId: tutoring.classId,
+          absentDate: tutoring.absentDate
+        });
       }
+    } else {
+      console.warn('[completeTutoring] Missing data to find studentAttendance:', {
+        hasStudentAttendanceId: !!tutoring.studentAttendanceId,
+        hasAbsentDate: !!tutoring.absentDate,
+        hasStudentId: !!tutoring.studentId,
+        hasClassId: !!tutoring.classId
+      });
     }
 
-    console.log('completeTutoring success');
+    // Update student's attendedSessions and classProgress directly (client-side)
+    // This replaces Cloud Function logic
+    // Always try to update even if studentAttendanceId is not found - use absentDate as fallback
+    if (tutoring.studentId && tutoring.classId) {
+      if (studentAttendanceIdToUpdate) {
+        console.log('[completeTutoring] Calling updateStudentSessionsOnTutoringComplete with studentAttendanceId...', {
+          studentId: tutoring.studentId,
+          classId: tutoring.classId,
+          studentAttendanceId: studentAttendanceIdToUpdate
+        });
+        try {
+          await updateStudentSessionsOnTutoringComplete(
+            tutoring.studentId,
+            tutoring.classId,
+            studentAttendanceIdToUpdate
+          );
+        } catch (updateError: any) {
+          console.error('[completeTutoring] Error updating student sessions (non-blocking):', updateError);
+          // Don't throw - tutoring status already updated
+        }
+      } else {
+        // Fallback: Update without studentAttendanceId (will create a new record or update based on date)
+        console.log('[completeTutoring] Calling updateStudentSessionsOnTutoringComplete without studentAttendanceId (fallback)...', {
+          studentId: tutoring.studentId,
+          classId: tutoring.classId,
+          absentDate: tutoring.absentDate
+        });
+        // Try to find or create studentAttendance record
+        if (tutoring.absentDate) {
+          const attendance = await findStudentAttendanceRecordInternal(
+            tutoring.studentId,
+            tutoring.classId,
+            tutoring.absentDate
+          );
+          if (attendance) {
+            try {
+              await updateStudentSessionsOnTutoringComplete(
+                tutoring.studentId,
+                tutoring.classId,
+                attendance.id
+              );
+            } catch (updateError: any) {
+              console.error('[completeTutoring] Error updating student sessions (non-blocking):', updateError);
+              // Don't throw - tutoring status already updated
+            }
+          } else {
+            console.warn('[completeTutoring] Could not find studentAttendance record, cannot update sessions');
+          }
+        }
+      }
+    } else {
+      console.warn('[completeTutoring] Missing required data to update sessions:', {
+        hasStudentId: !!tutoring.studentId,
+        hasClassId: !!tutoring.classId
+      });
+    }
+
+    console.log('[completeTutoring] SUCCESS - completed tutoring:', id);
   } catch (error: any) {
     console.error('Error completing tutoring:', error);
     throw new Error(`Không thể hoàn thành bồi bài: ${error?.message || 'Unknown'}`);
@@ -634,6 +712,164 @@ async function updateStudentAttendanceStatusInternal(
   } catch (error) {
     console.error('Error updating student attendance status:', error);
     throw new Error('Không thể cập nhật trạng thái điểm danh');
+  }
+}
+
+/**
+ * Update student's attendedSessions and classProgress when tutoring is completed
+ * This replaces Cloud Function logic - runs client-side
+ * Uses Firestore increment for atomic updates
+ */
+async function updateStudentSessionsOnTutoringComplete(
+  studentId: string,
+  classId: string,
+  studentAttendanceId: string
+): Promise<void> {
+  try {
+    console.log('[updateStudentSessionsOnTutoringComplete] START - Updating student sessions...', {
+      studentId,
+      classId,
+      studentAttendanceId
+    });
+
+    // Get student data first to check current state
+    const studentRef = doc(db, 'students', studentId);
+    const studentDoc = await getDoc(studentRef);
+
+    if (!studentDoc.exists()) {
+      console.error('[updateStudentSessionsOnTutoringComplete] Student not found:', studentId);
+      return;
+    }
+
+    const studentData = studentDoc.data();
+    const registeredSessions = studentData.registeredSessions || 0;
+    const legacyAttended = studentData.legacyAttendedSessions || 0;
+    const currentAttended = studentData.attendedSessions || 0;
+
+    // Get studentAttendance record to check if it has sessionId
+    const attendanceRef = doc(db, 'studentAttendance', studentAttendanceId);
+    const attendanceDoc = await getDoc(attendanceRef);
+    
+    if (!attendanceDoc.exists()) {
+      console.error('[updateStudentSessionsOnTutoringComplete] StudentAttendance not found:', studentAttendanceId);
+      return;
+    }
+
+    const attendanceData = attendanceDoc.data();
+    const hasSessionId = !!attendanceData?.sessionId;
+
+    console.log('[updateStudentSessionsOnTutoringComplete] Current state:', {
+      currentAttended,
+      registeredSessions,
+      legacyAttended,
+      hasSessionId,
+      attendanceStatus: attendanceData?.status
+    });
+
+    // Use increment for atomic update
+    const updateData: Record<string, any> = {
+      attendedSessions: increment(1),
+    };
+
+    // Update makeupSessionsAttended if no sessionId (makeup session)
+    if (!hasSessionId) {
+      updateData.makeupSessionsAttended = increment(1);
+    }
+
+    // Get current classProgress
+    const currentClassProgress = studentData.classProgress || {};
+    const classProgress = currentClassProgress[classId] || {
+      registeredSessions: registeredSessions,
+      attendedSessions: 0,
+      absentSessions: 0,
+      makeupOwed: 0,
+      makeupDone: 0,
+      reservedSessions: 0,
+    };
+
+    // Increment attendedSessions for this class
+    const newClassAttended = (classProgress.attendedSessions || 0) + 1;
+    classProgress.attendedSessions = newClassAttended;
+    
+    // If makeup, also increment makeupDone and decrement makeupOwed
+    if (!hasSessionId) {
+      classProgress.makeupDone = (classProgress.makeupDone || 0) + 1;
+      classProgress.makeupOwed = Math.max(0, (classProgress.makeupOwed || 0) - 1);
+    }
+
+    updateData[`classProgress.${classId}`] = classProgress;
+
+    // Calculate remaining sessions after increment
+    const newAttended = currentAttended + 1;
+    const remaining = registeredSessions - newAttended - legacyAttended;
+    updateData.remainingSessions = remaining;
+
+    // Get class schedule for expectedEndDate calculation
+    let daysPerWeek = 2;
+    try {
+      const classDoc = await getDoc(doc(db, 'classes', classId));
+      if (classDoc.exists()) {
+        const classData = classDoc.data();
+        daysPerWeek = getDaysPerWeekFromSchedule(classData?.schedule);
+      }
+    } catch (err) {
+      console.warn('[updateStudentSessionsOnTutoringComplete] Could not get class schedule:', err);
+    }
+
+    // Calculate expectedEndDate
+    const calculateExpectedEndDate = (remaining: number, daysPerWeek: number, startDate?: string): string | null => {
+      if (!startDate || remaining <= 0) return null;
+      const start = new Date(startDate);
+      const weeksNeeded = Math.ceil(remaining / daysPerWeek);
+      const endDate = new Date(start);
+      endDate.setDate(endDate.getDate() + (weeksNeeded * 7));
+      return endDate.toISOString().split('T')[0];
+    };
+
+    const expectedEndDate = calculateExpectedEndDate(Math.max(0, remaining), daysPerWeek, studentData.startDate);
+    if (expectedEndDate) {
+      updateData.expectedEndDate = expectedEndDate;
+    }
+
+    // Check debt status
+    const skipStatuses = ['Nghỉ học', 'Bảo lưu', 'Học thử', 'Nợ hợp đồng'];
+    if (!skipStatuses.includes(studentData.status)) {
+      if (registeredSessions > 0 && newAttended + legacyAttended > registeredSessions && studentData.status === 'Đang học') {
+        updateData.status = 'Nợ phí';
+        updateData.debtStartDate = new Date().toISOString();
+        updateData.debtSessions = (newAttended + legacyAttended) - registeredSessions;
+      } else if ((newAttended + legacyAttended) <= registeredSessions && studentData.status === 'Nợ phí') {
+        updateData.status = 'Đang học';
+        updateData.debtSessions = 0;
+      }
+    }
+
+    console.log('[updateStudentSessionsOnTutoringComplete] Update data:', updateData);
+
+    // Update student document
+    await updateDoc(studentRef, updateData);
+
+    console.log('[updateStudentSessionsOnTutoringComplete] SUCCESS - Updated student sessions:', {
+      studentId,
+      classId,
+      oldAttended: currentAttended,
+      newAttended,
+      remaining,
+      hasSessionId,
+      classProgressAttended: newClassAttended
+    });
+  } catch (error: any) {
+    console.error('[updateStudentSessionsOnTutoringComplete] ERROR:', error);
+    console.error('[updateStudentSessionsOnTutoringComplete] Error details:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code,
+      studentId,
+      classId,
+      studentAttendanceId
+    });
+    // Don't throw - this is called from completeTutoring which already handles errors
+    // Just log the error for debugging
   }
 }
 

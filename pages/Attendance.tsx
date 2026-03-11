@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Calendar, Save, CheckCircle, AlertCircle, Clock, BookOpen, Users, Plus, ClipboardCheck, XCircle, AlertTriangle, ChevronDown, Trash2 } from 'lucide-react';
 import { ModalPortal } from '@/components/modal-portal';
 import { SearchableClassDropdown } from '../src/features/attendance';
 import { AttendanceStatus, AttendanceRecord, StudentStatus } from '../types';
@@ -17,7 +17,7 @@ import { useAttendance } from '../src/hooks/useAttendance';
 import { useAuth } from '../src/hooks/useAuth';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useSessions } from '../src/hooks/useSessions';
-import { ClassSession } from '../src/services/sessionService';
+import { ClassSession, generateSessionsForClass, saveSessionsToFirestore, deleteSessionsByClass } from '../src/services/sessionService';
 import { formatSchedule } from '../src/utils/scheduleUtils';
 import { collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
@@ -142,6 +142,8 @@ export const Attendance: React.FC = () => {
   const [useSessionMode, setUseSessionMode] = useState(true); // Default to session mode
   const [showAddSessionModal, setShowAddSessionModal] = useState(false);
   const [showGradeFields, setShowGradeFields] = useState(false); // Toggle hiển thị điểm số
+  const [generatingSessions, setGeneratingSessions] = useState(false); // Loading state for auto-generate sessions
+  const [deletingSessions, setDeletingSessions] = useState(false); // Loading state for delete sessions
 
   // State for makeup confirm dialog (Phase 4)
   const [showMakeupConfirm, setShowMakeupConfirm] = useState(false);
@@ -185,7 +187,7 @@ export const Attendance: React.FC = () => {
   }, [classes, selectedClassId]);
 
   // Sessions hook
-  const { sessions: allSessions, upcomingSessions, loading: sessionsLoading, markSessionComplete, addMakeup } = useSessions({
+  const { sessions: allSessions, upcomingSessions, loading: sessionsLoading, markSessionComplete, addMakeup, refresh: refreshSessions } = useSessions({
     classId: selectedClassId,
     classInfo: selectedClassForSessions ? {
       name: selectedClassForSessions.name,
@@ -407,8 +409,26 @@ export const Attendance: React.FC = () => {
     const selectedClass = classes.find(c => c.id === selectedClassId);
     if (!selectedClass) return;
 
+    // When in session mode, require a session to be selected
+    if (useSessionMode && !selectedSession) {
+      setMessage({
+        type: 'error',
+        text: 'Vui lòng chọn buổi học để điểm danh. Nếu muốn điểm danh ngày khác, vui lòng chuyển sang chế độ "Chọn ngày".'
+      });
+      return;
+    }
+
     // Use session date if in session mode, otherwise use manual date
     const dateToUse = selectedSession?.date || attendanceDate;
+
+    // Block saving if date is not valid for schedule AND not previously completed (only when not in session mode)
+    if (!useSessionMode && !isValidScheduleDay && !completedDates.has(dateToUse)) {
+      setMessage({
+        type: 'error',
+        text: `Không thể điểm danh: Ngày ${new Date(dateToUse).toLocaleDateString('vi-VN')} không nằm trong lịch học của lớp. Chỉ có thể điểm danh vào các ngày trong lịch học hoặc các ngày đã điểm danh trước đó.`
+      });
+      return;
+    }
 
     try {
       setSaving(true);
@@ -583,6 +603,196 @@ export const Attendance: React.FC = () => {
   const handleSelectSession = (session: ClassSession) => {
     setSelectedSession(session);
     setAttendanceDate(session.date);
+  };
+
+  // Auto-generate sessions for class if missing
+  const handleAutoGenerateSessions = async () => {
+    if (!selectedClass) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn lớp trước' });
+      return;
+    }
+
+    if (!selectedClass.schedule) {
+      setMessage({ type: 'error', text: 'Lớp này chưa có lịch học. Vui lòng cập nhật lịch học trước.' });
+      return;
+    }
+
+    try {
+      setGeneratingSessions(true);
+      setMessage(null);
+
+      // Use class startDate and endDate to create sessions for the entire course
+      if (!selectedClass.startDate) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Lớp này chưa có ngày bắt đầu. Vui lòng cập nhật ngày bắt đầu khóa học trước.' 
+        });
+        return;
+      }
+
+      // Determine start date for generation
+      let fromDate: Date;
+      if (selectedClass.endDate) {
+        // If has endDate, always start from class startDate
+        fromDate = new Date(selectedClass.startDate);
+      } else {
+        // If no endDate, start from the last session date + 1 day, or from startDate if no sessions exist
+        if (allSessions.length > 0) {
+          // Find the latest session date
+          const lastSessionDate = allSessions.reduce((latest, session) => {
+            return session.date > latest ? session.date : latest;
+          }, allSessions[0].date);
+          
+          // Start from the day after the last session
+          fromDate = new Date(lastSessionDate);
+          fromDate.setDate(fromDate.getDate() + 1);
+        } else {
+          // No sessions exist, start from class startDate
+          fromDate = new Date(selectedClass.startDate);
+        }
+      }
+      fromDate.setHours(0, 0, 0, 0); // Reset to start of day
+      
+      // Determine end date
+      let toDate: Date;
+      if (selectedClass.endDate) {
+        // If has endDate, use it
+        toDate = new Date(selectedClass.endDate);
+      } else {
+        // If no endDate, add 30 days from fromDate (incremental generation)
+        toDate = new Date(fromDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      // Use totalSessions if available, otherwise calculate based on date range
+      // If no endDate, don't limit by totalSessions (allow incremental generation)
+      const maxSessions = selectedClass.endDate && selectedClass.totalSessions && selectedClass.totalSessions > 0
+        ? selectedClass.totalSessions
+        : 50; // Default to 50 sessions per generation if no endDate or totalSessions
+
+      // Generate sessions based on class schedule
+      const generatedSessions = await generateSessionsForClass({
+        id: selectedClass.id,
+        name: selectedClass.name,
+        schedule: selectedClass.schedule,
+        startDate: fromDate.toISOString().split('T')[0],
+        endDate: selectedClass.endDate,
+        room: selectedClass.room,
+        teacherId: selectedClass.teacherId,
+        teacherName: selectedClass.teacher,
+        totalSessions: selectedClass.totalSessions,
+      }, {
+        fromDate,
+        toDate,
+        maxSessions,
+      });
+
+      if (generatedSessions.length === 0) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Không thể tạo buổi học. Vui lòng kiểm tra lại lịch học và số buổi học của lớp.' 
+        });
+        return;
+      }
+
+      // Filter out sessions that already exist (by date)
+      const existingDates = new Set(allSessions.map(s => s.date));
+      const newSessions = generatedSessions.filter(s => !existingDates.has(s.date));
+
+      if (newSessions.length === 0) {
+        if (selectedClass.endDate) {
+          setMessage({ 
+            type: 'info', 
+            text: 'Tất cả các buổi học từ ngày bắt đầu đến ngày kết thúc đã được tạo. Không có buổi học mới nào cần tạo.' 
+          });
+        } else {
+          setMessage({ 
+            type: 'info', 
+            text: 'Không có buổi học mới trong 30 ngày tiếp theo. Bạn có thể bấm lại để tạo thêm 30 ngày nữa.' 
+          });
+        }
+        return;
+      }
+
+      // Save to Firestore
+      const savedCount = await saveSessionsToFirestore(newSessions);
+      
+      const dateRange = selectedClass.endDate 
+        ? `từ ${new Date(selectedClass.startDate).toLocaleDateString('vi-VN')} đến ${new Date(selectedClass.endDate).toLocaleDateString('vi-VN')}`
+        : `trong 30 ngày tiếp theo (từ ${fromDate.toLocaleDateString('vi-VN')} đến ${toDate.toLocaleDateString('vi-VN')})`;
+      
+      setMessage({ 
+        type: 'success', 
+        text: `Đã tạo ${savedCount} buổi học ${dateRange}.${!selectedClass.endDate ? ' Bạn có thể bấm lại để tạo thêm 30 ngày nữa.' : ''}` 
+      });
+
+      // Refresh sessions after a short delay to allow Firestore to update
+      setTimeout(() => {
+        if (refreshSessions) {
+          refreshSessions();
+        }
+      }, 1500);
+
+    } catch (error) {
+      console.error('[Attendance] Error auto-generating sessions:', error);
+      setMessage({ 
+        type: 'error', 
+        text: `Lỗi khi tạo buổi học: ${error instanceof Error ? error.message : 'Lỗi không xác định'}` 
+      });
+    } finally {
+      setGeneratingSessions(false);
+    }
+  };
+
+  // Delete all sessions for the class
+  const handleDeleteAllSessions = async () => {
+    if (!selectedClassId || !selectedClass) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn lớp trước' });
+      return;
+    }
+
+    if (allSessions.length === 0) {
+      setMessage({ type: 'info', text: 'Lớp này chưa có buổi học nào để xóa.' });
+      return;
+    }
+
+    // Confirm before deleting
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa TẤT CẢ ${allSessions.length} buổi học của lớp "${selectedClass.name}"?\n\n` +
+      'Hành động này không thể hoàn tác!'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingSessions(true);
+      setMessage(null);
+
+      const deletedCount = await deleteSessionsByClass(selectedClassId);
+      
+      setMessage({ 
+        type: 'success', 
+        text: `Đã xóa ${deletedCount} buổi học của lớp "${selectedClass.name}".` 
+      });
+
+      // Clear selected session if it was deleted
+      setSelectedSession(null);
+
+      // Refresh sessions after a short delay
+      setTimeout(() => {
+        if (refreshSessions) {
+          refreshSessions();
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('[Attendance] Error deleting sessions:', error);
+      setMessage({ 
+        type: 'error', 
+        text: `Lỗi khi xóa buổi học: ${error instanceof Error ? error.message : 'Lỗi không xác định'}` 
+      });
+    } finally {
+      setDeletingSessions(false);
+    }
   };
 
   // Phase 1: Handle date change with auto-detect session logic
@@ -1201,21 +1411,135 @@ export const Attendance: React.FC = () => {
       
       {/* No sessions warning - differentiate between no sessions created vs all completed */}
       {useSessionMode && selectedClassId && !sessionsLoading && upcomingSessions.length === 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-yellow-800">
-            <AlertCircle size={20} />
-            <span>
-              {allSessions.length === 0
-                ? 'Chưa có buổi học nào được tạo cho lớp này. Vui lòng tạo buổi học hoặc chuyển sang chế độ "Chọn ngày".'
-                : 'Tất cả buổi học đã được điểm danh. Bạn có thể chọn buổi từ danh sách hoặc thêm buổi học bù.'}
-            </span>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-yellow-800">
+              <AlertCircle size={20} />
+              <span>
+                {allSessions.length === 0
+                  ? 'Chưa có buổi học nào được tạo cho lớp này. Vui lòng tạo buổi học hoặc chuyển sang chế độ "Chọn ngày".'
+                  : `Tất cả ${allSessions.length} buổi học đã được điểm danh. Bạn có thể chọn buổi từ danh sách hoặc thêm buổi học bù.`}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              {selectedClass?.schedule && (
+                <button
+                  onClick={handleAutoGenerateSessions}
+                  disabled={generatingSessions}
+                  className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Sẽ tạo buổi học từ hôm nay theo lịch học của lớp"
+                >
+                  {generatingSessions ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} /> Tạo buổi học tự động
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => setShowAddSessionModal(true)}
+                className="flex items-center gap-1 px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+              >
+                <Plus size={14} /> Thêm buổi
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => setShowAddSessionModal(true)}
-            className="flex items-center gap-1 px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
-          >
-            <Plus size={14} /> Thêm buổi
-          </button>
+          {/* Debug info - only show in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 text-xs text-yellow-600 bg-yellow-100 p-2 rounded">
+              <strong>Debug:</strong> allSessions={allSessions.length}, upcomingSessions={upcomingSessions.length}, 
+              classId={selectedClassId}, sessionsLoading={sessionsLoading ? 'true' : 'false'},
+              schedule={selectedClass?.schedule || 'N/A'}, totalSessions={selectedClass?.totalSessions || 'N/A'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Always show auto-generate and delete buttons when in session mode and class has schedule */}
+      {useSessionMode && selectedClassId && !sessionsLoading && selectedClass?.schedule && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Calendar size={18} />
+              <span className="text-sm font-medium">
+                Quản lý buổi học
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleAutoGenerateSessions}
+                disabled={generatingSessions || !selectedClass.startDate}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={selectedClass.startDate 
+                  ? `Sẽ tạo buổi học từ ${new Date(selectedClass.startDate).toLocaleDateString('vi-VN')} đến ${selectedClass.endDate ? new Date(selectedClass.endDate).toLocaleDateString('vi-VN') : 'ngày kết thúc'} theo lịch học của lớp`
+                  : 'Lớp chưa có ngày bắt đầu. Vui lòng cập nhật ngày bắt đầu khóa học.'}
+              >
+                {generatingSessions ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                    Đang tạo...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} /> Tạo buổi học tự động
+                  </>
+                )}
+              </button>
+              {allSessions.length > 0 && (
+                <button
+                  onClick={handleDeleteAllSessions}
+                  disabled={deletingSessions}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={`Xóa tất cả ${allSessions.length} buổi học của lớp này`}
+                >
+                  {deletingSessions ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} /> Xóa toàn bộ
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          {selectedClass.startDate && (
+            <div className="text-xs text-blue-600">
+              {selectedClass.endDate ? (
+                <>
+                  <strong>{new Date(selectedClass.startDate).toLocaleDateString('vi-VN')}</strong> - <strong>{new Date(selectedClass.endDate).toLocaleDateString('vi-VN')}</strong>
+                  {allSessions.length > 0 && (
+                    <> • Mỗi lần bấm tạo thêm <strong>30 ngày</strong></>
+                  )}
+                </>
+              ) : (
+                <>
+                  Từ <strong>{new Date(selectedClass.startDate).toLocaleDateString('vi-VN')}</strong>
+                  {allSessions.length > 0 && (
+                    <> • Mỗi lần bấm tạo thêm <strong>30 ngày</strong></>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Warning when session mode is active but no session selected */}
+      {useSessionMode && selectedClassId && !selectedSession && !sessionsLoading && allSessions.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center gap-2 text-orange-800">
+          <AlertCircle size={20} />
+          <span>
+            <strong>Vui lòng chọn buổi học:</strong> Bạn đang ở chế độ "Buổi học" nhưng chưa chọn buổi học nào. Vui lòng chọn buổi học từ dropdown phía trên để bắt đầu điểm danh.
+          </span>
         </div>
       )}
 
@@ -1229,15 +1553,20 @@ export const Attendance: React.FC = () => {
         </div>
       )}
 
-      {/* Schedule Warning */}
-      {selectedClassId && !isValidScheduleDay && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center gap-2 text-orange-800">
-          <AlertCircle size={20} />
-          <span>
-            <strong>Lưu ý:</strong> Ngày {new Date(attendanceDate).toLocaleDateString('vi-VN')} không nằm trong lịch học của lớp 
-            {selectedClass?.schedule && <> (Lịch: {formatSchedule(selectedClass.schedule)})</>}.
-            Bạn vẫn có thể điểm danh nếu cần.
-          </span>
+      {/* Schedule Warning - BLOCKING */}
+      {selectedClassId && !isValidScheduleDay && !useSessionMode && !completedDates.has(attendanceDate) && (
+        <div className="bg-red-100 border-2 border-red-400 rounded-lg p-4 flex items-start gap-3 text-red-800">
+          <AlertTriangle size={24} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold text-lg">KHÔNG THỂ ĐIỂM DANH - NGÀY KHÔNG HỢP LỆ</p>
+            <p className="mt-1">
+              Ngày {new Date(attendanceDate).toLocaleDateString('vi-VN')} không nằm trong lịch học của lớp 
+              {selectedClass?.schedule && <> (Lịch: {formatSchedule(selectedClass.schedule)})</>}.
+            </p>
+            <p className="text-sm mt-2 text-red-600">
+              Bạn chỉ có thể điểm danh vào các ngày trong lịch học hoặc các ngày đã điểm danh trước đó.
+            </p>
+          </div>
         </div>
       )}
 
@@ -1509,7 +1838,7 @@ export const Attendance: React.FC = () => {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving || attendanceData.length === 0 || !!selectedDateHoliday}
+                disabled={saving || attendanceData.length === 0 || !!selectedDateHoliday || (useSessionMode && !selectedSession)}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? (

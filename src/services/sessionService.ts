@@ -187,10 +187,30 @@ export const saveSessionsToFirestore = async (sessions: ClassSession[]): Promise
   
   for (const session of sessions) {
     const docRef = doc(collection(db, COLLECTION_NAME));
-    batch.set(docRef, {
-      ...session,
+    
+    // Remove undefined values - Firestore doesn't accept undefined
+    const sessionData: any = {
+      classId: session.classId,
+      className: session.className,
+      sessionNumber: session.sessionNumber,
+      date: session.date,
+      dayOfWeek: session.dayOfWeek,
+      status: session.status,
       createdAt: new Date().toISOString(),
-    });
+    };
+    
+    // Only include optional fields if they have values
+    if (session.time) sessionData.time = session.time;
+    if (session.room) sessionData.room = session.room;
+    if (session.teacherId) sessionData.teacherId = session.teacherId;
+    if (session.teacherName) sessionData.teacherName = session.teacherName;
+    if (session.attendanceId) sessionData.attendanceId = session.attendanceId;
+    if (session.holidayId) sessionData.holidayId = session.holidayId;
+    if (session.holidayName) sessionData.holidayName = session.holidayName;
+    if (session.note) sessionData.note = session.note;
+    if (session.updatedAt) sessionData.updatedAt = session.updatedAt;
+    
+    batch.set(docRef, sessionData);
     count++;
     
     // Firestore batch limit is 500
@@ -337,9 +357,28 @@ export const deleteSessionsByClass = async (classId: string): Promise<number> =>
     );
     const snapshot = await getDocs(q);
     
+    if (snapshot.empty) {
+      return 0;
+    }
+    
+    // Firestore batch limit is 500 operations
     const batch = writeBatch(db);
-    snapshot.docs.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
+    let count = 0;
+    
+    for (const doc of snapshot.docs) {
+      batch.delete(doc.ref);
+      count++;
+      
+      // Commit batch when reaching limit
+      if (count % 400 === 0) {
+        await batch.commit();
+      }
+    }
+    
+    // Commit remaining operations
+    if (count % 400 !== 0) {
+      await batch.commit();
+    }
     
     return snapshot.size;
   } catch (error) {

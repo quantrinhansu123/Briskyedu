@@ -34,6 +34,11 @@ export async function validateTotalSessionsChange(
   currentTotal: number,
   newTotal: number
 ): Promise<{ valid: boolean; message: string }> {
+  // Allow setting to 0 (unlimited) - always valid
+  if (newTotal === 0) {
+    return { valid: true, message: '' };
+  }
+
   // Allow increase
   if (newTotal >= currentTotal) {
     return { valid: true, message: '' };
@@ -170,6 +175,7 @@ export class ClassService {
       const docRef = doc(db, COLLECTION_NAME, id);
 
       // Filter out undefined values (Firestore doesn't accept undefined)
+      // But keep 0 values (e.g., totalSessions = 0 means unlimited)
       const filteredUpdates = Object.fromEntries(
         Object.entries(updates).filter(([_, v]) => v !== undefined)
       );
@@ -178,6 +184,11 @@ export class ClassService {
         ...filteredUpdates,
         updatedAt: Timestamp.now()
       };
+
+      // Explicitly handle totalSessions = 0 (unlimited) - ensure it's saved even if it's 0
+      if (updates.totalSessions !== undefined) {
+        updateData.totalSessions = updates.totalSessions;
+      }
 
       // Trim string fields to remove trailing spaces
       if (updateData.name) {

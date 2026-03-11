@@ -357,16 +357,20 @@ export const ClassManager: React.FC = () => {
       }
 
       // Validate totalSessions change (BLOCK if reducing with attendance)
+      // Allow totalSessions = 0 (unlimited) - always valid
       if (data.totalSessions !== undefined && data.totalSessions !== existingClass.totalSessions) {
-        const validation = await validateTotalSessionsChange(
-          id,
-          existingClass.totalSessions || 0,
-          data.totalSessions
-        );
-        if (!validation.valid) {
-          setToast({ type: 'error', message: validation.message });
-          setTimeout(() => setToast(null), 5000);
-          return;
+        // Skip validation if setting to 0 (unlimited)
+        if (data.totalSessions !== 0) {
+          const validation = await validateTotalSessionsChange(
+            id,
+            existingClass.totalSessions || 0,
+            data.totalSessions
+          );
+          if (!validation.valid) {
+            setToast({ type: 'error', message: validation.message });
+            setTimeout(() => setToast(null), 5000);
+            return;
+          }
         }
       }
 

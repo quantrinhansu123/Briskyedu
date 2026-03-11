@@ -555,6 +555,12 @@ export const saveFullAttendance = async (
     // Filter out students with PENDING status (not yet marked)
     const markedStudents = students.filter(s => s.status && s.status !== ('' as AttendanceStatus));
     console.log('[saveFullAttendance] Marked students after filter:', markedStudents.length);
+    
+    // Validate: Must have at least one marked student
+    if (markedStudents.length === 0) {
+      console.error('[saveFullAttendance] No marked students to save!');
+      throw new Error('Vui lòng đánh dấu trạng thái cho ít nhất một học sinh trước khi lưu.');
+    }
 
     // Calculate summary from marked students only (ON_TIME + LATE = present)
     const present = markedStudents.filter(s => s.status === AttendanceStatus.ON_TIME || s.status === AttendanceStatus.LATE).length;
@@ -627,8 +633,13 @@ export const saveFullAttendance = async (
     console.log('[saveFullAttendance] All done! Returning attendanceId:', attendanceId);
     return attendanceId;
   } catch (error) {
-    console.error('Error saving full attendance:', error);
-    throw new Error('Không thể lưu điểm danh');
+    console.error('[saveFullAttendance] Error saving full attendance:', error);
+    // Preserve original error message if it's already an Error with message
+    if (error instanceof Error && error.message) {
+      throw error;
+    }
+    // Otherwise, wrap in generic error
+    throw new Error(error instanceof Error ? error.message : 'Không thể lưu điểm danh. Vui lòng thử lại.');
   }
 };
 

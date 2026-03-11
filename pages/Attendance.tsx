@@ -17,7 +17,7 @@ import { useAttendance } from '../src/hooks/useAttendance';
 import { useAuth } from '../src/hooks/useAuth';
 import { usePermissions } from '../src/hooks/usePermissions';
 import { useSessions } from '../src/hooks/useSessions';
-import { ClassSession, generateSessionsForClass, saveSessionsToFirestore, deleteSessionsByClass } from '../src/services/sessionService';
+import { ClassSession, generateSessionsForClass, saveSessionsToFirestore, deleteSessionsByClass, renumberSessionsByDate } from '../src/services/sessionService';
 import { formatSchedule } from '../src/utils/scheduleUtils';
 import { collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../src/config/firebase';
@@ -128,7 +128,7 @@ export const Attendance: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 320, maxHeight: 400 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 420, maxHeight: 400 });
   const sessionDropdownRef = useRef<HTMLDivElement>(null);
   const dropdownPanelRef = useRef<HTMLDivElement>(null);
   const sessionButtonRef = useRef<HTMLButtonElement>(null);
@@ -265,19 +265,23 @@ export const Attendance: React.FC = () => {
   // Eligible statuses: Đang học, Đã học hết phí, Nợ phí (exclude: Nghỉ học, Bảo lưu, Học thử, Nợ hợp đồng)
   const ATTENDANCE_ELIGIBLE_STATUSES = [StudentStatus.ACTIVE, StudentStatus.EXPIRED_FEE, StudentStatus.DEBT];
   const selectedClass = classes.find(c => c.id === selectedClassId);
-  const classStudents = allStudents.filter(s => 
-    (s.classId === selectedClassId || 
-    s.class === selectedClass?.name ||
-    s.className === selectedClass?.name ||
-    (s.classIds && s.classIds.includes(selectedClassId))) &&
-    ATTENDANCE_ELIGIBLE_STATUSES.includes(s.status as StudentStatus)
-  );
+  const classStudents = useMemo(() => {
+    return allStudents.filter(s => 
+      (s.classId === selectedClassId || 
+      s.class === selectedClass?.name ||
+      s.className === selectedClass?.name ||
+      (s.classIds && s.classIds.includes(selectedClassId))) &&
+      ATTENDANCE_ELIGIBLE_STATUSES.includes(s.status as StudentStatus)
+    );
+  }, [allStudents, selectedClassId, selectedClass?.name]);
 
   // Check if selected date is valid for class schedule
   const isValidScheduleDay = useMemo(() => {
     if (!selectedClass?.schedule || !attendanceDate) return true; // Allow if no schedule defined
     
-    const date = new Date(attendanceDate);
+    // Parse date using local timezone to avoid UTC issues
+    const [year, month, day] = attendanceDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     const schedule = selectedClass.schedule.toLowerCase();
@@ -354,29 +358,64 @@ export const Attendance: React.FC = () => {
     initData();
   }, [selectedClassId, attendanceDate, classStudents.length]);
 
+  // Create stable reference for classStudents IDs to avoid infinite loop
+  const classStudentIds = useMemo(() => 
+    classStudents.map(s => s.id).sort().join(','), 
+    [classStudents]
+  );
+  
+  // Create stable reference for studentAttendance to avoid infinite loop
+  const studentAttendanceKey = useMemo(() => {
+    if (studentAttendance.length === 0) return '';
+    return studentAttendance.map(sa => 
+      `${sa.studentId}:${sa.status || ''}:${sa.note || ''}`
+    ).sort().join('|');
+  }, [studentAttendance]);
+  
   // Sync with loaded student attendance - only show students in current filtered classStudents
   useEffect(() => {
     if (isResetting) return; // Skip sync when user is resetting the form
     if (studentAttendance.length > 0 && existingRecord && classStudents.length > 0) {
-      setAttendanceData(
-        classStudents.map(s => {
-          const existing = studentAttendance.find(sa => sa.studentId === s.id);
-          return {
-            studentId: s.id,
-            studentName: s.fullName || (s as any).name || 'Unknown',
-            studentCode: s.code || s.id.slice(0, 6),
-            status: existing?.status || AttendanceStatus.PENDING,
-            note: existing?.note || '',
-            homeworkCompletion: existing?.homeworkCompletion,
-            testName: existing?.testName || '',
-            score: existing?.score,
-            bonusPoints: existing?.bonusPoints,
-            punctuality: existing?.punctuality || '',
-          };
-        })
-      );
+      const newAttendanceData = classStudents.map(s => {
+        const existing = studentAttendance.find(sa => sa.studentId === s.id);
+        return {
+          studentId: s.id,
+          studentName: s.fullName || (s as any).name || 'Unknown',
+          studentCode: s.code || s.id.slice(0, 6),
+          status: existing?.status || AttendanceStatus.PENDING,
+          note: existing?.note || '',
+          homeworkCompletion: existing?.homeworkCompletion,
+          testName: existing?.testName || '',
+          score: existing?.score,
+          bonusPoints: existing?.bonusPoints,
+          punctuality: existing?.punctuality || '',
+        };
+      });
+      
+      // Only update if data actually changed to prevent infinite loop
+      setAttendanceData(prev => {
+        // Check if data is actually different
+        if (prev.length !== newAttendanceData.length) {
+          return newAttendanceData;
+        }
+        
+        const hasChanged = prev.some((p, i) => {
+          const n = newAttendanceData[i];
+          return !n || 
+            p.studentId !== n.studentId ||
+            p.status !== n.status ||
+            p.note !== n.note ||
+            p.homeworkCompletion !== n.homeworkCompletion ||
+            p.testName !== n.testName ||
+            p.score !== n.score ||
+            p.bonusPoints !== n.bonusPoints ||
+            p.punctuality !== n.punctuality;
+        });
+        
+        return hasChanged ? newAttendanceData : prev;
+      });
     }
-  }, [studentAttendance, existingRecord, classStudents, isResetting]);
+  }, [studentAttendanceKey, existingRecord?.id, classStudentIds, isResetting]);
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
     setAttendanceData(prev =>
@@ -408,6 +447,13 @@ export const Attendance: React.FC = () => {
 
     const selectedClass = classes.find(c => c.id === selectedClassId);
     if (!selectedClass) return;
+    
+    // Check if at least one student has a status marked
+    const hasMarkedStudents = attendanceData.some(s => s.status && s.status !== '');
+    if (!hasMarkedStudents) {
+      setMessage({ type: 'error', text: 'Vui lòng đánh dấu trạng thái cho ít nhất một học sinh trước khi lưu.' });
+      return;
+    }
 
     // When in session mode, require a session to be selected
     if (useSessionMode && !selectedSession) {
@@ -523,7 +569,26 @@ export const Attendance: React.FC = () => {
       setSelectedSession(null);
     } catch (error) {
       console.error('[Attendance] Save error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Không thể lưu điểm danh. Vui lòng thử lại.';
+      let errorMessage = 'Không thể lưu điểm danh. Vui lòng thử lại.';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Log full error details for debugging
+        console.error('[Attendance] Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        // Try to extract meaningful error message
+        const err = error as any;
+        if (err.message) errorMessage = err.message;
+        else if (err.code) errorMessage = `Lỗi ${err.code}: ${err.message || 'Không thể lưu điểm danh'}`;
+        console.error('[Attendance] Error object:', err);
+      }
+      
       setMessage({ type: 'error', text: errorMessage });
     } finally {
       setSaving(false);
@@ -630,11 +695,17 @@ export const Attendance: React.FC = () => {
         return;
       }
 
+      // Helper to parse date string using local timezone (avoid UTC parsing issues)
+      const parseLocalDate = (dateStr: string): Date => {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      };
+      
       // Determine start date for generation
       let fromDate: Date;
       if (selectedClass.endDate) {
         // If has endDate, always start from class startDate
-        fromDate = new Date(selectedClass.startDate);
+        fromDate = parseLocalDate(selectedClass.startDate);
       } else {
         // If no endDate, start from the last session date + 1 day, or from startDate if no sessions exist
         if (allSessions.length > 0) {
@@ -644,11 +715,11 @@ export const Attendance: React.FC = () => {
           }, allSessions[0].date);
           
           // Start from the day after the last session
-          fromDate = new Date(lastSessionDate);
+          fromDate = parseLocalDate(lastSessionDate);
           fromDate.setDate(fromDate.getDate() + 1);
         } else {
           // No sessions exist, start from class startDate
-          fromDate = new Date(selectedClass.startDate);
+          fromDate = parseLocalDate(selectedClass.startDate);
         }
       }
       fromDate.setHours(0, 0, 0, 0); // Reset to start of day
@@ -657,7 +728,7 @@ export const Attendance: React.FC = () => {
       let toDate: Date;
       if (selectedClass.endDate) {
         // If has endDate, use it
-        toDate = new Date(selectedClass.endDate);
+        toDate = parseLocalDate(selectedClass.endDate);
       } else {
         // If no endDate, add 30 days from fromDate (incremental generation)
         toDate = new Date(fromDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -669,12 +740,20 @@ export const Attendance: React.FC = () => {
         ? selectedClass.totalSessions
         : 50; // Default to 50 sessions per generation if no endDate or totalSessions
 
+      // Helper to format date to YYYY-MM-DD using local date
+      const formatLocalDate = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
       // Generate sessions based on class schedule
       const generatedSessions = await generateSessionsForClass({
         id: selectedClass.id,
         name: selectedClass.name,
         schedule: selectedClass.schedule,
-        startDate: fromDate.toISOString().split('T')[0],
+        startDate: formatLocalDate(fromDate),
         endDate: selectedClass.endDate,
         room: selectedClass.room,
         teacherId: selectedClass.teacherId,
@@ -715,6 +794,17 @@ export const Attendance: React.FC = () => {
 
       // Save to Firestore
       const savedCount = await saveSessionsToFirestore(newSessions);
+      
+      // Renumber all sessions by date to ensure unique sequential sessionNumbers
+      try {
+        const renumberedCount = await renumberSessionsByDate(selectedClassId);
+        if (renumberedCount > 0) {
+          console.log(`[Attendance] Renumbered ${renumberedCount} sessions`);
+        }
+      } catch (error) {
+        console.warn('[Attendance] Error renumbering sessions:', error);
+        // Don't block success message if renumbering fails
+      }
       
       const dateRange = selectedClass.endDate 
         ? `từ ${new Date(selectedClass.startDate).toLocaleDateString('vi-VN')} đến ${new Date(selectedClass.endDate).toLocaleDateString('vi-VN')}`
@@ -875,7 +965,9 @@ export const Attendance: React.FC = () => {
   const classHasScheduleOnDate = (classInfo: any, dateStr: string): boolean => {
     if (!classInfo?.schedule) return false;
     
-    const date = new Date(dateStr + 'T12:00:00'); // Add time to avoid timezone issues
+    // Parse date using local timezone to avoid UTC issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday...
     const schedule = classInfo.schedule.toLowerCase();
     
@@ -1247,11 +1339,18 @@ export const Attendance: React.FC = () => {
                         }
                       }}
                       disabled={!selectedClassId || sessionsLoading}
-                      className="w-[320px] px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between disabled:bg-gray-100"
+                      className="w-[420px] px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between disabled:bg-gray-100"
                     >
-                      <span className={selectedSession ? 'text-gray-900' : 'text-gray-500'}>
+                      <span className={`${selectedSession ? 'text-gray-900' : 'text-gray-500'} whitespace-nowrap overflow-hidden text-ellipsis`}>
                         {selectedSession 
-                          ? `Buổi ${selectedSession.sessionNumber} - ${new Date(selectedSession.date).toLocaleDateString('vi-VN')} (${selectedSession.dayOfWeek})`
+                          ? (() => {
+                              const teacherName = selectedSession.teacherName || selectedClass?.teacher || '';
+                              const dateStr = new Date(selectedSession.date).toLocaleDateString('vi-VN');
+                              const timeStr = selectedSession.time || '';
+                              return teacherName 
+                                ? `GV: ${teacherName} - ${selectedSession.dayOfWeek} - ${dateStr}${timeStr ? ` (${timeStr})` : ''}`
+                                : `Buổi ${selectedSession.sessionNumber} - ${dateStr} (${selectedSession.dayOfWeek})`;
+                            })()
                           : '-- Chọn buổi học --'
                         }
                       </span>
@@ -1313,10 +1412,19 @@ export const Attendance: React.FC = () => {
                                 handleSelectSession(s);
                                 setSessionDropdownOpen(false);
                               }}
-                              className={`px-3 py-2 cursor-pointer text-sm flex items-center gap-2 ${bgClass} ${selectedSession?.id === s.id ? 'ring-2 ring-inset ring-indigo-400' : ''}`}
+                              className={`px-3 py-2 cursor-pointer text-xs flex items-center gap-2 ${bgClass} ${selectedSession?.id === s.id ? 'ring-2 ring-inset ring-indigo-400' : ''}`}
                             >
-                              <span style={{ color: iconColor, fontWeight: 'bold', fontSize: '14px' }}>{icon}</span>
-                              <span>Buổi {s.sessionNumber} - {new Date(s.date).toLocaleDateString('vi-VN')} ({s.dayOfWeek})</span>
+                              <span style={{ color: iconColor, fontWeight: 'bold', fontSize: '12px' }}>{icon}</span>
+                              <span className="whitespace-nowrap">
+                                {(() => {
+                                  const teacherName = s.teacherName || selectedClass?.teacher || '';
+                                  const dateStr = new Date(s.date).toLocaleDateString('vi-VN');
+                                  const timeStr = s.time || '';
+                                  return teacherName 
+                                    ? `GV: ${teacherName} - ${s.dayOfWeek} - ${dateStr}${timeStr ? ` (${timeStr})` : ''}`
+                                    : `Buổi ${s.sessionNumber} - ${dateStr} (${s.dayOfWeek})`;
+                                })()}
+                              </span>
                               {isHoliday && <span className="ml-auto text-xs text-purple-600 font-medium">{s.holidayName || 'Nghỉ lễ'}</span>}
                             </div>
                           );

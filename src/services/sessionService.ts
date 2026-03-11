@@ -16,6 +16,7 @@ import {
   orderBy,
   writeBatch,
   Timestamp,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -53,6 +54,28 @@ const DAY_MAP: Record<string, number> = {
 };
 
 const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+/**
+ * Parse date string to Date object using local timezone (avoid UTC parsing issues)
+ * Input: "YYYY-MM-DD"
+ * Output: Date object in local timezone
+ */
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/**
+ * Format Date to YYYY-MM-DD string using local date (avoid UTC conversion issues)
+ * Input: Date object
+ * Output: "YYYY-MM-DD" string
+ */
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 /**
  * Parse schedule string to get days of week
@@ -141,9 +164,9 @@ export const generateSessionsForClass = async (
   
   const time = parseScheduleTime(schedule);
   
-  // Determine date range
-  const fromDate = options?.fromDate || (startDate ? new Date(startDate) : new Date());
-  const toDate = options?.toDate || (endDate ? new Date(endDate) : new Date(fromDate.getTime() + 90 * 24 * 60 * 60 * 1000)); // Default 90 days
+  // Determine date range - use local date parsing to avoid timezone issues
+  const fromDate = options?.fromDate || (startDate ? parseLocalDate(startDate) : new Date());
+  const toDate = options?.toDate || (endDate ? parseLocalDate(endDate) : new Date(fromDate.getTime() + 90 * 24 * 60 * 60 * 1000)); // Default 90 days
   const maxSessions = options?.maxSessions || classData.totalSessions || 50;
   
   const sessions: ClassSession[] = [];
@@ -158,7 +181,7 @@ export const generateSessionsForClass = async (
         classId: classData.id,
         className: classData.name,
         sessionNumber,
-        date: currentDate.toISOString().split('T')[0],
+        date: formatLocalDate(currentDate), // Use local date format instead of toISOString
         dayOfWeek: DAY_NAMES[dayOfWeek],
         time: time || undefined,
         room: classData.room,
@@ -296,7 +319,7 @@ export const getAllPendingSessions = async (
   options?: { classIds?: string[]; fromDate?: string; toDate?: string }
 ): Promise<ClassSession[]> => {
   try {
-    const today = options?.fromDate || new Date().toISOString().split('T')[0];
+    const today = options?.fromDate || formatLocalDate(new Date());
     
     const q = query(
       collection(db, COLLECTION_NAME),
@@ -388,6 +411,86 @@ export const deleteSessionsByClass = async (classId: string): Promise<number> =>
 };
 
 /**
+ * Renumber all sessions for a class by date order
+ * Ensures sessionNumber is unique and sequential (1, 2, 3, ...)
+ */
+export const renumberSessionsByDate = async (classId: string): Promise<number> => {
+  try {
+    // Get all sessions for the class (no orderBy to avoid index requirement, sort client-side)
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('classId', '==', classId)
+    );
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return 0;
+    }
+    
+    const sessions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as (ClassSession & { id: string })[];
+    
+    // Sort by date to ensure correct order (client-side sort as backup)
+    sessions.sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Check which sessions need renumbering
+    const batch = writeBatch(db);
+    let updateCount = 0;
+    
+    sessions.forEach((session, index) => {
+      const correctNumber = index + 1;
+      if (session.sessionNumber !== correctNumber) {
+        const docRef = doc(db, COLLECTION_NAME, session.id);
+        batch.update(docRef, { sessionNumber: correctNumber });
+        updateCount++;
+      }
+    });
+    
+    if (updateCount > 0) {
+      // Firestore batch limit is 500
+      if (updateCount <= 500) {
+        await batch.commit();
+      } else {
+        // Split into multiple batches if needed
+        const batches: ReturnType<typeof writeBatch>[] = [];
+        let currentBatch = writeBatch(db);
+        let currentCount = 0;
+        
+        sessions.forEach((session, index) => {
+          const correctNumber = index + 1;
+          if (session.sessionNumber !== correctNumber) {
+            const docRef = doc(db, COLLECTION_NAME, session.id);
+            currentBatch.update(docRef, { sessionNumber: correctNumber });
+            currentCount++;
+            
+            if (currentCount >= 400) {
+              batches.push(currentBatch);
+              currentBatch = writeBatch(db);
+              currentCount = 0;
+            }
+          }
+        });
+        
+        if (currentCount > 0) {
+          batches.push(currentBatch);
+        }
+        
+        for (const b of batches) {
+          await b.commit();
+        }
+      }
+    }
+    
+    return updateCount;
+  } catch (error) {
+    console.error('Error renumbering sessions:', error);
+    throw error;
+  }
+};
+
+/**
  * Check if session exists for class + date
  */
 export const getSessionByClassAndDate = async (
@@ -424,7 +527,7 @@ export const addMakeupSession = async (
   note?: string
 ): Promise<string> => {
   try {
-    const dayOfWeek = new Date(date).getDay();
+    const dayOfWeek = parseLocalDate(date).getDay();
     
     // Get last session number for this class
     const sessions = await getSessionsByClass(classData.id);

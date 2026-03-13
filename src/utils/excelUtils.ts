@@ -154,8 +154,7 @@ export const STUDENT_FIELDS = [
   { key: 'branch', label: 'Cơ sở', example: 'Bình Minh' },
   { key: 'class', label: 'Lớp đang theo học', example: 'Starters 22' },
   { key: 'registeredSessions', label: 'Số buổi đăng ký (Gói học)', example: '48' },
-  { key: 'attendedSessions', label: 'Số buổi đã học', example: '14' },
-  { key: 'remainingSessions', label: 'Số buổi còn lại', example: '34 (âm nếu nợ: -2)' },
+  { key: 'legacyAttendedSessions', label: 'Đã học', example: '' },
   { key: 'status', label: 'Tình trạng', example: 'Đang học' },
   { key: 'note', label: 'Ghi chú', example: '' },
 ];
@@ -171,10 +170,11 @@ export const STUDENT_MAPPING = [
   { excelColumn: 'Phụ huynh', dbField: 'parentName', aliases: ['Tên phụ huynh', 'PHỤ HUYNH', 'Tên PH'] },
   { excelColumn: 'Cơ sở', dbField: 'branch', aliases: ['CƠ SỞ', 'Chi nhánh', 'CHI NHÁNH', 'Branch', 'Center'] },
   { excelColumn: 'Lớp đang theo học', dbField: 'class', aliases: ['Lớp học', 'Lớp', 'LỚP ĐANG THEO HỌC'] },
-  // 3 cột số buổi - map từ Excel thực tế
+  // 4 cột số buổi - map từ Excel thực tế
   { excelColumn: 'Số buổi đăng ký', dbField: 'registeredSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI ĐĂNG KÍ KHOÁ GẦN NHẤT', 'SỐ BUỔI ĐĂNG KÍ KHOÁ', 'ĐĂNG KÍ KHOÁ', 'SỐ BUỔI ĐĂNG KÍ', 'SỐ BUỔI ĐĂNG KÝ', 'Gói học'] },
-  { excelColumn: 'Số buổi đã học', dbField: 'attendedSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI ĐÃ HỌC ĐẾN NGÀY', 'SỐ BUỔI ĐÃ HỌC ĐẾN', 'SỐ BUỔI ĐÃ HỌC', 'ĐÃ HỌC ĐẾN', 'Đã học', 'ĐÃ HỌC'] },
+  { excelColumn: 'Đã điểm danh', dbField: 'attendedSessions', transform: parseSessionNumber, aliases: ['ĐÃ ĐIỂM DANH', 'SỐ BUỔI ĐÃ ĐIỂM DANH', 'ĐIỂM DANH'] },
   { excelColumn: 'Số buổi còn lại', dbField: 'remainingSessions', transform: parseSessionNumber, aliases: ['SỐ BUỔI CÒN LẠI TÍNH ĐẾN', 'SỐ BUỔI CÒN LẠI', 'CÒN LẠI TÍNH ĐẾN', 'Còn lại', 'CÒN LẠI'] },
+  { excelColumn: 'Đã học', dbField: 'legacyAttendedSessions', transform: parseSessionNumber, aliases: ['ĐÃ HỌC (CŨ)', 'Đã học cũ', 'SỐ BUỔI ĐÃ HỌC (CŨ)', 'Legacy Attended', 'ĐÃ HỌC CŨ'] },
   { excelColumn: 'Tình trạng', dbField: 'status', transform: parseStudentStatus, aliases: ['Trạng thái', 'TÌNH TRẠNG', 'Status'] },
   { excelColumn: 'Ghi chú', dbField: 'note', aliases: ['GHI CHÚ', 'Note'] },
 ];
@@ -337,7 +337,7 @@ export const prepareStudentExport = (students: any[]): Record<string, any>[] => 
     'Địa chỉ': s.address || '',
     'Lớp học': s.class || '',
     'Số buổi đăng ký': s.registeredSessions || 0,
-    'Số buổi còn lại': s.remainingSessions ?? ((s.registeredSessions || 0) - (s.attendedSessions || 0) - (s.legacyAttendedSessions || 0)),
+    'Đã học': s.legacyAttendedSessions || 0,
     'Trạng thái': s.status || '',
     'Ghi chú': s.note || '',
   }));

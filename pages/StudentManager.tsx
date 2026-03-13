@@ -36,8 +36,8 @@ import { ModalPortal } from '@/components/modal-portal';
 
 // Constants for table column count
 const STUDENT_TABLE_COLUMNS = {
-  base: 13,  // Standard columns count + selection checkbox column
-  withDropoutReason: 14  // When showing dropout reason column
+  base: 14,  // Standard columns count + selection checkbox column (added Đã học(Cũ))
+  withDropoutReason: 15  // When showing dropout reason column
 };
 
 interface StudentManagerProps {
@@ -448,6 +448,7 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
           classId: matchedClass?.id || '', // Lưu classId để link chính xác
           registeredSessions: typeof row.registeredSessions === 'number' ? row.registeredSessions : parseInt(row.registeredSessions) || 0,
           attendedSessions: typeof row.attendedSessions === 'number' ? row.attendedSessions : parseInt(row.attendedSessions) || 0,
+          legacyAttendedSessions: typeof row.legacyAttendedSessions === 'number' ? row.legacyAttendedSessions : parseInt(row.legacyAttendedSessions) || 0,
           remainingSessions: remainingSessions,
           status: status as StudentStatus,
           note: row.note || '',
@@ -624,8 +625,9 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                     <th className="px-4 py-3 bg-gray-50">Phụ huynh</th>
                     <th className="px-4 py-3 bg-gray-50">Lớp học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Gói học</th>
-                    <th className="px-4 py-3 bg-gray-50 text-center">Đã học</th>
+                    <th className="px-4 py-3 bg-gray-50 text-center">Đã điểm danh</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Còn lại</th>
+                    <th className="px-4 py-3 bg-gray-50 text-center">Đã học</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày BĐ</th>
                     <th className="px-4 py-3 bg-gray-50 text-center">Ngày KT</th>
                     <th className="px-4 py-3 bg-gray-50">HĐ gần nhất</th>
@@ -712,6 +714,9 @@ export const StudentManager: React.FC<StudentManagerProps> = ({
                            </span>
                          );
                        })()}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                       <span className="font-semibold text-gray-600">{getStudentSessionData(student).legacyAttended}</span>
                     </td>
                     <td className="px-4 py-3 text-center text-xs text-gray-600">
                        {student.startDate ? new Date(student.startDate).toLocaleDateString('vi-VN') : '---'}

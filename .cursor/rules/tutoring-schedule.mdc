@@ -1,0 +1,293 @@
+---
+description: Rules for tutoring schedule (lịch hẹn học bồi) workflow and status transitions
+globs: **/tutoringService.ts,**/TutoringManager.tsx,**/useTutoring.ts
+---
+
+# Lịch Hẹn Học Bồi (Tutoring Schedule) Rules
+
+## Tổng Quan
+
+Hệ thống quản lý lịch hẹn học bồi (makeup tutoring) với các trạng thái và flow cụ thể. Service chính: [tutoringService.ts](mdc:src/services/tutoringService.ts)
+
+## Các Trạng Thái Tutoring
+
+```typescript
+type TutoringStatus =
+  | 'Chưa bồi'      // Mới tạo, chưa đặt lịch
+  | 'Đã hẹn'        // Đã đặt lịch với giáo viên
+  | 'Đã bồi'        // Đã hoàn thành học bồi
+  | 'Nghỉ tính phí' // Học sinh từ chối, vẫn tính phí
+  | 'Nghỉ bảo lưu'  // Có lý do hợp lệ, không tính phí, gia hạn khóa học
+  | 'Hủy';          // Đã hủy
+```
+
+## Flow Chính
+
+### 1. Tạo Tutoring Record
+
+#### A. Tự Động Từ Điểm Danh (Auto-Create)
+**Khi nào**: Khi lưu điểm danh (`saveFullAttendance()`)
+
+**Điều kiện tự động kích hoạt**:
+- ✅ Học sinh có status = `AttendanceStatus.ABSENT` (Vắng)
+- ✅ Chỉ tạo cho học sinh đã được đánh dấu vắng trong form điểm danh
+- ❌ **KHÔNG** tạo cho: "Đúng giờ", "Trễ giờ", "Bảo lưu", "Đã bồi"
+
+**Status mặc định khi tự động tạo**: `'Đã hẹn'` (không phải 'Chưa bồi')
+- `scheduledDate`: `null` (chưa điền)
+- `scheduledTime`: `null` (chưa điền)
+- `tutor`: `null` (chưa chọn giáo viên)
+- `note`: Tự động tạo: `"Vắng buổi học ngày DD/MM/YYYY"`
+- `statusHistory`: Tự động thêm entry với `reason: 'Auto-created from attendance'`
+- `studentAttendanceId`: Tự động link với record điểm danh
+
+**Code flow**:
+```typescript
+// Trong saveFullAttendance()
+const absentStudents = markedStudents.filter(s => s.status === AttendanceStatus.ABSENT);
+for (const student of absentStudents) {
+  await createTutoringFromAbsent({
+    studentId: student.studentId,
+    studentName: student.studentName,
+    classId: attendanceData.classId,
+    className: attendanceData.className,
+    absentDate: attendanceData.date,
+    type: 'Nghỉ học',
+    studentAttendanceId: studentAttendanceId, // Auto-link
+  });
+}
+```
+
+#### B. Tạo Thủ Công (Manual Create)
+**Khi nào**: Từ UI (TutoringManager) - tạo mới thủ công
+
+**Status mặc định**: `'Chưa bồi'` hoặc `'Đã hẹn'` (nếu có `tutorName`)
+- Nếu có `tutorName` → status = `'Đã hẹn'`
+- Nếu không có → status = `'Chưa bồi'`
+
+**Link**: `studentAttendanceId` (nếu có) hoặc `absentDate`
+
+**Các trường có thể điền khi tạo**:
+- ✅ `studentId`, `studentName`, `classId`, `className`, `type` - **Bắt buộc**
+- ✅ `scheduledDate`, `scheduledTime` - **Có thể điền ngay** (mặc định: hôm nay, 15:00)
+- ✅ `tutor`, `tutorName` - **Có thể điền ngay** (nếu có → status = 'Đã hẹn', không có → status = 'Chưa bồi')
+- ✅ `note` - **Có thể điền bất cứ lúc nào** (optional)
+- ✅ `absentDate` - **Tự động** từ attendance record
+- ✅ `studentAttendanceId` - **Tự động** link nếu có
+
+### 2. Đặt Lịch (Schedule) - `scheduleTutoring()`
+**Khi nào**: Từ trạng thái `'Chưa bồi'` → `'Đã hẹn'`
+
+**Yêu cầu** (phải điền đầy đủ):
+- `scheduledDate`: Ngày hẹn học bồi ✅ **Bắt buộc**
+- `scheduledTime`: Giờ hẹn ✅ **Bắt buộc**
+- `tutor`: ID giáo viên ✅ **Bắt buộc**
+- `tutorName`: Tên giáo viên ✅ **Bắt buộc**
+
+**Lưu ý**: 
+- Có thể điền ngay khi tạo mới (trong CreateTutoringModal)
+- Hoặc điền sau bằng `scheduleTutoring()` khi status = `'Chưa bồi'`
+
+**Cập nhật**:
+```typescript
+{
+  status: 'Đã hẹn',
+  scheduledDate: date,
+  scheduledTime: time,
+  tutor: tutorId,
+  tutorName: tutorName,
+  statusHistory: [...existingHistory, newEntry]
+}
+```
+
+**Lưu ý**: 
+- Phải thêm entry vào `statusHistory` với `status: 'Đã hẹn'`
+- `changedBy` phải là userId hoặc 'system'
+
+### 3. Hoàn Thành (Complete) - `completeTutoring()`
+**Khi nào**: Từ trạng thái `'Đã hẹn'` → `'Đã bồi'`
+
+**Điều kiện**: Phải có `scheduledDate`, `scheduledTime`, `tutor` (status = 'Đã hẹn')
+
+**Cập nhật Tutoring**:
+```typescript
+{
+  status: 'Đã bồi',
+  completedAt: ISO timestamp,
+  completedBy: userId,
+  note?: string,
+  statusHistory: [...existingHistory, newEntry]
+}
+```
+
+**Cập nhật StudentAttendance**:
+- Nếu có `studentAttendanceId`: Update status → `AttendanceStatus.TUTORED`
+- Nếu không có: Tìm theo `absentDate`, `studentId`, `classId` và link lại
+
+**Cập nhật Student Sessions**:
+- Tăng `attendedSessions` (+1)
+- Nếu là makeup (không có `sessionId`):
+  - Tăng `makeupDone` (+1)
+  - Giảm `makeupOwed` (-1)
+  - Tăng `makeupSessionsAttended` (+1)
+- Tính lại `remainingSessions`
+- Tính lại `expectedEndDate` (nếu cần)
+
+### 4. Nghỉ Tính Phí - `markChargedAbsence()`
+**Khi nào**: Học sinh từ chối học bồi, vẫn tính phí
+- Chỉ áp dụng cho status `'Chưa bồi'` hoặc `'Đã hẹn'`
+- Không cần có `scheduledDate`/`tutor` (có thể từ chối trước khi đặt lịch)
+
+**Yêu cầu**: `reason` là **bắt buộc** (phải điền lý do)
+
+**Cập nhật**:
+```typescript
+{
+  status: 'Nghỉ tính phí',
+  chargedReason: reason,
+  completedAt: ISO timestamp,
+  completedBy: userId,
+  statusHistory: [...existingHistory, newEntry]
+}
+```
+
+**Lưu ý**:
+- Giảm `makeupOwed` (-1) - miễn nghĩa vụ học bù
+- `studentAttendance` giữ nguyên status "Vắng" - vẫn tính buổi học
+
+### 5. Nghỉ Bảo Lưu - `markReservedAbsence()`
+**Khi nào**: Có lý do hợp lệ, không tính phí, gia hạn khóa học
+- Chỉ áp dụng cho status `'Đã hẹn'` (session đã được hẹn lịch)
+- **KHÔNG** áp dụng cho `'Chưa bồi'` (phải đặt lịch trước)
+
+**Yêu cầu**: 
+- `note` là **optional** (có thể để trống)
+- Nhưng `reason` trong `historyEntry` chỉ thêm nếu `note` có giá trị
+
+**Cập nhật**:
+```typescript
+{
+  status: 'Nghỉ bảo lưu',
+  note?: string,  // Optional
+  completedAt: ISO timestamp,
+  completedBy: userId,
+  statusHistory: [...existingHistory, newEntry]
+}
+```
+
+**Lưu ý**:
+- Update `studentAttendance` → `AttendanceStatus.RESERVED`
+- Gia hạn `expectedEndDate` của học sinh (gọi `extendStudentCourse()`)
+- Giảm `absentSessions` (-1) và `makeupOwed` (-1)
+- **QUAN TRỌNG**: `reason` trong `historyEntry` chỉ thêm nếu `note` có giá trị (tránh undefined)
+
+### 6. Undo - `undoTutoringCompletion()`
+**Khi nào**: Hoàn tác từ terminal status (`'Đã bồi'`, `'Nghỉ tính phí'`, `'Nghỉ bảo lưu'`)
+
+**Cập nhật**:
+- Revert về `'Đã hẹn'`
+- Revert `studentAttendance` về status trước đó
+- Revert các thay đổi về sessions (nếu cần)
+
+## Khi Nào Có Thể Điền Các Trường
+
+### Khi Tạo Mới (Create)
+✅ **Luôn điền được**:
+- `studentId`, `studentName`, `classId`, `className`, `type` - **Bắt buộc**
+- `scheduledDate` - Mặc định: hôm nay
+- `scheduledTime` - Mặc định: '15:00'
+- `tutor`, `tutorName` - Nếu điền → status = 'Đã hẹn', không điền → status = 'Chưa bồi'
+- `note` - Optional, có thể để trống
+
+### Khi Status = 'Chưa bồi'
+✅ **Có thể điền**:
+- `scheduledDate`, `scheduledTime` - Để đặt lịch
+- `tutor`, `tutorName` - Để chọn giáo viên
+- `note` - Ghi chú
+
+❌ **Không thể**:
+- `completedAt`, `completedBy` - Chỉ khi complete
+- `chargedReason` - Chỉ khi markChargedAbsence
+
+### Khi Status = 'Đã hẹn'
+✅ **Có thể điền**:
+- `note` - Cập nhật ghi chú
+- Có thể `completeTutoring()` → 'Đã bồi'
+- Có thể `markReservedAbsence()` → 'Nghỉ bảo lưu' (chỉ cho session đã hẹn)
+
+❌ **Không thể**:
+- Thay đổi `scheduledDate`, `scheduledTime`, `tutor` - Phải dùng `updateTutoring()` hoặc undo rồi schedule lại
+
+### Khi Status = Terminal ('Đã bồi', 'Nghỉ tính phí', 'Nghỉ bảo lưu')
+✅ **Có thể**:
+- `undoTutoringCompletion()` → Revert về 'Đã hẹn'
+- Sau đó mới có thể điền lại các trường
+
+❌ **Không thể**:
+- Điền trực tiếp các trường scheduling
+- Thay đổi status trực tiếp (phải dùng undo trước)
+
+## Quy Tắc Quan Trọng
+
+### 1. Status History
+- **Luôn** thêm entry vào `statusHistory` khi thay đổi status
+- Format: `{ status, changedAt, changedBy, reason? }`
+- `reason` chỉ thêm nếu có giá trị (không được `undefined`)
+
+### 2. Filter Undefined Values
+- **KHÔNG BAO GIỜ** gửi `undefined` vào Firestore
+- Sử dụng conditional spread: `...(value && { field: value })`
+- Hoặc filter trước khi update: `Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined))`
+
+### 3. Link với StudentAttendance
+- Ưu tiên: `studentAttendanceId` (direct link)
+- Fallback: Tìm theo `absentDate`, `studentId`, `classId`
+- Sau khi tìm thấy, update tutoring với `studentAttendanceId` để link
+
+### 4. Update Student Sessions
+- Chỉ update khi status = `'Đã bồi'`
+- Phân biệt makeup session (không có `sessionId`) vs regular session
+- Tính lại `remainingSessions` và `expectedEndDate`
+
+### 5. Terminal Statuses
+- `['Đã bồi', 'Nghỉ tính phí', 'Nghỉ bảo lưu']` là terminal
+- Có thể undo về `'Đã hẹn'` nếu cần
+
+## Code Examples
+
+### Schedule Tutoring
+```typescript
+await scheduleTutoring(
+  tutoringId,
+  '2025-01-15',
+  '17:00',
+  tutorId,
+  'Cô Lan',
+  userId
+);
+```
+
+### Complete Tutoring
+```typescript
+await completeTutoring(
+  tutoringId,
+  userId,
+  'Học tốt, đã hiểu bài'
+);
+```
+
+### Mark Reserved Absence
+```typescript
+await markReservedAbsence(
+  tutoringId,
+  userId,
+  'Bị ốm, có giấy bác sĩ' // Optional
+);
+```
+
+## Files Liên Quan
+
+- [tutoringService.ts](mdc:src/services/tutoringService.ts) - Core service
+- [useTutoring.ts](mdc:src/hooks/useTutoring.ts) - React hook
+- [TutoringManager.tsx](mdc:pages/TutoringManager.tsx) - UI component
+- [attendanceService.ts](mdc:src/services/attendanceService.ts) - StudentAttendance updates

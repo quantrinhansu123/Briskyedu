@@ -448,18 +448,24 @@ export const markReservedAbsence = async (
       status: 'Nghỉ bảo lưu',
       changedAt: now,
       changedBy: userId,
-      reason: note
+      ...(note && { reason: note }) // Only include reason if note is provided
     };
 
-    // Update tutoring record
-    await updateDoc(docRef, {
+    // Update tutoring record - filter out undefined values
+    const updateData: any = {
       status: 'Nghỉ bảo lưu',
       completedAt: now,
       completedBy: userId,
-      ...(note && { note }),
       statusHistory: [...(tutoring.statusHistory || []), historyEntry],
       updatedAt: now,
-    });
+    };
+    
+    // Only add note field if it has a value (not undefined/null/empty)
+    if (note && note.trim()) {
+      updateData.note = note.trim();
+    }
+
+    await updateDoc(docRef, updateData);
 
     // Update studentAttendance to "Bảo lưu"
     if (tutoring.studentAttendanceId) {

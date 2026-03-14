@@ -186,9 +186,15 @@ export class ClassService {
       };
 
       // Explicitly handle totalSessions = 0 (unlimited) - ensure it's saved even if it's 0
+      // This must be set AFTER spreading filteredUpdates to override any potential issues
+      // IMPORTANT: Use !== undefined check (not truthy check) to allow 0 values
       if (updates.totalSessions !== undefined) {
-        updateData.totalSessions = updates.totalSessions;
+        // Explicitly set totalSessions, including 0 (unlimited)
+        updateData.totalSessions = Number(updates.totalSessions); // Ensure it's a number
+        console.log('[ClassService.updateClass] Setting totalSessions:', updateData.totalSessions, 'type:', typeof updateData.totalSessions, '(0 = unlimited)');
       }
+      
+      console.log('[ClassService.updateClass] Final updateData before save:', JSON.stringify(updateData, null, 2));
 
       // Trim string fields to remove trailing spaces
       if (updateData.name) {

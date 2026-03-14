@@ -42,7 +42,8 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
     foreignTeacher: classData?.foreignTeacher || '',
     curriculum: classData?.curriculum || '',
     progress: classData?.progress || '0/48',
-    totalSessions: classData?.totalSessions || 48,
+    // Use nullish coalescing (??) to allow 0 values (0 means unlimited)
+    totalSessions: classData?.totalSessions ?? 48,
     schedule: classData?.schedule || '',
     scheduleStartTime: '',
     scheduleEndTime: '',
@@ -77,7 +78,8 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
   // Fetch actual session count for existing classes without totalSessions
   useEffect(() => {
     const fetchActualSessionCount = async () => {
-      if (classData && !classData.totalSessions) {
+      // Only fetch if totalSessions is undefined/null (not set), not if it's 0 (unlimited)
+      if (classData && (classData.totalSessions === undefined || classData.totalSessions === null)) {
         try {
           const sessionsSnap = await getDocs(
             query(collection(db, 'classSessions'), where('classId', '==', classData.id))
@@ -575,12 +577,14 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
       ageGroup: formData.ageGroup,
       curriculum: formData.curriculum,
       progress: formData.progress,
+      // Explicitly include totalSessions even if it's 0 (unlimited)
       totalSessions: formData.totalSessions,
       schedule,
       scheduleDetails: scheduleDetailsArray.length > 0 ? scheduleDetailsArray : null,
       room: formData.room,
       startDate: formData.startDate,
-      endDate: formData.endDate,
+      // When totalSessions = 0 (unlimited), endDate should be null or empty
+      endDate: formData.totalSessions === 0 ? null : formData.endDate,
       status: formData.status,
       studentsCount: formData.studentsCount,
       trialStudents: formData.trialStudents,
@@ -603,6 +607,7 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
     };
 
     console.log('[ClassFormModal] Submitting:', submitData);
+    console.log('[ClassFormModal] totalSessions value:', submitData.totalSessions, 'type:', typeof submitData.totalSessions);
     onSubmit(submitData);
   };
 
@@ -1099,12 +1104,12 @@ export const ClassFormModal: React.FC<ClassFormModalProps> = ({ classData, onClo
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-gray-700">Tổng số buổi học</label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={formData.totalSessions === 0} onChange={(e) => { if (e.target.checked) { setFormData({ ...formData, totalSessions: 0, progress: 'Không giới hạn' }); } else { setFormData({ ...formData, totalSessions: 48, progress: '0/48' }); } }} className="w-4 h-4 text-green-600 rounded" />
-                  <span className="text-xs text-green-600 font-medium">Không giới hạn</span>
+                  <input type="checkbox" checked={formData.totalSessions === 0} onChange={(e) => { if (e.target.checked) { setFormData({ ...formData, totalSessions: 0, progress: 'Auto không giới hạn' }); } else { setFormData({ ...formData, totalSessions: 48, progress: '0/48' }); } }} className="w-4 h-4 text-green-600 rounded" />
+                  <span className="text-xs text-green-600 font-medium">Auto không giới hạn</span>
                 </label>
               </div>
               {formData.totalSessions === 0 ? (
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">Không giới hạn số buổi</div>
+                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 text-sm">Auto không giới hạn số buổi</div>
               ) : (
                 <input type="number" value={formData.totalSessions} onChange={(e) => { const total = parseInt(e.target.value) || 48; setFormData({ ...formData, totalSessions: total, progress: `0/${total}` }); }} min={1} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" placeholder="VD: 48" />
               )}
